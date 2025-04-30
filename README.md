@@ -1,1 +1,3 @@
 # Perturbative_Trotter_Error
+
+The repository contains code to implement the research done in the work "Estimating Trotter Approximation Errors to Optimize Hamiltonian Partitioning for Lower Eigenvalue Errors" (https://arxiv.org/abs/2312.13282). We build functionalities to generate fragments of molecular Hamiltonians, calculate exact and approximate Trotter error based on Perturbation theroy, and estimate T gate counts for implementing Quantum Phase Estimation using the second order Trotter approximation. The source code is contained in the package ```pert_trotter```. The google collab notebook ```tutorial.ipynb``` explains how to use the package to reproduce the results in the paper https://arxiv.org/abs/2312.13282.
