@@ -525,3 +525,20 @@ def get_covariance(op1, op2, ev_dict=None, wfs=None):
             expectation(get_sparse_operator(op2, n_qubits), wfs)
         cov = pdev - evpd
     return cov
+
+
+
+
+
+def Do_Qubit_Partitioning(H_QO, type = str):
+  print ("Note that the partitions are not saved but only returned by the function.")
+  if type.upper().replace(' ', '_') == 'FC' or type.upper().replace(' ', '_') == 'FC_LF' or type.upper() == 'FCLF':
+    return get_fc_group(H_QO)
+  elif type.upper().replace(' ', '_') == 'QWC' or type.upper().replace(' ', '_') == 'QWC_LF' or type.upper() == 'QWCLF':
+    return get_qwc_group(H_QO)
+  elif type.upper().replace(' ', '_') == 'FC_SI' or type.upper() == 'FCSI':
+    return get_greedy_grouping(H_QO, commutativity='fc')
+  elif type.upper().replace(' ', '_') == 'QWC_SI' or type.upper() == 'QWCSI':
+    return get_greedy_grouping(H_QO, commutativity='qwc')
+  else:
+    raise ValueError('Provided string does not constitute a valid fragmentation method')
