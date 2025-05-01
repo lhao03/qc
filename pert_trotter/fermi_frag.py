@@ -8,11 +8,12 @@ from . import config
 import pickle
 import h5py
 
+#projector_func used in all functions is the function that projects the sparse arrays on to the correct fermionic symmtery subspace
 
 
 
 #Do LR
-def Do_LR(H_FO, shrink_frag, CISD, save = True):
+def Do_LR(H_FO, shrink_frag, CISD, save = True, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -45,13 +46,13 @@ def Do_LR(H_FO, shrink_frag, CISD, save = True):
   if shrink_frag == False:
     sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragments_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragments_list)
 
 
 #Do SD LR
-def Do_SD_LR(H_FO, shrink_frag, CISD, save = True):
+def Do_SD_LR(H_FO, shrink_frag, CISD, save = True, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -85,13 +86,13 @@ def Do_SD_LR(H_FO, shrink_frag, CISD, save = True):
   if shrink_frag == False:
     sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragments_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragments_list)
 
 
 #Do LR LCU
-def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True):
+def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -154,7 +155,7 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True):
   if shrink_frag == False:
     sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragments_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragments_list)
 
@@ -166,7 +167,7 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True):
 
 
 #Do GFRO
-def Do_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
+def Do_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -188,7 +189,7 @@ def Do_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
   if shrink_frag == False:
     sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragments_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragments_list)
 
@@ -202,7 +203,7 @@ def Do_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
 
 
 #Do SD GFRO (new)
-def Do_SD_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
+def Do_SD_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -222,7 +223,7 @@ def Do_SD_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
   if shrink_frag == False:
     sparse_fragmetns_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragmetns_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragmetns_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragmetns_list)
 
@@ -236,7 +237,7 @@ def Do_SD_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
 
 
 #Do GFRO LCU
-def Do_GFRO_LCU(H_FO, shrink_frag, CISD, tol=1e-6, save = True, load = True, spacial = False):
+def Do_GFRO_LCU(H_FO, shrink_frag, CISD, tol=1e-6, save = True, load = True, spacial = False, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -296,14 +297,14 @@ def Do_GFRO_LCU(H_FO, shrink_frag, CISD, tol=1e-6, save = True, load = True, spa
   if shrink_frag == False:
     Tot_GFRO_LCU_frag_sparse = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    Tot_GFRO_LCU_frag_sparse = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    Tot_GFRO_LCU_frag_sparse = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(Tot_GFRO_LCU_frag_sparse)
 
 
 
 #Do FRO
-def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True):
+def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True, projector_func = None):
   if CISD == False:
     excitations = None
   else:
@@ -323,7 +324,7 @@ def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True):
   if shrink_frag == False:
     sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
-    sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
+    sparse_fragments_list = [projector_func(frag, excitation_level=excitations) for frag in all_frag_ops]
 
   return np.array(sparse_fragments_list)
 
@@ -332,22 +333,21 @@ def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True):
 
 
 
-
-def Do_Fermi_Partitioning (H_FO, type=str, shrink_frag = True, CISD = False, tol=1e-4, save = True, load = True, spacial = False, N_frags=20):
+def Do_Fermi_Partitioning (H_FO, type=str, shrink_frag = True, CISD = False, tol=1e-4, save = True, load = True, spacial = False, N_frags=20, projector_func = None):
   if type.upper().replace(' ', '_') == 'LR':
-    return Do_LR(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save)
+    return Do_LR(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save, projector_func = projector_func)
   elif type.upper().replace(' ', '_') == 'SD_LR' or (type.upper() == 'SDLR'):
-    return Do_SD_LR(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save)
+    return Do_SD_LR(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save, projector_func = projector_func)
   elif type.upper().replace(' ', '_') == 'LR_LCU' or (type.upper() == 'LRLCU'):
-    return Do_LR_LCU(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save, load = load)
+    return Do_LR_LCU(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save, load = load, projector_func = projector_func)
   elif type.upper().replace(' ', '_') == 'GFRO':
-    return Do_GFRO(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, spacial = spacial)
+    return Do_GFRO(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, spacial = spacial, projector_func = projector_func)
   elif (type.upper().replace(' ', '_') == 'SD_GFRO') or (type.upper() == 'SDGFRO'):
-    return Do_SD_GFRO(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, spacial = spacial)
+    return Do_SD_GFRO(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, spacial = spacial, projector_func = projector_func)
   elif type.upper().replace(' ', '_') == 'GFRO_LCU' or (type.upper() == 'GFROLCU'):
-    return Do_GFRO_LCU(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, load = load, spacial = spacial)
+    return Do_GFRO_LCU(H_FO, tol=tol, shrink_frag = shrink_frag, CISD = CISD, save = save, load = load, spacial = spacial, projector_func = projector_func)
   elif type.upper().replace(' ', '_') == 'FRO':               #Requires a predefined global parameter, N_frags
-    return Do_FRO(H_FO, N_frags, shrink_frag = shrink_frag, CISD = CISD, save = save)
+    return Do_FRO(H_FO, N_frags, shrink_frag = shrink_frag, CISD = CISD, save = save, projector_func = projector_func)
 
 
 
