@@ -2,7 +2,8 @@ import numpy as np
 import scipy as sp
 from itertools import accumulate
 from openfermion import commutator
-
+from copy import copy
+#Add additional imports related to cupy if you are using GPU
 
 
 
