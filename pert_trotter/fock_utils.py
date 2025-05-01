@@ -5,8 +5,7 @@ from itertools import combinations
 from openfermion import QubitOperator, get_sparse_operator, get_number_preserving_sparse_operator
 from openfermion import jw_hartree_fock_state, jordan_wigner
 from openfermion.hamiltonians import s_squared_operator, sz_operator, number_operator
-import copy
-
+from copy import copy
 
 
 
@@ -187,13 +186,13 @@ def get_Sz_preserving_nth_excitations(ref_det, order = int):
 
 
 
-def get_CI_proj_ham(H_JW_sarray, n_excitations=int, ref_state = None, ret_excitations = False): #n stands for CI order. That is, n = 1 => CIS, n=2 => CISD etc.
+def get_CI_proj_ham(H_JW_sarray, n_excitations=int, ref_state = None, ret_excitations = False, num_elecs = int, n_qubits = int): #n stands for CI order. That is, n = 1 => CIS, n=2 => CISD etc.
   '''
   Obtain the projection of input Hamiltonian in the configuration interaction subspace of rank = n_excitations.
   The assumption here is that, the input array is expressed in the basis of slater determinants, and the order
   of the determinants is basically the increasing order of the decimal value of the binary representation of the
-  determinant. For example, the state |00000> is the basis function at index 0, |00001> at index 2, |00011> at
-  index four, etc.
+  determinant. For example, the state |00000> is the basis function at index 0, |00001> at index 1, |00011> at
+  index 3, etc.
 
   Args:
       H_JW_sarray (scipy.sparse.csc_matrix): Hamiltonian as Scipy csc_matrix expressed in the basis of slater determiannts.
@@ -201,6 +200,8 @@ def get_CI_proj_ham(H_JW_sarray, n_excitations=int, ref_state = None, ret_excita
       ref_state (str or int): String or binary representation of reference state needed for excitations. If None, assumes HF state
                               obtained by global variables n_qubits and num_elecs.
       ret_excitations (bool, optional): If true, returns the list of excitations along with the projected Hamiltonian.
+      num_elecs = Number of electrons in the system
+      n_qubits = Number of qubits in the system
 
   Returns:
       scipy.sparse.csc_matrix: Projected Hamiltonian.
