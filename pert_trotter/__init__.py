@@ -11,5 +11,6 @@ from . import taper_utils
 from . import trotter_utils
 from . import fermi_frag
 from . import error_pert
+from . import qubit_utils
 
-__all__ = ['cost_utils', 'tensor_utils', 'ffrag_utils', 'fock_utils', 'ham_utils', 'io_utils', 'taper_utils', 'trotter_utils', 'fermi_frag', 'error_pert']
+__all__ = ['cost_utils', 'tensor_utils', 'ffrag_utils', 'fock_utils', 'ham_utils', 'io_utils', 'taper_utils', 'trotter_utils', 'fermi_frag', 'error_pert', 'qubit_utils']
