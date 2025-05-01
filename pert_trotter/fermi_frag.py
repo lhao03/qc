@@ -4,6 +4,7 @@ from opt_einsum import contract
 from openfermion import FermionOperator, QubitOperator, get_sparse_operator, get_number_preserving_sparse_operator
 from .tensor_utils import *
 from .ffrag_utils import *
+from . import config
 import pickle
 import h5py
 
@@ -36,13 +37,13 @@ def Do_LR(H_FO, shrink_frag, CISD, save = True):
   all_frag_ops += LR_fragments
 
   if save == True:
-    savefilename = savepath + 'lr/' + mol_name +'_lr_params.pkl'
+    savefilename = config.savepath + 'lr/' + config.mol_name +'_lr_params.pkl'
     savefile = {'fragment_ops': LR_fragments, 'params': LR_params}
     with open(savefilename, 'wb') as out_file:
       pickle.dump(savefile, out_file)
 
   if shrink_frag == False:
-    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -76,13 +77,13 @@ def Do_SD_LR(H_FO, shrink_frag, CISD, save = True):
   all_frag_ops += LR_fragments
 
   if save == True:
-    savefilename = savepath + 'sdlr/' + mol_name +'_sdlr_params.pkl'
+    savefilename = config.savepath + 'sdlr/' + config.mol_name +'_sdlr_params.pkl'
     savefile = {'fragment_ops': LR_fragments, 'params': LR_params}
     with open(savefilename, 'wb') as out_file:
       pickle.dump(savefile, out_file)
 
   if shrink_frag == False:
-    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -113,7 +114,7 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True):
         LR_fragments.append(frag)
         LR_params.append(LR_params_org[i])
   else:
-    with open(savepath + 'lr/' + mol_name +'_lr_params.pkl', 'rb') as in_file:
+    with open(config.savepath + 'lr/' + config.mol_name +'_lr_params.pkl', 'rb') as in_file:
       loadfile = pickle.load(in_file)
     LR_fragments = loadfile['fragment_ops']
     LR_params = loadfile['params']
@@ -146,12 +147,12 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save = True, load = True):
   all_frag_ops = [const*FermionOperator.identity()] + [obt_op] + LR_LCU_frag_ops
 
   if save == True:
-    savefilename = savepath + 'lrlcu/' + mol_name +'_lrlcu_ops.pkl'
+    savefilename = config.savepath + 'lrlcu/' + config.mol_name +'_lrlcu_ops.pkl'
     with open(savefilename, 'wb') as out_file:
       pickle.dump(all_frag_ops, out_file)
 
   if shrink_frag == False:
-    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -179,13 +180,13 @@ def Do_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
   all_frag_ops += gfro_fragments
 
   if save == True:
-    savefilename = savepath + 'gfro/' + mol_name +'_gfro_params.pkl'
+    savefilename = config.savepath + 'gfro/' + config.mol_name +'_gfro_params.pkl'
     savefile = {'fragment_ops': all_frag_ops, 'params': gfro_params}
     with open(savefilename, 'wb') as out_file:
       pickle.dump(savefile, out_file)
 
   if shrink_frag == False:
-    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -213,13 +214,13 @@ def Do_SD_GFRO(H_FO, shrink_frag, CISD, tol=1e-6, save = True, spacial = False):
   all_frag_ops = [const*FermionOperator.identity()] + gfro_fragments
 
   if save == True:
-    savefilename = savepath + 'sdgfro/' + mol_name +'_sdgfro_params.pkl'
+    savefilename = config.savepath + 'sdgfro/' + config.mol_name +'_sdgfro_params.pkl'
     savefile = {'fragment_ops': all_frag_ops, 'params_1':  gfro_params_1, 'params_2': gfro_params_2}
     with open(savefilename, 'wb') as out_file:
       pickle.dump(savefile, out_file)
 
   if shrink_frag == False:
-    sparse_fragmetns_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragmetns_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragmetns_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -244,13 +245,13 @@ def Do_GFRO_LCU(H_FO, shrink_frag, CISD, tol=1e-6, save = True, load = True, spa
 
   const, obt, tbt = get_chem_tensors(H_FO)
   obt_op = obt2op(obt)
-  N = int(n_qubits/2)
+  N = int(config.n_qubits/2)
 
   if load == False:
     print ('Load parameter has been set to False, so GFRO will be done first.')
     gfro_fragments, gfro_params = gfro_frags_generator(tbt, ret_params = True, tol = tol, spacial = spacial)
   else:
-    with open(savepath + 'gfro/' + mol_name +'_gfro_params.pkl', 'rb') as in_file:
+    with open(config.savepath + 'gfro/' + config.mol_name +'_gfro_params.pkl', 'rb') as in_file:
       loadfile = pickle.load(in_file)
     gfro_fragments = loadfile['fragment_ops']
     gfro_params = loadfile['params']
@@ -288,12 +289,12 @@ def Do_GFRO_LCU(H_FO, shrink_frag, CISD, tol=1e-6, save = True, load = True, spa
   all_frag_ops = [const*FermionOperator.identity()] + [obt_op] + GFRO_LCU_frag_ops
 
   if save == True:
-    savefilename = savepath + 'gfrolcu/' + mol_name +'_gfrolcu_frag_ops.pkl'
+    savefilename = config.savepath + 'gfrolcu/' + config.mol_name +'_gfrolcu_frag_ops.pkl'
     with open(savefilename, 'wb') as out_file:
       pickle.dump(all_frag_ops, out_file)
 
   if shrink_frag == False:
-    Tot_GFRO_LCU_frag_sparse = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    Tot_GFRO_LCU_frag_sparse = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     Tot_GFRO_LCU_frag_sparse = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -315,12 +316,12 @@ def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True):
   all_frag_ops = [const*FermionOperator.identity()] + [obt_op] + FRO_fragments
 
   if save == True:
-    savefilename = savepath + 'fro/' + mol_name +'_fro_frags.pkl'
+    savefilename = config.savepath + 'fro/' + config.mol_name +'_fro_frags.pkl'
     with open(savefilename, 'wb') as out_file:
       pickle.dump(all_frag_ops, out_file)
 
   if shrink_frag == False:
-    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = n_qubits) for frag in all_frag_ops]
+    sparse_fragments_list = [get_sparse_operator(frag, n_qubits = config.n_qubits) for frag in all_frag_ops]
   else:
     sparse_fragments_list = [get_projected_sparse_op(frag, excitation_level=excitations) for frag in all_frag_ops]
 
@@ -332,7 +333,7 @@ def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save = True):
 
 
 
-def Do_Fermi_Partitioning (H_FO, type=str, shrink_frag = True, CISD = False, tol=1e-4, save = True, load = True, spacial = False):
+def Do_Fermi_Partitioning (H_FO, type=str, shrink_frag = True, CISD = False, tol=1e-4, save = True, load = True, spacial = False, N_frags=20):
   if type.upper().replace(' ', '_') == 'LR':
     return Do_LR(H_FO, shrink_frag = shrink_frag, CISD = CISD, save = save)
   elif type.upper().replace(' ', '_') == 'SD_LR' or (type.upper() == 'SDLR'):
