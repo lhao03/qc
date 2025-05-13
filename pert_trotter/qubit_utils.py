@@ -1,8 +1,8 @@
-'''
+"""
 (This module is borrowed)
 Author: Thomson Yen (Tzu-Ching Yen)
 Google scholar: https://scholar.google.ca/citations?user=OK6RSVkAAAAJ&hl=en
-'''
+"""
 
 from openfermion import QubitOperator, commutator, expectation, get_sparse_operator
 import numpy as np
@@ -11,9 +11,9 @@ from scipy import sparse
 
 
 def get_n_qubit(H: QubitOperator):
-    '''
+    """
     Get the number of qubits in H
-    '''
+    """
     n = 0
     for pw, _ in H.terms.items():
         for ps in pw:
@@ -22,20 +22,20 @@ def get_n_qubit(H: QubitOperator):
 
 
 def get_pw_matrix(pw, n):
-    '''
-    Return the corresponding pauli matrix of given pauli-word 
-    '''
+    """
+    Return the corresponding pauli matrix of given pauli-word
+    """
     mat = 1
     # pauli_list = [np.identity(2) for i in range(n)]
     pauli_list = [sparse.identity(2) for i in range(n)]
     for ps in pw:
-        if ps[1] == 'Z':
+        if ps[1] == "Z":
             # pauli_list[ps[0]] = np.array([[1, 0], [0, -1]])
             pauli_list[ps[0]] = sparse.csr_matrix([[1, 0], [0, -1]])
-        elif ps[1] == 'X':
+        elif ps[1] == "X":
             # pauli_list[ps[0]] = np.array([[0, 1], [1, 0]])
             pauli_list[ps[0]] = sparse.csr_matrix([[0, 1], [1, 0]])
-        elif ps[1] == 'Y':
+        elif ps[1] == "Y":
             # pauli_list[ps[0]] = np.array([[0, -1j], [1j, 0]])
             pauli_list[ps[0]] = sparse.csr_matrix([[0, -1j], [1j, 0]])
 
@@ -46,22 +46,23 @@ def get_pw_matrix(pw, n):
 
 
 def get_qubit_hf_expectation(hf, op, tiny=1e-7):
-    '''
+    """
     Return the expectation value <hf|op|hf> of some hf vector. e.g. |001>
-    '''
+    """
+
     def has_str(pw, string):
-        '''
+        """
         Checking if pw contains string: 'X', 'Y', or 'Z'
-        '''
+        """
         for ps in pw:
             if ps[1] == string:
                 return True
         return False
 
     def get_phase(pw, hf):
-        '''
-        Return \pm 1 depending on pauli-word and hf 
-        '''
+        """
+        Return \pm 1 depending on pauli-word and hf
+        """
         # TODO: Could be wrong
         hf = np.flip(hf)
         phase = 1
@@ -69,30 +70,32 @@ def get_qubit_hf_expectation(hf, op, tiny=1e-7):
             if hf[ps[0]] == 1:
                 phase *= -1
         return phase
+
     e = 0
     for pw, val in op.terms.items():
-        if not has_str(pw, 'X') and not has_str(pw, 'Y'):
+        if not has_str(pw, "X") and not has_str(pw, "Y"):
             e += val * get_phase(pw, hf)
     assert abs(np.imag(e)) < tiny
     return np.real(e)
 
 
 def qubit_braket(lwf, rwf, op):
-    '''
-    Perform the qubit operator on rwf and check lwf == rwf 
-    '''
+    """
+    Perform the qubit operator on rwf and check lwf == rwf
+    """
+
     def qubit_action(pw, wf):
-        '''
-        Acting qubit operator pw onto wf. 
+        """
+        Acting qubit operator pw onto wf.
         Return the resulting vector and phase
         Example: ((1, X), (0, X)) |00> = |11>, phase=1
-        '''
+        """
         phase = 1
         wf = np.flip(wf)
         for ps in pw:
-            if ps[1] == 'X':
+            if ps[1] == "X":
                 wf[ps[0]] = not wf[ps[0]]
-            elif ps[1] == 'Y':
+            elif ps[1] == "Y":
                 if wf[ps[0]] == 0:
                     phase *= -1j
                 else:
@@ -112,16 +115,17 @@ def qubit_braket(lwf, rwf, op):
 
 
 def qubit_hfp_braket(hfp, H):
-    '''
+    """
     Given Hermitian Qubit Operator H and hf (bk form) pair [(hf_i, coeff_i), ...]
-    Obtain <H> 
-    '''
+    Obtain <H>
+    """
     e = 0
     nhf = len(hfp)
     for i in range(nhf):
         for j in range(i, nhf):
-            cur_val = np.conj(hfp[i][1]) * hfp[j][1] * \
-                qubit_braket(hfp[i][0], hfp[j][0], H)
+            cur_val = (
+                np.conj(hfp[i][1]) * hfp[j][1] * qubit_braket(hfp[i][0], hfp[j][0], H)
+            )
             if i == j:
                 e += cur_val
             else:
@@ -130,10 +134,10 @@ def qubit_hfp_braket(hfp, H):
 
 
 def get_qubit_matrix(H: QubitOperator, n=None):
-    '''
+    """
     Get the matrix form of the qubit operator
     TODO: discrepancy found at heisenberg.py, debug
-    '''
+    """
     if n is None:
         n = get_n_qubit(H)
     size = 2**n
@@ -147,10 +151,10 @@ def get_qubit_matrix(H: QubitOperator, n=None):
 
 
 def qubit_wise_commuting(a: QubitOperator, b: QubitOperator):
-    '''
+    """
     Check if a and b are qubit-wise commuting.
     assume a and b have only one term
-    '''
+    """
     ps_dict = {}
 
     pw, _ = a.terms.copy().popitem()
@@ -168,11 +172,11 @@ def qubit_wise_commuting(a: QubitOperator, b: QubitOperator):
 
 
 def largest_first(commuting_graph_complement):
-    '''
+    """
     Let C be the complement of a commuting graph
-    Return a dictionary where key index over colors 
+    Return a dictionary where key index over colors
     and values are a list of indices [i, j, ....] whose C[i, j] = 0
-    '''
+    """
     n = commuting_graph_complement.shape[0]
 
     rows = commuting_graph_complement.sum(axis=0)
@@ -184,8 +188,7 @@ def largest_first(commuting_graph_complement):
 
     for i in range(n):
         neighbors = np.argwhere(m[i, :])
-        colors_available = set(np.arange(1, k + 1)) - \
-            set(c[[x[0] for x in neighbors]])
+        colors_available = set(np.arange(1, k + 1)) - set(c[[x[0] for x in neighbors]])
         term = ind[i]
         if not colors_available:
             k += 1
@@ -205,6 +208,7 @@ def recursive_largest_first(commuting_graph_complement):
     and values as BinaryHamiltonian's
     Produces better results than LF but is slower
     """
+
     def n_0(m, colored):
         m_colored = m[list(colored)]
         l = m_colored[-1]
@@ -246,10 +250,10 @@ def recursive_largest_first(commuting_graph_complement):
     return colors
 
 
-def get_qwc_group(H: QubitOperator, color_alg='lf'):
-    '''
+def get_qwc_group(H: QubitOperator, color_alg="lf"):
+    """
     Return a list of qubit-wise commuting fragments of H
-    '''
+    """
     # Preparing all terms in H into a list
     qubit_ops = []
     for pw, val in H.terms.items():
@@ -260,14 +264,13 @@ def get_qwc_group(H: QubitOperator, color_alg='lf'):
     comm_matrix = np.zeros((n, n))
     for i in range(n):
         for j in range(i + 1, n):
-            comm_matrix[i, j] = qubit_wise_commuting(
-                qubit_ops[i], qubit_ops[j])
+            comm_matrix[i, j] = qubit_wise_commuting(qubit_ops[i], qubit_ops[j])
 
     # Compute commuting fragments
     comm_matrix = np.identity(n) + comm_matrix + comm_matrix.T
-    if color_alg == 'lf':
+    if color_alg == "lf":
         colors = largest_first(1 - comm_matrix)
-    else: 
+    else:
         colors = recursive_largest_first(1 - comm_matrix)
 
     # Collect commuting fragments into a list of QubitOperators
@@ -281,10 +284,10 @@ def get_qwc_group(H: QubitOperator, color_alg='lf'):
     return qwc_list
 
 
-def get_fc_group(H: QubitOperator, color_alg='lf'):
-    '''
+def get_fc_group(H: QubitOperator, color_alg="lf"):
+    """
     Return a list of commuting fragments of H
-    '''
+    """
     # Building list of operators
     pws = []
     vals = []
@@ -300,9 +303,9 @@ def get_fc_group(H: QubitOperator, color_alg='lf'):
             if commutator(pws[i], pws[j]) == QubitOperator.zero():
                 comm_mat[i, j] = 1
     comm_mat = np.identity(pnum) + comm_mat + comm_mat.T
-    if color_alg == 'lf':
+    if color_alg == "lf":
         colors = largest_first(1 - comm_mat)
-    else: 
+    else:
         colors = recursive_largest_first(1 - comm_mat)
 
     comm_list = [QubitOperator.zero() for i in range(len(colors))]
@@ -313,23 +316,25 @@ def get_fc_group(H: QubitOperator, color_alg='lf'):
 
 
 def get_bk_transformation(n):
-    '''
+    """
     Obtain the n x n bk transformation matrix given n modes
-    '''
+    """
+
     def get_bk_transformation_helper(k):
-        '''
-        Obtain the 2^k x 2^k bk transformation matrix 
-        '''
+        """
+        Obtain the 2^k x 2^k bk transformation matrix
+        """
         if k == 0:
             return 1
         else:
             mat = np.zeros((2**k, 2**k))
-            half = 2**(k - 1)
+            half = 2 ** (k - 1)
             mat[0, half:] = 1
             prev = get_bk_transformation_helper(k - 1)
             mat[:half, :half] = prev
             mat[half:, half:] = prev
             return mat
+
     k = int(np.ceil(np.log2(n)))
     bk_mat = get_bk_transformation_helper(k)
 
@@ -339,9 +344,9 @@ def get_bk_transformation(n):
 
 
 def get_bk_vec(onvec):
-    '''
-    Return the corresponding bk vector given a onvec 
-    '''
+    """
+    Return the corresponding bk vector given a onvec
+    """
     n = len(onvec)
     bkmat = get_bk_transformation(n)
     bkonvec = (bkmat @ onvec) % 2
@@ -349,10 +354,10 @@ def get_bk_vec(onvec):
 
 
 def hfp2qubp(hfp):
-    '''
+    """
     Transform a fermionic hf pair [(hf_i, coeff_i), ...]
     into its qubit equivalent
-    '''
+    """
     qubp = []
     for p in hfp:
         qubhf = get_bk_vec(p[0])
@@ -361,13 +366,13 @@ def hfp2qubp(hfp):
 
 
 def qubit_gs_variance(gs, list, tiny=1e-8):
-    '''
+    """
     Obtain variances from bk form of gs, which is in paired hf form
-    '''
+    """
     varis = np.zeros(len(list))
     for i, term in enumerate(list):
         cur_fci_ev = qubit_hfp_braket(gs, term)
-        cur_fci_var = qubit_hfp_braket(gs, term * term) - cur_fci_ev ** 2
+        cur_fci_var = qubit_hfp_braket(gs, term * term) - cur_fci_ev**2
         if abs(cur_fci_var) < tiny:
             cur_fci_var = 0
         if np.imag(cur_fci_var) < tiny:
@@ -377,41 +382,36 @@ def qubit_gs_variance(gs, list, tiny=1e-8):
 
 
 def get_pauli_word_tuple(P: QubitOperator):
-    """Given a single pauli word P, extract the tuple representing the word. 
-    """
+    """Given a single pauli word P, extract the tuple representing the word."""
     words = list(P.terms.keys())
     if len(words) != 1:
-        raise(ValueError("P given is not a single pauli word"))
+        raise (ValueError("P given is not a single pauli word"))
     return words[0]
 
 
 def get_pauli_word(P: QubitOperator):
-    """Given a single pauli word P, extract the same word with coefficient 1. 
-    """
+    """Given a single pauli word P, extract the same word with coefficient 1."""
     words = list(P.terms.keys())
     if len(words) != 1:
-        raise(ValueError("P given is not a single pauli word"))
+        raise (ValueError("P given is not a single pauli word"))
     return QubitOperator(words[0])
 
 
 def get_pauli_word_coefficient(P: QubitOperator):
-    """Given a single pauli word P, extract its coefficient. 
-    """
+    """Given a single pauli word P, extract its coefficient."""
     coeffs = list(P.terms.values())
     if len(coeffs) != 1:
-        raise(ValueError("P given is not a single pauli word"))
+        raise (ValueError("P given is not a single pauli word"))
     return coeffs[0]
 
 
 def get_pauli_word_coefficients_size(P: QubitOperator):
-    """Given a single pauli word P, extract the size of its coefficient. 
-    """
+    """Given a single pauli word P, extract the size of its coefficient."""
     return np.abs(get_pauli_word_coefficient(P))
 
 
 def get_pauliword_list(H: QubitOperator, ignore_identity=True):
-    """Obtain a list of pauli words in H. 
-    """
+    """Obtain a list of pauli words in H."""
     pws = []
     for pw, val in H.terms.items():
         if ignore_identity:
@@ -421,31 +421,33 @@ def get_pauliword_list(H: QubitOperator, ignore_identity=True):
     return pws
 
 
-def is_commuting(ipw, jpw, condition='fc'):
-    """Check whether ipw and jpw are FC or QWC. 
+def is_commuting(ipw, jpw, condition="fc"):
+    """Check whether ipw and jpw are FC or QWC.
     Args:
-        ipw, jpw (QubitOperator): Single pauli-words to be checked for commutativity. 
-        condition (str): "qwc" or "fc", indicates the type of commutativity to check. 
+        ipw, jpw (QubitOperator): Single pauli-words to be checked for commutativity.
+        condition (str): "qwc" or "fc", indicates the type of commutativity to check.
 
     Returns:
-        is_commuting (bool): Whether ipw and jpw commute by the specified condition. 
+        is_commuting (bool): Whether ipw and jpw commute by the specified condition.
     """
-    if condition == 'fc':
-        return commutator(get_pauli_word(ipw), get_pauli_word(jpw)) == QubitOperator.zero()
+    if condition == "fc":
+        return (
+            commutator(get_pauli_word(ipw), get_pauli_word(jpw)) == QubitOperator.zero()
+        )
     else:
         return qubit_wise_commuting(ipw, jpw)
 
 
-def get_greedy_grouping(H: QubitOperator, commutativity='fc'):
-    """Obtain a list of commuting pauli operators through greedy grouping. 
+def get_greedy_grouping(H: QubitOperator, commutativity="fc"):
+    """Obtain a list of commuting pauli operators through greedy grouping.
 
-    Args: 
-        H (QubitOperator): The Hamiltonian to split in groups 
-        commutativity (str): "qwc" or "fc", indicates the type of commutativity used. 
+    Args:
+        H (QubitOperator): The Hamiltonian to split in groups
+        commutativity (str): "qwc" or "fc", indicates the type of commutativity used.
 
     Returns:
-        groups (List[QubitOperator]): A list of groups. 
-            Each group consists of commuting Pauli-Words with their coefficients. 
+        groups (List[QubitOperator]): A list of groups.
+            Each group consists of commuting Pauli-Words with their coefficients.
     """
     # Get a list of Pauli-words sorted by size of coefficients
     pws = get_pauliword_list(H)
@@ -472,13 +474,13 @@ def get_greedy_grouping(H: QubitOperator, commutativity='fc'):
 
 
 def get_openfermion_bk_hf(n_qubits, n_electrons):
-    """Compute the BK Hartree-Fock state in openfermion's format |psi><psi| 
+    """Compute the BK Hartree-Fock state in openfermion's format |psi><psi|
     Args:
         n_qubits: Number of qubits (spin_orbitals)
         n_electrons: Number of electrons in Hartree-Fock
 
     Returns:
-        wfs (sparse_matrix): Density that represents the Hartree-Fock state 
+        wfs (sparse_matrix): Density that represents the Hartree-Fock state
     """
     # Construct ON vector
     occupation_vec = np.zeros(n_qubits)
@@ -491,7 +493,7 @@ def get_openfermion_bk_hf(n_qubits, n_electrons):
     idx = 0
     for i in range(len(onvec_bk)):
         if onvec_bk[i] == 1:
-            idx += 2 ** i
+            idx += 2**i
 
     idx_tuple = (idx,)
 
@@ -501,44 +503,54 @@ def get_openfermion_bk_hf(n_qubits, n_electrons):
 
 
 def get_covariance(op1, op2, ev_dict=None, wfs=None):
-    """Obtain the covariance <op1 * op2> - <op1><op2> using either ev_dict or wfs 
+    """Obtain the covariance <op1 * op2> - <op1><op2> using either ev_dict or wfs
     Args:
-        op1, op2 (QubitOperators): The operators to compute covariance from 
-        ev_dict (Dict[tuple, float]): Dictionary mapping pauli-words pw to <pw> 
-        wfs (ndarray): openfermion's format of wavefunction 
+        op1, op2 (QubitOperators): The operators to compute covariance from
+        ev_dict (Dict[tuple, float]): Dictionary mapping pauli-words pw to <pw>
+        wfs (ndarray): openfermion's format of wavefunction
     """
     if ev_dict is None and wfs is None:
-        raise(ValueError("Provide at least one of ev_dict or wfs"))
+        raise (ValueError("Provide at least one of ev_dict or wfs"))
     if ev_dict is not None:
         cov = 0
         for term1, val1 in op1.terms.items():
             for term2, val2 in op2.terms.items():
                 pdpw = QubitOperator(term1) * QubitOperator(term2)
-                pdev = get_pauli_word_coefficient(
-                    pdpw) * ev_dict[get_pauli_word_tuple(pdpw)]
+                pdev = (
+                    get_pauli_word_coefficient(pdpw)
+                    * ev_dict[get_pauli_word_tuple(pdpw)]
+                )
                 pw1ev, pw2ev = ev_dict[term1], ev_dict[term2]
                 cov += val1 * val2 * (pdev - pw1ev * pw2ev)
     else:
         n_qubits = int(np.log2(wfs.shape[0]))
         pdev = expectation(get_sparse_operator(op1 * op2, n_qubits), wfs)
-        evpd = expectation(get_sparse_operator(op1, n_qubits), wfs) * \
-            expectation(get_sparse_operator(op2, n_qubits), wfs)
+        evpd = expectation(get_sparse_operator(op1, n_qubits), wfs) * expectation(
+            get_sparse_operator(op2, n_qubits), wfs
+        )
         cov = pdev - evpd
     return cov
 
 
-
-
-
-def Do_Qubit_Partitioning(H_QO, type = str):
-  print ("Note that the partitions are not saved but only returned by the function.")
-  if type.upper().replace(' ', '_') == 'FC' or type.upper().replace(' ', '_') == 'FC_LF' or type.upper() == 'FCLF':
-    return get_fc_group(H_QO)
-  elif type.upper().replace(' ', '_') == 'QWC' or type.upper().replace(' ', '_') == 'QWC_LF' or type.upper() == 'QWCLF':
-    return get_qwc_group(H_QO)
-  elif type.upper().replace(' ', '_') == 'FC_SI' or type.upper() == 'FCSI':
-    return get_greedy_grouping(H_QO, commutativity='fc')
-  elif type.upper().replace(' ', '_') == 'QWC_SI' or type.upper() == 'QWCSI':
-    return get_greedy_grouping(H_QO, commutativity='qwc')
-  else:
-    raise ValueError('Provided string does not constitute a valid fragmentation method')
+def Do_Qubit_Partitioning(H_QO, type=str):
+    print("Note that the partitions are not saved but only returned by the function.")
+    if (
+        type.upper().replace(" ", "_") == "FC"
+        or type.upper().replace(" ", "_") == "FC_LF"
+        or type.upper() == "FCLF"
+    ):
+        return get_fc_group(H_QO)
+    elif (
+        type.upper().replace(" ", "_") == "QWC"
+        or type.upper().replace(" ", "_") == "QWC_LF"
+        or type.upper() == "QWCLF"
+    ):
+        return get_qwc_group(H_QO)
+    elif type.upper().replace(" ", "_") == "FC_SI" or type.upper() == "FCSI":
+        return get_greedy_grouping(H_QO, commutativity="fc")
+    elif type.upper().replace(" ", "_") == "QWC_SI" or type.upper() == "QWCSI":
+        return get_greedy_grouping(H_QO, commutativity="qwc")
+    else:
+        raise ValueError(
+            "Provided string does not constitute a valid fragmentation method"
+        )

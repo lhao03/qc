@@ -2,5 +2,5 @@
 
 num_elecs = None
 n_qubits = None
-savepath = 'data/'
+savepath = "data/"
 mol_name = None
