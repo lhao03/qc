@@ -2,11 +2,14 @@ from copy import copy
 
 import numpy as np
 import scipy as sp
-from openfermion import jordan_wigner, normal_ordered
+from openfermion import jordan_wigner, normal_ordered, jw_number_restrict_operator
 from opt_einsum import contract
 from scipy.optimize import minimize
 
 from pert_trotter.tensor_utils import spac2spin, tbt2op, obt2tbt
+
+
+
 
 
 def FRO_frags_generator(tbt, N_frags, ret_ops=True, ret_params=False):
@@ -455,7 +458,7 @@ def norm_supp_gfro_frags_generator(
             return fragments
 
 
-def LR_frags_generator(Htbt, tol=1e-6, ret_params=True, spacial=True):
+def LR_frags_generator(Htbt, tol=1e-6, ret_params: bool = True, spacial: bool = False):
     """
     Generate low-rank fragments of a two body tensor (by exactly diagonalizing tbt supermatrix).
 
@@ -463,7 +466,7 @@ def LR_frags_generator(Htbt, tol=1e-6, ret_params=True, spacial=True):
         Htbt (ndarray): two body tensor
         tol (float, optional): LR fragments with coefficients less tol will be discarded. Default values to 1e-6.
         ret_params (bool, optional): Return the parameters (lambda_ij and theta_ij) defining the fragments along with the fragments themself. Defaults to True
-        spacial(bool, False): Whether to convert the tbt to spacial orbitals and find GFRO fragments. It provides ~16x improvement in speed. Defaults to True.
+        spacial(bool, False): Whether to convert the tbt to spacial orbitals and find GFRO fragments. It provides ~16x improvement in speed. Defaults to False.
 
     Returns:
         one or two lists: if ret_params == False -> list of FermmionOperator objects
@@ -479,10 +482,7 @@ def LR_frags_generator(Htbt, tol=1e-6, ret_params=True, spacial=True):
     LR_fragments = []
     params = []
 
-    for i in range(len(Ls)):
-        L = Ls[i]
-        cur_D = cur_Ds[i]
-
+    for L, cur_D in zip(Ls, cur_Ds):
         if np.linalg.norm(np.sqrt(np.abs(cur_D)) * L) > tol:
             # frag  = FermionOperator()
             # for p in range(N):

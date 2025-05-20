@@ -20,10 +20,29 @@ from .tensor_utils import get_chem_tensors, obt2tbt, obt2op, spac2spin, tbt2op
 
 
 # projector_func used in all functions is the function that projects the sparse arrays on to the correct fermionic symmtery subspace
+def do_lr_fo(H_FO: FermionOperator):
+    const, obt, tbt = get_chem_tensors(H_FO)
+    obt_op = obt2op(obt)
 
+    # Obtaining LR fragments as list of FermionOperators and (coeffs, angles) defining the fragments.
+    lowrank_fragments, lowrank_params = LR_frags_generator(
+        tbt, tol=1e-5, ret_params=True
+    )
 
-# Do LR
-def Do_LR(H_FO, shrink_frag, CISD, save=True, projector_func=None):
+    # Filtering out small fragments
+    LR_fragments = []
+    LR_params = []
+    for i in range(len(lowrank_params)):
+        frag = lowrank_fragments[i]
+        if frag.induced_norm(2) > 1e-6:
+            LR_fragments.append(frag)
+            LR_params.append(lowrank_params[i])
+
+    all_frag_ops = [const * FermionOperator.identity(), obt_op]
+    all_frag_ops += LR_fragments
+    return all_frag_ops
+
+def Do_LR(H_FO: FermionOperator, shrink_frag, CISD, save=True, projector_func=None):
     if CISD == False:
         excitations = None
     else:
@@ -400,7 +419,7 @@ def Do_FRO(H_FO, N_frags, shrink_frag, CISD, save=True, projector_func=None):
 def Do_Fermi_Partitioning(
     H_FO,
     type: str,
-    shrink_frag=True,
+    shrink_frag=False,
     CISD=False,
     tol=1e-4,
     save=True,

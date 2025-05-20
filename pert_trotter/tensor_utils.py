@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from opt_einsum import contract
-from openfermion import FermionOperator, count_qubits
+from openfermion import FermionOperator, count_qubits, jw_slater_determinant
 
 
 def spin2spac(tensor):
