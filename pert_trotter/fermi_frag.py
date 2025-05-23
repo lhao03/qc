@@ -18,8 +18,6 @@ import pickle
 import numpy as np
 
 
-
-
 # projector_func used in all functions is the function that projects the sparse arrays on to the correct fermionic symmtery subspace
 def do_lr_fo(H_FO: FermionOperator):
     const, obt, tbt = get_chem_tensors(H_FO)
@@ -42,6 +40,7 @@ def do_lr_fo(H_FO: FermionOperator):
     all_frag_ops = [const * FermionOperator.identity(), obt_op]
     all_frag_ops += LR_fragments
     return all_frag_ops
+
 
 def Do_LR(H_FO: FermionOperator, shrink_frag, CISD, save=True, projector_func=None):
     if CISD == False:

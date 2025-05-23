@@ -1,5 +1,7 @@
 import numpy as np
 
+from min_part.operators import get_particle_number
+from molecules import mol_h2
 from proj_ham import get_projected_sparse_op
 from utils import EnergyOccupation, do_lr_fo
 from ham_utils import obtain_OF_hamiltonian
@@ -18,30 +20,15 @@ import scipy as sp
 
 
 from plots import plot_energies
-from utils import get_on_num
 
 visualize = False
 gs_energies = []
 n_subspace_energies = []
 all_subspace_energies = []
 xpoints = [x * 0.1 for x in list(range(2, 30))]
-num_spin_orbs = 4 # H2 is 4  # H4 is 4(1s) = 8
+num_spin_orbs = 4  # H2 is 4  # H4 is 4(1s) = 8
 mol_name = "h2-debug"
 
-def mol_n2(i):
-    return [["N", [0, 0, 0]], ["N", [0, 0, i]]]
-
-
-def mol_h4(i):
-    return [
-        ["H", [0, 0, 0]],
-        ["H", [0, 0, i]],
-        ["H", [0, 0, 2 * i]],
-        ["H", [0, 0, 3 * i]],
-    ]
-
-def mol_h2(i):
-    return [["H", [0, 0, 0]], ["H", [0, 0, i]]]
 
 mol_of_interest = mol_h2
 
@@ -80,7 +67,7 @@ for bond_length in xpoints:
         for i in range(eigenvectors.shape[0]):
             energy = eigenvalues[i]
             w = eigenvectors[:, [i]]
-            n = get_on_num(w, e=num_spin_orbs)
+            n = get_particle_number(w, e=num_spin_orbs)
             tb.append(EnergyOccupation(energy=energy, spin_orbs=n))
             all_en.append(energy)
             if n == num_elecs:
@@ -88,7 +75,9 @@ for bond_length in xpoints:
         all_energies.append(all_en)
         allowed_energies.append(energies)
     H_no_two_body = const + H1
-    eigenvalues, eigenvectors = sp.linalg.eigh(qubit_operator_sparse(jordan_wigner(H_no_two_body)).toarray())
+    eigenvalues, eigenvectors = sp.linalg.eigh(
+        qubit_operator_sparse(jordan_wigner(H_no_two_body)).toarray()
+    )
     energy_no_two_body = eigenvalues[0]
     eigenvectors_0 = eigenvectors[:, [0]]
     eigenvectors_0_sparse = sp.sparse.csc_matrix(eigenvectors_0)
@@ -174,6 +163,3 @@ plot_energies(
         "All Fock Space",
     ],
 )
-
-
-

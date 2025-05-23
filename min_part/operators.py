@@ -6,6 +6,15 @@ from openfermion import (
     FermionOperator,
 )
 
+
+def extract_eigenvalue(operator, w):
+    b = operator * w
+    n = np.divide(b, w)
+    n = n[~np.isnan(n)]
+    n = n[0]
+    return n
+
+
 def fermionic_particle_number_operator(modes: int) -> FermionOperator:
     """Makes an operator that returns number of occupied spin orbitals, in 2nd quantization.
 
@@ -17,44 +26,58 @@ def fermionic_particle_number_operator(modes: int) -> FermionOperator:
     Returns:
         occupation number operator in form of `FermionOperator`
     """
-    fo = FermionOperator('')
+    fo = FermionOperator()
     for i in range(modes):
         fo += FermionOperator(((i, 1), (i, 0)))
     return fo
 
-def square_operator(fo: FermionOperator) -> FermionOperator:
-    pass
 
-def make_spin_sq_operator(p: int):
+def get_squared_operator(fo: FermionOperator) -> FermionOperator:
+    sqed_operator = FermionOperator()
+    for term_1, coeff_1 in fo.terms:
+        for term_2, coeff_2 in fo.terms:
+            t = term_1 * term_2
+            c = coeff_1 * coeff_2
+            new_fo_term = FermionOperator(term=t, coefficient=c)
+            sqed_operator += new_fo_term
+    return sqed_operator
+
+def make_spin_sq_operator(p: int) -> FermionOperator:
     """Makes the S^2 operator.
 
     Formula is: S^2 = S_x^2 + S_y^2 + S_z^2
     In second quantization is,
     """
-    square_operator(make_spin_z_operator(p)) + square_operator(make_spin_x_operator(p)) + square_operator(make_spin_y_operator(p))
+    return (
+        get_squared_operator(make_spin_z_operator(p))
+        + get_squared_operator(make_spin_x_operator(p))
+        + get_squared_operator(make_spin_y_operator(p))
+    )
 
-def make_spin_x_operator(p: int):
-    s_x = FermionOperator('')
+
+def make_spin_x_operator(p: int) -> FermionOperator:
+    s_x = FermionOperator()
     for i in range(p):
         even_orb = i * 2
         odd_orb = even_orb + 1
-        alpha_term = FermionOperator((even_orb, 1), (odd_orb, 0))
-        beta_term = FermionOperator((odd_orb, 1), (even_orb+1, 0))
-        s_x += (alpha_term + beta_term)
-    return 1/2 * s_x
+        alpha_term = FermionOperator(((even_orb, 1), (odd_orb, 0)))
+        beta_term = FermionOperator(((odd_orb, 1), (even_orb + 1, 0)))
+        s_x += alpha_term + beta_term
+    return 1 / 2 * s_x
 
-def make_spin_y_operator(p: int):
-    s_y = FermionOperator('')
+
+def make_spin_y_operator(p: int) -> FermionOperator:
+    s_y = FermionOperator()
     for i in range(p):
         even_orb = i * 2
         odd_orb = even_orb + 1
-        alpha_term = FermionOperator((even_orb, 1), (odd_orb, 0))
-        beta_term = FermionOperator((odd_orb, 1), (even_orb, 0))
-        s_y += (alpha_term - beta_term)
-    return 1/ 2.j * s_y
+        alpha_term = FermionOperator(((even_orb, 1), (odd_orb, 0)))
+        beta_term = FermionOperator(((odd_orb, 1), (even_orb, 0)))
+        s_y += alpha_term - beta_term
+    return 1 / 2.0j * s_y
 
 
-def make_spin_z_operator(p: int):
+def make_spin_z_operator(p: int) -> FermionOperator:
     """Makes the S_z operator in 2nd quantization.
 
     Formula is S_z = 1/2 sum_p (a^\dag_p \alpha a_p \alpha - a^\dag_p \beta a_p \beta).
@@ -65,33 +88,63 @@ def make_spin_z_operator(p: int):
     Args:
         p (int): number of orbitals, N, where N are alpha spin and N are beta spin,
         resulting in total 4 spin-specific orbitals.
+
+    Returns:
+        the S_z operator as a  `FermionOperator`
     """
-    s_z = FermionOperator('')
+    s_z = FermionOperator()
     for i in range(p):
         even_orb = i * 2
         odd_orb = even_orb + 1
-        alpha_term = FermionOperator((even_orb, 1), (even_orb, 0))
-        beta_term = FermionOperator((odd_orb, 1), (odd_orb, 0))
-        s_z += (alpha_term - beta_term)
-    return 1/2 * s_z
+        alpha_term = FermionOperator(((even_orb, 1), (even_orb, 0)))
+        beta_term = FermionOperator(((odd_orb, 1), (odd_orb, 0)))
+        s_z += 1 / 2 * (alpha_term - beta_term)
+    return s_z
 
-def get_on_num(w, e: int) -> float:
+
+def get_particle_number(w, e: int) -> float:
     """Finds the number of occupied spin orbitals given an eigenvector that was calculated via diagonalization,
     should be a Slater determinant, should be a Slater Determinant.
 
     Args:
-        w (np.array): eigenvector
-        e (int): max number of spin orbitals
+        w (np.array): eigenvector that corresponds to a Slater Determinant.
+        e (int): total number of spin orbitals
     Returns:
         number of occupied spin orbitals
     """
-    on_op = number_operator(n_modes=e, parity=-1)
-    on_op_sparse = qubit_operator_sparse(jordan_wigner(on_op))
-    b = on_op_sparse * w
-    n = np.divide(b, w)
-    n = n[~np.isnan(n)]
-    n = n[0]
-    return n
+    on_operator = qubit_operator_sparse(
+        jordan_wigner(number_operator(n_modes=e, parity=-1))
+    )
+    return extract_eigenvalue(on_operator, w)
 
-def get_spin_sq(w, s_2) -> float:
-    pass
+
+def get_total_spin(w, p: int) -> float:
+    """Finds the total spin of a molecular system. Note in general the Slater determinant is not an eigenfunction
+    of the S^2 operator unless it is in a closed-shell state with all paired electrons or high-energy state with
+    electrons of all one spin type (ex: all alpha)
+
+    Args:
+        w: eigenvector, expecting a Slater determinant
+        p (int): number of orbitals, N, where N are alpha spin and N are beta spin,
+        resulting in total 4 spin-specific orbitals.
+
+    Returns:
+        the projected spin
+    """
+    s_2 = qubit_operator_sparse(jordan_wigner(make_spin_sq_operator(p)))
+    return extract_eigenvalue(s_2, w)
+
+
+def get_projected_spin(w, p: int) -> float:
+    """Finds the projected spin of a singlet system, assuming a Slater Determinant is used as the approximated wavefunction.
+
+    Args:
+        w: eigenvector, that corresponds to Slater Determinant
+        p (int): number of orbitals, N, where N are alpha spin and N are beta spin,
+        resulting in total 4 spin-specific orbitals.
+
+    Returns:
+        The projected spin, 0 if singlet, 1 if triplet.
+    """
+    s_z_operator = qubit_operator_sparse(jordan_wigner(make_spin_z_operator(p=p)))
+    return extract_eigenvalue(s_z_operator, w)

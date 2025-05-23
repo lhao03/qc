@@ -9,24 +9,14 @@ from openfermion import (
     FermionOperator,
 )
 
-from ffrag_utils import LR_frags_generator
-from tensor_utils import get_chem_tensors, obt2op
+from .ffrag_utils import LR_frags_generator
+from .tensor_utils import get_chem_tensors, obt2op
 
 
 @dataclass
 class EnergyOccupation:
     energy: float
     spin_orbs: float
-
-
-def get_on_num(w, e: int) -> float:
-    on_op = number_operator(n_modes=e, parity=-1)
-    on_op_sparse = qubit_operator_sparse(jordan_wigner(on_op))
-    b = on_op_sparse * w
-    n = np.divide(b, w)
-    n = n[~np.isnan(n)]
-    n = n[0]
-    return n
 
 
 def dc_to_dict(dcs, labels: list[str]):

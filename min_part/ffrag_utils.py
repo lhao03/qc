@@ -2,14 +2,11 @@ from copy import copy
 
 import numpy as np
 import scipy as sp
-from openfermion import jordan_wigner, normal_ordered, jw_number_restrict_operator
+from openfermion import jordan_wigner, normal_ordered
 from opt_einsum import contract
 from scipy.optimize import minimize
 
-from tensor_utils import spac2spin, tbt2op, obt2tbt
-
-
-
+from .tensor_utils import spac2spin, tbt2op, obt2tbt
 
 
 def FRO_frags_generator(tbt, N_frags, ret_ops=True, ret_params=False):
