@@ -14,6 +14,13 @@ def extract_eigenvalue(operator, w):
     n = n[0]
     return n
 
+def tuple2str(*args) -> str:
+    fo_str = []
+    for a in args:
+        indice = a[0][0]
+        type_a = a[0][1]
+        fo_str.append(f"{indice}" + ("^" if type_a == 1 else ""))
+    return ' '.join(fo_str)
 
 def fermionic_particle_number_operator(modes: int) -> FermionOperator:
     """Makes an operator that returns number of occupied spin orbitals, in 2nd quantization.
@@ -34,13 +41,13 @@ def fermionic_particle_number_operator(modes: int) -> FermionOperator:
 
 def get_squared_operator(fo: FermionOperator) -> FermionOperator:
     sqed_operator = FermionOperator()
-    for term_1, coeff_1 in fo.terms:
-        for term_2, coeff_2 in fo.terms:
-            t = term_1 * term_2
-            c = coeff_1 * coeff_2
-            new_fo_term = FermionOperator(term=t, coefficient=c)
+    for term_1, coeff_1 in fo.terms.items():
+        for term_2, coeff_2 in fo.terms.items():
+            new_term = tuple2str(term_1, term_2)
+            new_fo_term = FermionOperator(term=new_term, coefficient=coeff_1 * coeff_2)
             sqed_operator += new_fo_term
     return sqed_operator
+
 
 def make_spin_sq_operator(p: int) -> FermionOperator:
     """Makes the S^2 operator.

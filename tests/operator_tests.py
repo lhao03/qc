@@ -1,11 +1,21 @@
 import unittest
 
 import scipy as sp
-from openfermion import count_qubits, jordan_wigner, qubit_operator_sparse
+from openfermion import (
+    count_qubits,
+    jordan_wigner,
+    qubit_operator_sparse,
+    FermionOperator,
+)
 
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
-from min_part.operators import get_particle_number, get_projected_spin, get_total_spin
+from min_part.operators import (
+    get_particle_number,
+    get_projected_spin,
+    get_total_spin,
+    get_squared_operator,
+)
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 
 
@@ -23,10 +33,12 @@ class OperatorTest(unittest.TestCase):
             qubit_operator_sparse(jordan_wigner(H_ele)).toarray()
         )
 
+    # === Particle Number ===
     def test_fermion_occ_num_op(self):
         n = get_particle_number(self.eigenvectors[:, 0], 4)
         self.assertEqual(2, n)
 
+    # === Projected Spin ===
     def test_projected_spin_operator_singlet_state(self):
         s = get_projected_spin(self.eigenvectors[:, 0], 2)
         self.assertEqual(0, s)
@@ -43,6 +55,7 @@ class OperatorTest(unittest.TestCase):
         s = get_projected_spin(self.eigenvectors[:, -1], 2)
         self.assertEqual(0, s)
 
+    # === Total Spin ===
     def test_total_spin_operator_1_elec(self):
         s = get_total_spin(self.eigenvectors[:, 4], 2)
         self.assertEqual(0, s)
@@ -58,3 +71,24 @@ class OperatorTest(unittest.TestCase):
     def test_total_spin_operator_4_elec(self):
         s = get_total_spin(self.eigenvectors[:, -1], 2)
         self.assertEqual(0, s)
+
+    # === Operator Utils ===
+    def test_square_operator(self):
+        a_creat = FermionOperator("0^", 3.1)
+        a_annih = FermionOperator("3", 1.2)
+        fo_add = a_creat + a_annih
+        fo_min = a_annih - a_creat
+        self.assertEqual(
+            FermionOperator("0^ 0^", 3.1**2)
+            + FermionOperator("0^ 3", 1.2 * 3.1)
+            + FermionOperator("3 0^", 1.2 * 3.1)
+            + FermionOperator("3 3", 1.2**2),
+            get_squared_operator(fo_add),
+        )
+        self.assertEqual(
+            FermionOperator("3 3", 1.2**2)
+            - FermionOperator("3 0^", 1.2 * 3.1)
+            - FermionOperator("0^ 3", 1.2 * 3.1)
+            + FermionOperator("0^ 0^", 3.1**2),
+            get_squared_operator(fo_min),
+        )
