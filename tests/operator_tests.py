@@ -67,8 +67,7 @@ class OperatorTest(unittest.TestCase):
     def test_total_spin_operator_construction(self):
         s_2 = make_total_spin_operator(2)
         self.assertEqual(
-            s_squared_operator(n_spatial_orbitals=(self.n_qubits + 1) // 2),
-            s_2
+            s_squared_operator(n_spatial_orbitals=(self.n_qubits + 1) // 2), s_2
         )
 
     def test_total_spin_operator_1_elec(self):

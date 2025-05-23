@@ -50,6 +50,7 @@ def get_squared_operator(fo: FermionOperator) -> FermionOperator:
             sqed_operator += new_fo_term
     return sqed_operator
 
+
 def make_shift_up_operator(p: int) -> FermionOperator:
     s_plus = FermionOperator()
     for i in range(p):
@@ -59,6 +60,7 @@ def make_shift_up_operator(p: int) -> FermionOperator:
         s_plus += alpha_beta
     return s_plus
 
+
 def make_shift_down_operator(p: int) -> FermionOperator:
     s_minus = FermionOperator()
     for i in range(p):
@@ -67,6 +69,7 @@ def make_shift_down_operator(p: int) -> FermionOperator:
         beta_alpha = FermionOperator(((odd_orb, 1), (even_orb, 0)))
         s_minus += beta_alpha
     return s_minus
+
 
 def make_total_spin_operator(
     p: int,
@@ -79,7 +82,7 @@ def make_total_spin_operator(
     s_z = make_spin_z_operator(p)
     shift_plus = make_shift_up_operator(p)
     shift_minus = make_shift_down_operator(p)
-    return shift_minus * shift_plus + s_z * (s_z + 1*FermionOperator.identity())
+    return shift_minus * shift_plus + s_z * (s_z + 1 * FermionOperator.identity())
 
 
 def make_spin_x_operator(p: int) -> FermionOperator:
