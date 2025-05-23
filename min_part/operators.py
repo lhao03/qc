@@ -14,13 +14,15 @@ def extract_eigenvalue(operator, w):
     n = n[0]
     return n
 
+
 def tuple2str(*args) -> str:
     fo_str = []
     for a in args:
         indice = a[0][0]
         type_a = a[0][1]
         fo_str.append(f"{indice}" + ("^" if type_a == 1 else ""))
-    return ' '.join(fo_str)
+    return " ".join(fo_str)
+
 
 def fermionic_particle_number_operator(modes: int) -> FermionOperator:
     """Makes an operator that returns number of occupied spin orbitals, in 2nd quantization.
@@ -48,18 +50,36 @@ def get_squared_operator(fo: FermionOperator) -> FermionOperator:
             sqed_operator += new_fo_term
     return sqed_operator
 
+def make_shift_up_operator(p: int) -> FermionOperator:
+    s_plus = FermionOperator()
+    for i in range(p):
+        even_orb = i * 2
+        odd_orb = even_orb + 1
+        alpha_beta = FermionOperator(((even_orb, 1), (odd_orb, 0)))
+        s_plus += alpha_beta
+    return s_plus
 
-def make_spin_sq_operator(p: int) -> FermionOperator:
+def make_shift_down_operator(p: int) -> FermionOperator:
+    s_minus = FermionOperator()
+    for i in range(p):
+        even_orb = i * 2
+        odd_orb = even_orb + 1
+        beta_alpha = FermionOperator(((odd_orb, 1), (even_orb, 0)))
+        s_minus += beta_alpha
+    return s_minus
+
+def make_total_spin_operator(
+    p: int,
+) -> FermionOperator:
     """Makes the S^2 operator.
 
-    Formula is: S^2 = S_x^2 + S_y^2 + S_z^2
-    In second quantization is,
+    Formula is: S^2 = S_x^2 + S_y^2 + S_z^2 (doesn't work?)
+    or S^2 = S_-  S_+ + S_z(S_z + 1) (works, matches OpenFermion's implemetnation)
     """
-    return (
-        get_squared_operator(make_spin_z_operator(p))
-        + get_squared_operator(make_spin_x_operator(p))
-        + get_squared_operator(make_spin_y_operator(p))
-    )
+    s_z = make_spin_z_operator(p)
+    shift_plus = make_shift_up_operator(p)
+    shift_minus = make_shift_down_operator(p)
+    return shift_minus * shift_plus + s_z * (s_z + 1*FermionOperator.identity())
 
 
 def make_spin_x_operator(p: int) -> FermionOperator:
@@ -68,9 +88,9 @@ def make_spin_x_operator(p: int) -> FermionOperator:
         even_orb = i * 2
         odd_orb = even_orb + 1
         alpha_term = FermionOperator(((even_orb, 1), (odd_orb, 0)))
-        beta_term = FermionOperator(((odd_orb, 1), (even_orb + 1, 0)))
-        s_x += alpha_term + beta_term
-    return 1 / 2 * s_x
+        beta_term = FermionOperator(((odd_orb, 1), (even_orb, 0)))
+        s_x += 1 / 2 * (alpha_term + beta_term)
+    return s_x
 
 
 def make_spin_y_operator(p: int) -> FermionOperator:
@@ -80,8 +100,8 @@ def make_spin_y_operator(p: int) -> FermionOperator:
         odd_orb = even_orb + 1
         alpha_term = FermionOperator(((even_orb, 1), (odd_orb, 0)))
         beta_term = FermionOperator(((odd_orb, 1), (even_orb, 0)))
-        s_y += alpha_term - beta_term
-    return 1 / 2.0j * s_y
+        s_y += 1 / 2.0j * (alpha_term - beta_term)
+    return s_y
 
 
 def make_spin_z_operator(p: int) -> FermionOperator:
@@ -138,7 +158,7 @@ def get_total_spin(w, p: int) -> float:
     Returns:
         the projected spin
     """
-    s_2 = qubit_operator_sparse(jordan_wigner(make_spin_sq_operator(p)))
+    s_2 = qubit_operator_sparse(jordan_wigner(make_total_spin_operator(p)))
     return extract_eigenvalue(s_2, w)
 
 
