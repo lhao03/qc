@@ -4,19 +4,20 @@ from openfermion import (
 )
 from opt_einsum import contract
 
+from min_part.ffrag_utils import (
+    LR_frags_generator,
+    FRO_frags_generator,
+    gfro_frags_generator,
+    get_coeff_mat_from_coeffs,
+    get_u_from_angles,
+    sdgfro_frags_generator,
+)
+from min_part.tensor_utils import get_chem_tensors, obt2op, obt2tbt, spac2spin, tbt2op
 from . import config
 import pickle
 import numpy as np
 
-from .ffrag_utils import (
-    LR_frags_generator,
-    gfro_frags_generator,
-    FRO_frags_generator,
-    get_u_from_angles,
-    get_coeff_mat_from_coeffs,
-    sdgfro_frags_generator,
-)
-from .tensor_utils import get_chem_tensors, obt2tbt, obt2op, spac2spin, tbt2op
+
 
 
 # projector_func used in all functions is the function that projects the sparse arrays on to the correct fermionic symmtery subspace
