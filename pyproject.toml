@@ -6,6 +6,7 @@ requires-python = ">=3.9"
 dependencies = [
     "joblib>=1.5.0",
     "jupyterlab>=4.4.2",
+    "numpy>=1.26.4",
     "openfermion>=1.6.1",
     "openfermionpyscf>=0.5",
     "opt-einsum>=3.4.0",

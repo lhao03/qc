@@ -169,6 +169,25 @@ plot_energies(
         gs_energies,
         n_subspace_energies,
         gs_subspace_energies,
+        all_subspace_energies,
+        all_projected_energies,
+    ],
+    title=f"{mol_name} Energies via LR Partitioning, Basis Set STO-3G",
+    labels=[
+        "No Partitioning",
+        "N=2 Ver 1",
+        "N=2 Ver 2",
+        "All Fock Space",
+        "'Projected into GS Subspace'",
+    ],
+)
+
+plot_energies(
+    xpoints=xpoints,
+    points=[
+        gs_energies,
+        n_subspace_energies,
+        gs_subspace_energies,
         # all_subspace_energies,
         all_projected_energies,
     ],
@@ -178,6 +197,6 @@ plot_energies(
         "N=2 Ver 1",
         "N=2 Ver 2",
         # "All Fock Space",
-        "PIGSoH",
+        "'Projected into GS Subspace'",
     ],
 )
