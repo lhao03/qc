@@ -1,13 +1,9 @@
 import unittest
+from functools import reduce
 
 import numpy as np
-import scipy as sp
 from openfermion import (
     count_qubits,
-    jordan_wigner,
-    qubit_operator_sparse,
-    FermionOperator,
-    s_squared_operator,
 )
 
 from min_part.ham_decomp import (
@@ -18,17 +14,10 @@ from min_part.ham_decomp import (
     make_fr_tensor,
     gfr_cost,
     frob_norm,
+    gfro_decomp,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
-from min_part.operators import (
-    get_particle_number,
-    get_projected_spin,
-    get_total_spin,
-    get_squared_operator,
-    extract_eigenvalue,
-    make_total_spin_operator,
-)
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 
 
@@ -122,4 +111,23 @@ class DecompTest(unittest.TestCase):
             self.fail()
 
     def test_grfo(self):
-        pass
+        """This test checks for the correct GFRO partitioning of H2.
+
+        Some constraints to be checked are:
+
+        The sum of the GFRO fragments == the sum of the unpartitioned fragments
+        Each U at each step chosen are unitary
+
+        """
+        gfro_frags = gfro_decomp(
+            tbfo=self.H_tb_op,
+        )
+        n = self.H_tbt.shape[0] ** 2
+        for frag in gfro_frags:
+            u = make_unitary(frag.thetas, n)
+            self.assertEqual(np.linalg.det(u), 1)
+
+        self.assertEqual(
+            reduce(lambda op1, op2: op1 + op2, [f.operators for f in gfro_frags]),
+            self.H_ele,
+        )

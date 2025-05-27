@@ -1,14 +1,15 @@
-from typing import Any
+from typing import Any, List
 
+import numpy as np
+import scipy as sp
 import scipy.linalg
 from openfermion import FermionOperator
-import scipy as sp
-import numpy as np
-from scipy.optimize import minimize, OptimizeResult
+from scipy.optimize import OptimizeResult, minimize
 
 from min_part.reorder import reorder_operators_for_lr
 from min_part.tensor import get_two_body_tensor
 from min_part.tensor_utils import tbt2op
+from min_part.typing import GFROFragment
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -143,14 +144,14 @@ def gfr_cost(lambdas, thetas, g_pqrs, n):
 
 def gfro_decomp(
     tbfo: FermionOperator, threshold=1e-5, max_iter: int = 10000
-) -> list[FermionOperator]:
+) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
 
     Procedure:
+
     1. Introduce a G tensor. It is initialized to the original two-fermion tensor.
-    2. Select an optimal fragment that minimizes the cost function, via non-linear gradient based optimization
-     of lambda and theta.
+    2. Select an optimal fragment that minimizes the cost function, via non-linear gradient based optimization of lambda and theta.
     3. Update G tensor with chosen fragment, and recalculate L1 norm
     4. Repeat until L1 norm reaches the desired threshold
 
@@ -162,7 +163,7 @@ def gfro_decomp(
     """
     tbt = get_two_body_tensor(tbfo)
     g_tensor = tbt.copy()
-    frags = []
+    frags: List[GFROFragment] = []
     iter = 0
     n = tbt.shape[0] ** 2
     while frob_norm(g_tensor) >= threshold or iter <= max_iter:
@@ -178,7 +179,11 @@ def gfro_decomp(
         lambdas_sol = greedy_sol.x[0]
         thetas_sol = greedy_sol.x[1]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
-        frags.append(fr_frag_tensor)
+        frags.append(
+            GFROFragment(
+                lambdas=lambdas_sol, thetas=thetas_sol, operators=tbt2op(fr_frag_tensor)
+            )
+        )
         iter += 1
         g_tensor -= fr_frag_tensor
-    return [tbt2op(f) for f in frags]
+    return frags
