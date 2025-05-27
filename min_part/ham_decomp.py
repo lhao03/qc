@@ -169,7 +169,7 @@ def gfro_decomp(
         lambdas_0 = np.random.rand(n, n)
         thetas_0 = np.array(n)
         greedy_sol: OptimizeResult = minimize(
-            lambda x0: gfr_cost(x0[0], x0[1], g_tensor),
+            lambda x0: gfr_cost(x0[0], x0[1], g_tensor, n),
             x0=np.array([lambdas_0, thetas_0]),
             method="L-BFGS-B",
         )

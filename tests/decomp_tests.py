@@ -14,6 +14,10 @@ from min_part.ham_decomp import (
     make_supermatrix,
     four_tensor_to_two_tensor_indices,
     X_matrix,
+    make_unitary,
+    make_fr_tensor,
+    gfr_cost,
+    frob_norm,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
@@ -67,22 +71,55 @@ class DecompTest(unittest.TestCase):
 
     # === Greedy Full Rank Helpers ===
     def test_frob_norm(self):
-        pass
+        n = 5
+        lambdas = np.random.rand(n, n)
+        m = (n * (n + 1)) // 2
+        thetas = np.random.rand(m)
+        tensor = make_fr_tensor(lambdas, thetas, n)
+        tensor_half = tensor - 0.5 * tensor
+        larger_norm = frob_norm(tensor)
+        smaller_norm = frob_norm(tensor_half)
+        self.assertTrue(larger_norm > smaller_norm)
+
+    def test_cost_function(self):
+        n = 5
+        lambdas = np.random.rand(n, n)
+        m = (n * (n + 1)) // 2
+        thetas = np.random.rand(m)
+        tensor = make_fr_tensor(lambdas, thetas, n)
+        res = gfr_cost(lambdas, thetas, tensor, n)
+        self.assertEqual(res, 0)
+        non_zero = gfr_cost(
+            lambdas, thetas, make_fr_tensor(lambdas, np.random.rand(m), n), n
+        )
+        self.assertNotEqual(non_zero, 0)
 
     def test_make_X(self):
         n = 10
         m = (n * (n + 1)) // 2
-        x = X_matrix(thetas=np.random.rand(m),
-                     n=10)
-        self.assertEqual(x[8][9] , - x[9][8])
-        self.assertEqual(x[4][5], - x[5][4])
-        self.assertEqual(x[3][7], - x[7][3])
+        x = X_matrix(thetas=np.random.rand(m), n=10)
+        self.assertEqual(x[8][9], -x[9][8])
+        self.assertEqual(x[4][5], -x[5][4])
+        self.assertEqual(x[3][7], -x[7][3])
 
     def test_make_U(self):
-        pass
+        n = 4
+        thetas = np.array([0, 1, 2, 3, 0, 4, 5, 0, 6, 0])
+        try:
+            u = make_unitary(thetas, n)
+        except:
+            self.fail()
 
     def test_make_fr_tensor(self):
-        pass
+        n = 5
+        lambdas = np.random.rand(n, n)
+        m = (n * (n + 1)) // 2
+        thetas = np.random.rand(m)
+        try:
+            tensor = make_fr_tensor(lambdas, thetas, n)
+            fo = tbt2op(tensor)
+        except:
+            self.fail()
 
     def test_grfo(self):
         pass
