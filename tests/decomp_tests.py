@@ -10,7 +10,11 @@ from openfermion import (
     s_squared_operator,
 )
 
-from min_part.ham_decomp import make_supermatrix, four_tensor_to_two_tensor_indices
+from min_part.ham_decomp import (
+    make_supermatrix,
+    four_tensor_to_two_tensor_indices,
+    X_matrix,
+)
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.operators import (
@@ -35,7 +39,7 @@ class DecompTest(unittest.TestCase):
         self.H_tb_op = tbt2op(self.H_tbt)
         self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
 
-    # === Helpers ===
+    # === Low Rank Helpers ===
     def test_4_to_2_indices(self):
         pq, rs = four_tensor_to_two_tensor_indices(0, 0, 1, 4, n=5)
         self.assertEqual(pq, 0)
@@ -60,3 +64,25 @@ class DecompTest(unittest.TestCase):
         self.assertEqual(test_matrix[0][0][1][4], supermatrix[pq][rs])
         pq, rs = four_tensor_to_two_tensor_indices(0, 0, 1, 4, n=5)
         self.assertEqual(test_matrix[0][0][1][4], supermatrix[pq][rs])
+
+    # === Greedy Full Rank Helpers ===
+    def test_frob_norm(self):
+        pass
+
+    def test_make_X(self):
+        n = 10
+        m = (n * (n + 1)) // 2
+        x = X_matrix(thetas=np.random.rand(m),
+                     n=10)
+        self.assertEqual(x[8][9] , - x[9][8])
+        self.assertEqual(x[4][5], - x[5][4])
+        self.assertEqual(x[3][7], - x[7][3])
+
+    def test_make_U(self):
+        pass
+
+    def test_make_fr_tensor(self):
+        pass
+
+    def test_grfo(self):
+        pass

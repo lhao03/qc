@@ -111,8 +111,8 @@ def X_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
         e = n - i
         for x in range(e):
             for y in range(e):
-                X[x:y] = thetas[i]
-                X[y:x] = -thetas[i]
+                X[x][y] = thetas[i]
+                X[y][x] = -thetas[i]
     return X
 
 
@@ -136,8 +136,8 @@ def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     return np.einsum("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
 
 
-def gfr_cost(lambdas, thetas, g_pqrs):
-    w_pqrs = make_fr_tensor(lambdas, thetas)
+def gfr_cost(lambdas, thetas, g_pqrs, n):
+    w_pqrs = make_fr_tensor(lambdas, thetas, n)
     return np.sum(np.abs(g_pqrs - w_pqrs) ** 2)
 
 
@@ -167,7 +167,7 @@ def gfro_decomp(
     n = tbt.shape[0] ** 2
     while frob_norm(g_tensor) >= threshold or iter <= max_iter:
         lambdas_0 = np.random.rand(n, n)
-        thetas_0 = np.array(1, n)
+        thetas_0 = np.array(n)
         greedy_sol: OptimizeResult = minimize(
             lambda x0: gfr_cost(x0[0], x0[1], g_tensor),
             x0=np.array([lambdas_0, thetas_0]),
