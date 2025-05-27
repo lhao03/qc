@@ -100,7 +100,9 @@ for bond_length in xpoints:
     two_body_contributions_not_filtered = sum([min(e, default=0) for e in all_energies])
     energy_gs_sym = energy_no_two_body + two_body_contributions_most_constraints
     energy_only_elecs = energy_no_two_body + two_body_contributions
-    energy_not_filtered = energy_no_two_body_no_constraints + two_body_contributions_not_filtered
+    energy_not_filtered = (
+        energy_no_two_body_no_constraints + two_body_contributions_not_filtered
+    )
     print(f"Energy no two body contributions:{energy_no_two_body}")
     print(f"tbe:{two_body_contributions_most_constraints}")
     print(f"LR Energy more constraints: {energy_gs_sym} Hartree")

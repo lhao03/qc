@@ -139,7 +139,7 @@ def gfro_frags_generator(
     Htbt = copy(tbt)
     N = Htbt.shape[0]
 
-    if spacial == True:
+    if spacial:
         Htbt = Htbt[np.ix_(*[range(0, i, 2) for i in Htbt.shape])]
         N = Htbt.shape[0]
 
