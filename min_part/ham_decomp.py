@@ -7,7 +7,7 @@ from openfermion import FermionOperator
 from scipy.optimize import OptimizeResult, minimize
 
 from min_part.reorder import reorder_operators_for_lr
-from min_part.tensor import get_two_body_tensor
+from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import tbt2op
 from min_part.typing import GFROFragment
 
@@ -65,7 +65,7 @@ def lr_decomp(tbfo: FermionOperator) -> list[FermionOperator]:
         list of one-fermion fragments
     """
     reordered_tbt = reorder_operators_for_lr(tbfo)
-    tbt = get_two_body_tensor(reordered_tbt)
+    tbt = get_n_body_tensor(reordered_tbt)
     if len(set(tbt.shape)) != 1:
         raise ValueError("Expected the two-fermion tensor to be size N x N x N x N")
     tbt_supermatrix = make_supermatrix(tbt)
@@ -143,7 +143,7 @@ def gfr_cost(lambdas, thetas, g_pqrs, n):
 
 
 def gfro_decomp(
-    tbfo: FermionOperator, threshold=1e-5, max_iter: int = 10000
+    tbt: np.ndarray, threshold=1e-5, max_iter: int = 10000
 ) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
@@ -156,12 +156,11 @@ def gfro_decomp(
     4. Repeat until L1 norm reaches the desired threshold
 
     Args:
-        tbfo: two-body operator in `FermionOperator` form
+        tbt: two-body operator in np.array form
 
     Returns:
         list of fragments
     """
-    tbt = get_two_body_tensor(tbfo)
     g_tensor = tbt.copy()
     frags: List[GFROFragment] = []
     iter = 0
