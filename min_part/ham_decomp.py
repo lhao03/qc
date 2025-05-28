@@ -108,12 +108,12 @@ def X_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     if thetas.size != n * (n + 1) / 2:
         raise UserWarning("There is not enough angles to make a N by N matrix")
     X = np.random.rand(n, n)
-    for i in range(n):
-        e = n - i
-        for x in range(e):
-            for y in range(e):
-                X[x][y] = thetas[i]
-                X[y][x] = -thetas[i]
+    t = 0
+    for x in range(n):
+        for y in range(x, n):
+            X[y][x] = -thetas[t]
+            X[x][y] = thetas[t]
+            t += 1
     return X
 
 
@@ -132,18 +132,23 @@ def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     Returns:
         tensor representing the FR fragment
     """
-    lm = lambdas
+    lm = np.reshape(lambdas, (n, n))
     U = make_unitary(thetas, n)
     return np.einsum("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
 
 
 def gfr_cost(lambdas, thetas, g_pqrs, n):
+    if lambdas.shape[0] != n**2 and thetas.shape[0] != n * (n + 1) / 2:
+        raise ValueError(
+            "Expanded n^2 elements in lambdas and n(n+1)/2 elements in thetas"
+        )
     w_pqrs = make_fr_tensor(lambdas, thetas, n)
-    return np.sum(np.abs(g_pqrs - w_pqrs) ** 2)
+    diff = g_pqrs - w_pqrs
+    return np.sum(np.abs(diff * diff))
 
 
 def gfro_decomp(
-    tbt: np.ndarray, threshold=1e-5, max_iter: int = 10000
+    tbt: np.ndarray, threshold=1e-6, max_iter: int = 10000
 ) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
@@ -164,25 +169,27 @@ def gfro_decomp(
     g_tensor = tbt.copy()
     frags: List[GFROFragment] = []
     iter = 0
-    n = tbt.shape[0] ** 2
-    while frob_norm(g_tensor) >= threshold or iter <= max_iter:
-        lambdas_0 = np.random.rand(n, n)
-        thetas_0 = np.array(n)
+    n = tbt.shape[0]
+    while frob_norm(g_tensor) >= threshold and iter <= max_iter:
+        x_dim = n * (n + 1) // 2
+        x0 = np.random.uniform(low=-1, high=1, size=n**2 + x_dim)
         greedy_sol: OptimizeResult = minimize(
-            lambda x0: gfr_cost(x0[0], x0[1], g_tensor, n),
-            x0=np.array([lambdas_0, thetas_0]),
+            lambda x0: gfr_cost(x0[: n**2], x0[n**2 :], g_tensor, n),
+            x0=x0,
             method="L-BFGS-B",
+            options={"maxiter": 10000, "disp": False},
+            tol=(threshold / n**4) ** 2,
         )
         if not greedy_sol.success:
             raise UserWarning(f"Failed to minimize on iteration {iter}")
-        lambdas_sol = greedy_sol.x[0]
-        thetas_sol = greedy_sol.x[1]
+        lambdas_sol = greedy_sol.x[: n**2]
+        thetas_sol = greedy_sol.x[n**2 :]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
         frags.append(
             GFROFragment(
                 lambdas=lambdas_sol, thetas=thetas_sol, operators=tbt2op(fr_frag_tensor)
             )
         )
-        iter += 1
         g_tensor -= fr_frag_tensor
+        iter += 1
     return frags

@@ -24,13 +24,21 @@ class ConversionTest(unittest.TestCase):
     def test_ordering(self):
         self.assertTrue(is_chemist_ordered(((1, 1), (0, 0), (1, 1), (0, 0))))
         self.assertFalse(is_chemist_ordered(((0, 0), (1, 1), (0, 0))))
-        self.assertFalse(is_chemist_ordered(((1, 1), (0, 0), (1, 1),)))
+        self.assertFalse(
+            is_chemist_ordered(
+                (
+                    (1, 1),
+                    (0, 0),
+                    (1, 1),
+                )
+            )
+        )
         self.assertFalse(is_chemist_ordered(((1, 0), (0, 1), (1, 0), (0, 1))))
 
-   # === `FermionOperator` to Tensor tests
+    # === `FermionOperator` to Tensor tests
     def test_fake_1b_fo_2_tensor(self):
         coeff = -1.7
-        fake_2b_fo = FermionOperator('3^ 1 2^ 0', coeff)
+        fake_2b_fo = FermionOperator("3^ 1 2^ 0", coeff)
         tensor = get_n_body_tensor(fake_2b_fo, 2, 4)
         fo = tbt2op(tensor)
         self.assertEqual(tensor[3][1][2][0], coeff)
@@ -58,4 +66,3 @@ class ConversionTest(unittest.TestCase):
 
     def test_tensor_2_3b_fo(self):
         pass
-

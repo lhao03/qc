@@ -246,16 +246,16 @@ def Do_GFRO(
         with open(savefilename, "wb") as out_file:
             pickle.dump(savefile, out_file)
 
-    if shrink_frag == False:
-        sparse_fragments_list = [
-            get_sparse_operator(frag, n_qubits=config.n_qubits) for frag in all_frag_ops
-        ]
-    else:
-        sparse_fragments_list = [
-            projector_func(frag, excitation_level=excitations) for frag in all_frag_ops
-        ]
+    # if not shrink_frag:
+    #     sparse_fragments_list = [
+    #         get_sparse_operator(frag, n_qubits=config.n_qubits) for frag in all_frag_ops
+    #     ]
+    # else:
+    #     sparse_fragments_list = [
+    #         projector_func(frag, excitation_level=excitations) for frag in all_frag_ops
+    #     ]
 
-    return np.array(sparse_fragments_list)
+    return all_frag_ops
 
 
 # Do SD GFRO (new)

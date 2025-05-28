@@ -19,6 +19,7 @@ from min_part.ham_decomp import (
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
+from pert_trotter.fermi_frag import Do_GFRO
 
 
 class DecompTest(unittest.TestCase):
@@ -101,7 +102,7 @@ class DecompTest(unittest.TestCase):
 
     def test_make_fr_tensor(self):
         n = 5
-        lambdas = np.random.rand(n, n)
+        lambdas = np.random.rand(n * n)
         m = (n * (n + 1)) // 2
         thetas = np.random.rand(m)
         try:
@@ -119,10 +120,8 @@ class DecompTest(unittest.TestCase):
         Each U at each step chosen are unitary
 
         """
-        gfro_frags = gfro_decomp(
-            tbfo=self.H_tb_op,
-        )
-        n = self.H_tbt.shape[0] ** 2
+        gfro_frags = gfro_decomp(tbt=self.H_tbt)
+        n = self.H_tbt.shape[0]
         for frag in gfro_frags:
             u = make_unitary(frag.thetas, n)
             self.assertEqual(np.linalg.det(u), 1)
@@ -131,3 +130,7 @@ class DecompTest(unittest.TestCase):
             reduce(lambda op1, op2: op1 + op2, [f.operators for f in gfro_frags]),
             self.H_ele,
         )
+
+    def test_other_gfro(self):
+        gfro_frags = Do_GFRO(self.H_ele, shrink_frag=False, CISD=False)
+        print(len(gfro_frags))

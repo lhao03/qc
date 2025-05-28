@@ -6,7 +6,7 @@ from openfermion import jordan_wigner, normal_ordered
 from opt_einsum import contract
 from scipy.optimize import minimize
 
-from tensor_utils import spac2spin, tbt2op, obt2tbt
+from .tensor_utils import spac2spin, tbt2op, obt2tbt
 
 
 def FRO_frags_generator(tbt, N_frags, ret_ops=True, ret_params=False):
@@ -588,7 +588,7 @@ def get_u_from_angles(angles, N):
     return u
 
 
-def build_FR_frag_tbt(coeffs, n_qubits, angles, N=None):
+def build_FR_frag_tbt(coeffs, angles, N):
     """
     Build FR tbt from coefficients and angles defining the tbt.
     len(coeffs) = N(N+1)/2. len(angles) = N(N-1)/2.
@@ -601,8 +601,6 @@ def build_FR_frag_tbt(coeffs, n_qubits, angles, N=None):
     Returns:
         np.array: chemist two-body-tensor. Shape = (N,N,N,N).
     """
-    if N == None:
-        N = n_qubits
     coeff_mat = get_coeff_mat_from_coeffs(coeffs, N)
     u = get_u_from_angles(angles, N)
     return contract("ij,pi,qi,rj,sj -> pqrs", coeff_mat, u, u, u, u)
