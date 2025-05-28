@@ -6,10 +6,11 @@ from openfermion import (
     count_qubits,
 )
 
+from min_part.ffrag_utils import get_u_from_angles
 from min_part.ham_decomp import (
     make_supermatrix,
     four_tensor_to_two_tensor_indices,
-    X_matrix,
+    make_x_matrix,
     make_unitary,
     make_fr_tensor,
     gfr_cost,
@@ -62,8 +63,8 @@ class DecompTest(unittest.TestCase):
     # === Greedy Full Rank Helpers ===
     def test_frob_norm(self):
         n = 5
-        lambdas = np.random.rand(n, n)
         m = (n * (n + 1)) // 2
+        lambdas = np.random.rand(m)
         thetas = np.random.rand(m)
         tensor = make_fr_tensor(lambdas, thetas, n)
         tensor_half = tensor - 0.5 * tensor
@@ -73,9 +74,9 @@ class DecompTest(unittest.TestCase):
 
     def test_cost_function(self):
         n = 5
-        lambdas = np.random.rand(n, n)
         m = (n * (n + 1)) // 2
         thetas = np.random.rand(m)
+        lambdas = np.random.rand(m)
         tensor = make_fr_tensor(lambdas, thetas, n)
         res = gfr_cost(lambdas, thetas, tensor, n)
         self.assertEqual(res, 0)
@@ -87,7 +88,7 @@ class DecompTest(unittest.TestCase):
     def test_make_X(self):
         n = 10
         m = (n * (n + 1)) // 2
-        x = X_matrix(thetas=np.random.rand(m), n=10)
+        x = make_x_matrix(thetas=np.random.rand(m), n=10)
         self.assertEqual(x[8][9], -x[9][8])
         self.assertEqual(x[4][5], -x[5][4])
         self.assertEqual(x[3][7], -x[7][3])
@@ -102,9 +103,9 @@ class DecompTest(unittest.TestCase):
 
     def test_make_fr_tensor(self):
         n = 5
-        lambdas = np.random.rand(n * n)
         m = (n * (n + 1)) // 2
         thetas = np.random.rand(m)
+        lambdas = np.random.rand(m)
         try:
             tensor = make_fr_tensor(lambdas, thetas, n)
             fo = tbt2op(tensor)
@@ -124,13 +125,20 @@ class DecompTest(unittest.TestCase):
         n = self.H_tbt.shape[0]
         for frag in gfro_frags:
             u = make_unitary(frag.thetas, n)
-            self.assertEqual(np.linalg.det(u), 1)
+            self.assertAlmostEqual(np.linalg.det(u), 1, places=5)
 
         self.assertEqual(
             reduce(lambda op1, op2: op1 + op2, [f.operators for f in gfro_frags]),
-            self.H_ele,
+            self.H_tb_op,
         )
 
     def test_other_gfro(self):
-        gfro_frags = Do_GFRO(self.H_ele, shrink_frag=False, CISD=False)
-        print(len(gfro_frags))
+        all_frag_ops, gfro_fragments, gfro_params = Do_GFRO(self.H_ele, shrink_frag=False, CISD=False)
+        for coeffs, angles in gfro_params:
+            u = get_u_from_angles(angles,  4)
+            self.assertAlmostEqual(np.linalg.det(u), 1, places=5)
+
+        self.assertEqual(
+            reduce(lambda op1, op2: op1 + op2, gfro_fragments),
+            self.H_tb_op,
+        )

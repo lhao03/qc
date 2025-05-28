@@ -4,6 +4,7 @@ import numpy as np
 import scipy as sp
 import scipy.linalg
 from openfermion import FermionOperator
+from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
 from min_part.reorder import reorder_operators_for_lr
@@ -88,7 +89,7 @@ def frob_norm(tensor) -> float:
     return np.sqrt(np.sum(np.abs(tensor * tensor)))
 
 
-def X_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
+def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     """Makes the X matrix required to define a unitary orbital rotation, where
 
     U = e^X
@@ -105,12 +106,12 @@ def X_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     Returns:
         an N by N matrix
     """
-    if thetas.size != n * (n + 1) / 2:
+    if thetas.size != (n * (n + 1) / 2) - n:
         raise UserWarning("There is not enough angles to make a N by N matrix")
-    X = np.random.rand(n, n)
+    X = np.zeros((n, n))
     t = 0
     for x in range(n):
-        for y in range(x, n):
+        for y in range(x+1, n):
             X[y][x] = -thetas[t]
             X[x][y] = thetas[t]
             t += 1
@@ -118,8 +119,19 @@ def X_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
 
 
 def make_unitary(thetas, n: int) -> np.ndarray:
-    return sp.linalg.expm(X_matrix(thetas, n))
+    return sp.linalg.expm(make_x_matrix(thetas, n))
 
+def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
+    if lambdas.size != n * (n + 1) / 2:
+        raise UserWarning("There is not enough angles to make a N by N matrix")
+    l = np.random.rand(n, n)
+    t = 0
+    for x in range(n):
+        for y in range(x, n):
+            l[y][x] = lambdas[t]
+            l[x][y] = lambdas[t]
+            t += 1
+    return l
 
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """The full rank tensor is defined as:
@@ -132,15 +144,16 @@ def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     Returns:
         tensor representing the FR fragment
     """
-    lm = np.reshape(lambdas, (n, n))
+    lm = make_lambda_matrix(lambdas, n)
     U = make_unitary(thetas, n)
-    return np.einsum("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
+    return contract("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
 
 
 def gfr_cost(lambdas, thetas, g_pqrs, n):
-    if lambdas.shape[0] != n**2 and thetas.shape[0] != n * (n + 1) / 2:
+    t = n * (n + 1) / 2
+    if lambdas.shape[0] != 1 and thetas.shape[0] != t - n:
         raise ValueError(
-            "Expanded n^2 elements in lambdas and n(n+1)/2 elements in thetas"
+            "Expanded n * (n + 1) / 2 elements in lambdas and [n * (n + 1) / 2] -n elements in thetas"
         )
     w_pqrs = make_fr_tensor(lambdas, thetas, n)
     diff = g_pqrs - w_pqrs
@@ -172,9 +185,9 @@ def gfro_decomp(
     n = tbt.shape[0]
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
         x_dim = n * (n + 1) // 2
-        x0 = np.random.uniform(low=-1, high=1, size=n**2 + x_dim)
+        x0 = np.random.uniform(low=-1, high=1, size=(2 * x_dim) - n)
         greedy_sol: OptimizeResult = minimize(
-            lambda x0: gfr_cost(x0[: n**2], x0[n**2 :], g_tensor, n),
+            lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], g_tensor, n),
             x0=x0,
             method="L-BFGS-B",
             options={"maxiter": 10000, "disp": False},
@@ -182,8 +195,8 @@ def gfro_decomp(
         )
         if not greedy_sol.success:
             raise UserWarning(f"Failed to minimize on iteration {iter}")
-        lambdas_sol = greedy_sol.x[: n**2]
-        thetas_sol = greedy_sol.x[n**2 :]
+        lambdas_sol = greedy_sol.x[:x_dim]
+        thetas_sol = greedy_sol.x[x_dim:]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
         frags.append(
             GFROFragment(
@@ -192,4 +205,5 @@ def gfro_decomp(
         )
         g_tensor -= fr_frag_tensor
         iter += 1
+        print(f"Curent norm: {frob_norm(g_tensor)}")
     return frags

@@ -226,11 +226,6 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save=True, load=True, projector_func=None
 def Do_GFRO(
     H_FO, shrink_frag, CISD, tol=1e-6, save=True, spacial=False, projector_func=None
 ):
-    if CISD == False:
-        excitations = None
-    else:
-        excitations = 2
-
     const, obt, tbt = get_chem_tensors(H_FO)
     obt_op = obt2op(obt)
 
@@ -240,22 +235,7 @@ def Do_GFRO(
     all_frag_ops = [const * FermionOperator.identity(), obt_op]
     all_frag_ops += gfro_fragments
 
-    if save == True:
-        savefilename = config.savepath + "gfro/" + config.mol_name + "_gfro_params.pkl"
-        savefile = {"fragment_ops": all_frag_ops, "params": gfro_params}
-        with open(savefilename, "wb") as out_file:
-            pickle.dump(savefile, out_file)
-
-    # if not shrink_frag:
-    #     sparse_fragments_list = [
-    #         get_sparse_operator(frag, n_qubits=config.n_qubits) for frag in all_frag_ops
-    #     ]
-    # else:
-    #     sparse_fragments_list = [
-    #         projector_func(frag, excitation_level=excitations) for frag in all_frag_ops
-    #     ]
-
-    return all_frag_ops
+    return all_frag_ops, gfro_fragments, gfro_params
 
 
 # Do SD GFRO (new)

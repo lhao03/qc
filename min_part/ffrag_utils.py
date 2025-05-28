@@ -117,7 +117,7 @@ def gfro_frag_params_optimized(Htbt, N, tol=1e-6):
 
 
 def gfro_frags_generator(
-    tbt, numtag=10000, tol=1e-6, ret_ops=True, ret_params=False, spacial=False
+    tbt, numtag=10000, tol=1e-6, ret_ops=True, ret_params=True, spacial=False
 ):
     """
     Generate GFRO fragments of a two body tensor.
@@ -169,16 +169,16 @@ def gfro_frags_generator(
 
         print("Current norm = ", current_norm)
 
-    if ret_ops == True:
+    if ret_ops:
         frag_ops = []
         for frag_tbt in fragments:
             frag_ops.append(tbt2op(frag_tbt))
-        if ret_params == True:
+        if ret_params:
             return frag_ops, params
         else:
             return frag_ops
     else:
-        if ret_params == True:
+        if ret_params:
             return fragments, params
         else:
             return fragments
