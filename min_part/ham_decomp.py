@@ -195,7 +195,7 @@ def gfro_decomp(
             tries += 1
             if tries > (100 + iter):
                 raise ValueError("Couldn't find good greedy fragment")
-        lambdas_sol = greedy_sol.x[:x_dim]
+        lambdas_sol = 0.1 * greedy_sol.x[:x_dim]
         thetas_sol = greedy_sol.x[x_dim:]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
         frags.append(
@@ -212,7 +212,7 @@ def try_find_greedy_fr_frag(n, threshold, g_tensor):
     x_dim = n * (n + 1) // 2
     x0 = np.random.uniform(low=-1, high=1, size=(2 * x_dim) - n)
     greedy_sol: OptimizeResult = minimize(
-        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], g_tensor, n),
+        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], 10 * g_tensor, n),
         x0=x0,
         method="L-BFGS-B",
         options={"maxiter": 10000, "disp": False},
