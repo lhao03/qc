@@ -133,9 +133,11 @@ class DecompTest(unittest.TestCase):
         )
 
     def test_other_gfro(self):
-        all_frag_ops, gfro_fragments, gfro_params = Do_GFRO(self.H_ele, shrink_frag=False, CISD=False)
+        all_frag_ops, gfro_fragments, gfro_params = Do_GFRO(
+            self.H_ele, shrink_frag=False, CISD=False
+        )
         for coeffs, angles in gfro_params:
-            u = get_u_from_angles(angles,  4)
+            u = get_u_from_angles(angles, 4)
             self.assertAlmostEqual(np.linalg.det(u), 1, places=5)
 
         self.assertEqual(

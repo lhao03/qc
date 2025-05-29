@@ -1,18 +1,20 @@
+import pickle
 from dataclasses import dataclass
+
+import scipy as sp
 from math import isclose
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 from openfermion import (
-    number_operator,
-    qubit_operator_sparse,
-    jordan_wigner,
     FermionOperator,
+    jordan_wigner,
+    qubit_operator_sparse,
 )
 
-from ffrag_utils import LR_frags_generator
+from min_part.ffrag_utils import LR_frags_generator
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
-from tensor_utils import get_chem_tensors, obt2op
+from min_part.tensor_utils import get_chem_tensors, obt2op
 
 
 @dataclass
@@ -86,10 +88,49 @@ def do_lr_fo(
         )
     return const * FermionOperator.identity(), obt_op, LR_fragments
 
+def save_frags(frags, file_name):
+    output = open(f"{file_name}.pkl", "wb")
+    pickle.dump(frags, output)
+    output.close()
 
-def save_arr(file_name: str, arr):
-    np.save(file_name, arr)
+def open_frags(file_name):
+    pkl_file = open(f"{file_name}.pkl", "rb")
+    return pickle.load(pkl_file)
 
-
-def read_arr(file_name: str):
-    return np.load(file_name)
+def diag_partitioned_fragments(
+    h2_frags: List[FermionOperator],
+    h1_v: np.ndarray,
+    h1_w: np.ndarray,
+    num_elecs: int,
+    num_spin_orbs: int,
+):
+    allowed_energies = []
+    all_energies = []
+    for frag in h2_frags:
+        eigenvalues, eigenvectors = sp.linalg.eigh(
+            qubit_operator_sparse(jordan_wigner(frag)).toarray()
+        )
+        tb = []
+        energies = []
+        all_en = []
+        for i in range(eigenvectors.shape[0]):
+            energy = eigenvalues[i]
+            w = eigenvectors[:, [i]]
+            n = get_particle_number(w, e=num_spin_orbs)
+            tb.append(EnergyOccupation(energy=energy, spin_orbs=n))
+            all_en.append(energy)
+            if n == num_elecs:
+                energies.append(energy)
+        all_energies.append(all_en)
+        allowed_energies.append(energies)
+    energy_no_two_body = choose_lowest_energy(
+        h1_v, h1_w, num_spin_orbs, num_elecs, proj_spin=0, total_spin=0
+    )
+    energy_no_two_body_no_constraints = min(h1_v)
+    two_body_contributions = sum([min(e, default=0) for e in allowed_energies])
+    two_body_contributions_not_filtered = sum([min(e, default=0) for e in all_energies])
+    energy_only_elecs = energy_no_two_body + two_body_contributions
+    energy_not_filtered = (
+        energy_no_two_body_no_constraints + two_body_contributions_not_filtered
+    )
+    return energy_only_elecs, energy_not_filtered

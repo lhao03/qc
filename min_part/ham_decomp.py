@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, List
 
 import numpy as np
@@ -111,7 +112,7 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     X = np.zeros((n, n))
     t = 0
     for x in range(n):
-        for y in range(x+1, n):
+        for y in range(x + 1, n):
             X[y][x] = -thetas[t]
             X[x][y] = thetas[t]
             t += 1
@@ -120,6 +121,7 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
 
 def make_unitary(thetas, n: int) -> np.ndarray:
     return sp.linalg.expm(make_x_matrix(thetas, n))
+
 
 def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
     if lambdas.size != n * (n + 1) / 2:
@@ -132,6 +134,7 @@ def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
             l[x][y] = lambdas[t]
             t += 1
     return l
+
 
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """The full rank tensor is defined as:
@@ -184,17 +187,14 @@ def gfro_decomp(
     iter = 0
     n = tbt.shape[0]
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
-        x_dim = n * (n + 1) // 2
-        x0 = np.random.uniform(low=-1, high=1, size=(2 * x_dim) - n)
-        greedy_sol: OptimizeResult = minimize(
-            lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], g_tensor, n),
-            x0=x0,
-            method="L-BFGS-B",
-            options={"maxiter": 10000, "disp": False},
-            tol=(threshold / n**4) ** 2,
-        )
-        if not greedy_sol.success:
-            raise UserWarning(f"Failed to minimize on iteration {iter}")
+        greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
+        while not greedy_sol.success:
+            warnings.warn(UserWarning(f"Failed to converge on iteration {iter}, trying again."))
+            tries = iter
+            greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
+            tries += 1
+            if tries > (100 + iter):
+                raise ValueError("Couldn't find good greedy fragment")
         lambdas_sol = greedy_sol.x[:x_dim]
         thetas_sol = greedy_sol.x[x_dim:]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
@@ -205,5 +205,17 @@ def gfro_decomp(
         )
         g_tensor -= fr_frag_tensor
         iter += 1
-        print(f"Curent norm: {frob_norm(g_tensor)}")
     return frags
+
+
+def try_find_greedy_fr_frag(n, threshold, g_tensor):
+    x_dim = n * (n + 1) // 2
+    x0 = np.random.uniform(low=-1, high=1, size=(2 * x_dim) - n)
+    greedy_sol: OptimizeResult = minimize(
+        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], g_tensor, n),
+        x0=x0,
+        method="L-BFGS-B",
+        options={"maxiter": 10000, "disp": False},
+        tol=(threshold / n**4) ** 2,
+    )
+    return greedy_sol, x_dim
