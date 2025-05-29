@@ -189,7 +189,9 @@ def gfro_decomp(
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
         greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
         while not greedy_sol.success:
-            warnings.warn(UserWarning(f"Failed to converge on iteration {iter}, trying again."))
+            warnings.warn(
+                UserWarning(f"Failed to converge on iteration {iter}, trying again.")
+            )
             tries = iter
             greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
             tries += 1

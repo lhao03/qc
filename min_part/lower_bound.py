@@ -13,8 +13,7 @@ from openfermion.linalg import qubit_operator_sparse
 from ham_utils import obtain_OF_hamiltonian
 from min_part.ham_decomp import gfro_decomp
 from min_part.utils import diag_partitioned_fragments, save_frags
-from molecules import mol_h2
-from pert_trotter.fermi_frag import Do_GFRO
+from molecules import mol_h2, mol_h4
 from plots import plot_energies
 from tensor_utils import get_chem_tensors, obt2op, tbt2op
 from utils import do_lr_fo
@@ -28,14 +27,21 @@ gfro_n_subspace_energies = []
 gfro_all_subspace_energies = []
 
 xpoints = [x * 0.05 for x in list(range(2, 60))]
-num_spin_orbs = 4  # H2 is 4  # H4 is 4(1s) = 8
-mol_name = "H2"
-mol_of_interest = mol_h2
+num_spin_orbs = 8  # H2 is 4  # H4 is 4(1s) = 8
+mol_name = "H4"
+mol_of_interest = mol_h4
 global_id = random.randint(0, 100)
+parent_dir = f"../data/{mol_name.lower()}"
+child_dir = os.path.join(parent_dir,"05-29", str(global_id))
 
 for bond_length in xpoints:
-    id = uuid.uuid4()
-    print(f"Now simulating: {bond_length} angstroms.")
+    new_dir = os.path.join(child_dir, str(uuid.uuid4()))
+    while os.path.exists(new_dir):
+        new_dir = os.path.join(child_dir, str(uuid.uuid4()))
+    if not os.path.isdir(new_dir):
+        os.makedirs(new_dir)
+
+    print(f"Now partitioning: {bond_length} angstroms.")
     mol = mol_of_interest(bond_length)
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
@@ -55,36 +61,37 @@ for bond_length in xpoints:
 
     gfro_data = gfro_decomp(tbt=H_tbt)
     gfro_frags = [f.operators for f in gfro_data]
-    # _, gfro_frags, _ = Do_GFRO(
-    #     H_ele, shrink_frag=False, CISD=False
-    # )
+
     _, _, lr_frags = do_lr_fo(H_ele, projector_func=None)
 
     H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
-    eigenvalues, eigenvectors = sp.linalg.eigh(
+    h1_v, h1_w = sp.linalg.eigh(
         qubit_operator_sparse(jordan_wigner(H_no_two_body)).toarray()
     )
 
     lr_n_subspace_energy, lr_all_subspace_energy = diag_partitioned_fragments(
-        lr_frags, eigenvalues, eigenvectors, num_elecs, num_spin_orbs
+        h2_frags=lr_frags,
+        h1_v=h1_v,
+        h1_w=h1_w,
+        num_elecs=num_elecs,
+        num_spin_orbs=num_spin_orbs,
     )
     lr_n_subspace_energies.append(lr_n_subspace_energy)
     lr_all_subspace_energies.append(lr_all_subspace_energy)
 
     gfro_n_subspace_energy, gfro_all_subspace_energy = diag_partitioned_fragments(
-        gfro_frags, eigenvalues, eigenvectors, num_elecs, num_spin_orbs
+        h2_frags=gfro_frags,
+        h1_v=h1_v,
+        h1_w=h1_w,
+        num_elecs=num_elecs,
+        num_spin_orbs=num_spin_orbs,
     )
     gfro_n_subspace_energies.append(gfro_n_subspace_energy)
     gfro_all_subspace_energies.append(gfro_all_subspace_energy)
 
-    dir = f"../data/h2/05-28/{global_id}/{id}"
-    if not os.path.isdir(dir):
-        os.makedirs(dir)
+    save_frags(gfro_data, os.path.join(new_dir, f"gfro_{id}_{mol_name}"))
+    save_frags(lr_frags, os.path.join(new_dir, f"lr_{id}_{mol_name}"))
 
-    save_frags(gfro_data, os.path.join(dir, f"gfro_{id}_{mol_name}"))
-    save_frags(lr_frags, os.path.join(dir, f"lr_{id}_{mol_name}"))
-
-dir = f"../data/h2/05-28/{global_id}"
 plot_energies(
     xpoints=xpoints,
     points=[
@@ -102,7 +109,7 @@ plot_energies(
         "LR: All Fock Space",
         "GFRO: All Fock Space",
     ],
-    dir=dir
+    dir=child_dir,
 )
 
 plot_energies(
@@ -118,5 +125,5 @@ plot_energies(
         "LR F(M, 2)",
         "GFRO F(M, 2)",
     ],
-    dir=dir,
+    dir=child_dir,
 )

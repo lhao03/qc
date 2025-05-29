@@ -26,5 +26,6 @@ class SavingTest(unittest.TestCase):
         gfro_frags = gfro_decomp(tbt=self.H_tbt)
         save_frags(gfro_frags, "test")
         loaded_gfro_frags = open_frags("test")
-        self.assertEqual([f.operators for f in gfro_frags],
-                         [f.operators for f in loaded_gfro_frags])
+        self.assertEqual(
+            [f.operators for f in gfro_frags], [f.operators for f in loaded_gfro_frags]
+        )

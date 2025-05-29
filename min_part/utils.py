@@ -25,7 +25,7 @@ class EnergyOccupation:
 
 def choose_lowest_energy(
     eigenvalues, eigenvectors, num_spin_orbs, num_elecs, proj_spin, total_spin
-):
+) -> float:
     """Choose the minimum eigenvalue based on these constraints: number of electrons, projected spin and total spin.
 
     Assumes the eigenvectors is a matrix containing slater determinants. Currently, can only
@@ -43,7 +43,9 @@ def choose_lowest_energy(
             and isclose(s_z, proj_spin, abs_tol=1e-6)
         ):
             possible_energies.append(e)
-    return min(possible_energies)
+    if len(possible_energies) == 0:
+        raise UserWarning("Returning 0 energy value, no values to filter from.")
+    return min(possible_energies, default=0)
 
 
 def dc_to_dict(dcs, labels: list[str]):
@@ -88,14 +90,17 @@ def do_lr_fo(
         )
     return const * FermionOperator.identity(), obt_op, LR_fragments
 
+
 def save_frags(frags, file_name):
     output = open(f"{file_name}.pkl", "wb")
     pickle.dump(frags, output)
     output.close()
 
+
 def open_frags(file_name):
     pkl_file = open(f"{file_name}.pkl", "rb")
     return pickle.load(pkl_file)
+
 
 def diag_partitioned_fragments(
     h2_frags: List[FermionOperator],
@@ -104,33 +109,31 @@ def diag_partitioned_fragments(
     num_elecs: int,
     num_spin_orbs: int,
 ):
-    allowed_energies = []
+    n_2_energy = []
     all_energies = []
     for frag in h2_frags:
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(frag)).toarray()
         )
-        tb = []
-        energies = []
-        all_en = []
-        for i in range(eigenvectors.shape[0]):
-            energy = eigenvalues[i]
-            w = eigenvectors[:, [i]]
-            n = get_particle_number(w, e=num_spin_orbs)
-            tb.append(EnergyOccupation(energy=energy, spin_orbs=n))
-            all_en.append(energy)
-            if n == num_elecs:
-                energies.append(energy)
-        all_energies.append(all_en)
-        allowed_energies.append(energies)
-    energy_no_two_body = choose_lowest_energy(
+        n_2_energy.append(
+            choose_lowest_energy(
+                eigenvalues,
+                eigenvectors,
+                num_spin_orbs,
+                num_elecs,
+                proj_spin=0,
+                total_spin=0,
+            )
+        )
+        all_energies.append(min(eigenvalues))
+
+    # === all of fock space ===
+    all_final_energy = min(h1_v) + sum(all_energies)
+
+    # === projected onto gs ===
+    n2_h1_energy = choose_lowest_energy(
         h1_v, h1_w, num_spin_orbs, num_elecs, proj_spin=0, total_spin=0
     )
-    energy_no_two_body_no_constraints = min(h1_v)
-    two_body_contributions = sum([min(e, default=0) for e in allowed_energies])
-    two_body_contributions_not_filtered = sum([min(e, default=0) for e in all_energies])
-    energy_only_elecs = energy_no_two_body + two_body_contributions
-    energy_not_filtered = (
-        energy_no_two_body_no_constraints + two_body_contributions_not_filtered
-    )
-    return energy_only_elecs, energy_not_filtered
+    n2_final_energy = n2_h1_energy + sum(n_2_energy)
+
+    return n2_final_energy, all_final_energy
