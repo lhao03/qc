@@ -8,7 +8,8 @@ from min_part.ham_decomp import gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
-from min_part.utils import open_frags, save_frags
+from min_part.typing import GFROFragment
+from min_part.utils import open_frags, save_frags, get_saved_file_names
 
 
 class SavingTest(unittest.TestCase):
@@ -29,3 +30,14 @@ class SavingTest(unittest.TestCase):
         self.assertEqual(
             [f.operators for f in gfro_frags], [f.operators for f in loaded_gfro_frags]
         )
+
+    def test_load_files(self):
+        saved_parent_folder = "../data/h4/05-29/11"
+        gfro_name = "gfro_<built-in function id>_H4"
+        lr_name = "lr_<built-in function id>_H4"
+        gfro_files, lr_files = get_saved_file_names(
+            saved_parent_folder, gfro_name, lr_name
+        )
+        for gfro in gfro_files:
+            gfro_frags = open_frags(gfro)
+            self.assertTrue(isinstance(gfro_frags[0], GFROFragment))

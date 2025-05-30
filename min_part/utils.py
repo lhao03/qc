@@ -1,9 +1,12 @@
+import os
 import pickle
+import warnings
 from dataclasses import dataclass
+from enum import Enum
 
 import scipy as sp
 from math import isclose
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import numpy as np
 from openfermion import (
@@ -25,12 +28,13 @@ class EnergyOccupation:
 
 def choose_lowest_energy(
     eigenvalues, eigenvectors, num_spin_orbs, num_elecs, proj_spin, total_spin
-) -> float:
+) -> Tuple[float, float]:
     """Choose the minimum eigenvalue based on these constraints: number of electrons, projected spin and total spin.
 
     Assumes the eigenvectors is a matrix containing slater determinants. Currently, can only
     """
     possible_energies = []
+    possible_energies_2 = []
     for i in range(eigenvectors.shape[1]):
         e = eigenvalues[i]
         w = eigenvectors[:, i]
@@ -39,13 +43,22 @@ def choose_lowest_energy(
         s_z = get_projected_spin(w, num_spin_orbs // 2)
         if (
             isclose(n, num_elecs, abs_tol=1e-6)
-            and isclose(s_2, total_spin, abs_tol=1e-6)
-            and isclose(s_z, proj_spin, abs_tol=1e-6)
+            # and isclose(s_2, total_spin, abs_tol=1e-6)
+            # and isclose(s_z, proj_spin, abs_tol=1e-6)
         ):
             possible_energies.append(e)
+            if isclose(s_2, total_spin, abs_tol=1e-6) and isclose(
+                s_z, proj_spin, abs_tol=1e-6
+            ):
+                possible_energies_2.append(e)
     if len(possible_energies) == 0:
-        raise UserWarning("Returning 0 energy value, no values to filter from.")
-    return min(possible_energies, default=0)
+        warnings.warn(
+            UserWarning("Returning 0 energy value, no values to filter from.")
+        )
+    return (
+        min(possible_energies, default=0),
+        min(possible_energies_2, default=0),
+    )
 
 
 def dc_to_dict(dcs, labels: list[str]):
@@ -110,30 +123,79 @@ def diag_partitioned_fragments(
     num_spin_orbs: int,
 ):
     n_2_energy = []
+    n_2_spin_energy = []
     all_energies = []
-    for frag in h2_frags:
+    for i, frag in enumerate(h2_frags):
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(frag)).toarray()
         )
-        n_2_energy.append(
-            choose_lowest_energy(
-                eigenvalues,
-                eigenvectors,
-                num_spin_orbs,
-                num_elecs,
-                proj_spin=0,
-                total_spin=0,
-            )
+        n_2, n_2_spin = choose_lowest_energy(
+            eigenvalues,
+            eigenvectors,
+            num_spin_orbs,
+            num_elecs,
+            proj_spin=0,
+            total_spin=0,
         )
+        n_2_energy.append(n_2)
+        n_2_spin_energy.append(n_2_spin)
         all_energies.append(min(eigenvalues))
 
     # === all of fock space ===
     all_final_energy = min(h1_v) + sum(all_energies)
 
     # === projected onto gs ===
-    n2_h1_energy = choose_lowest_energy(
+    n2_h1_energy, n2_spin_h1_energy = choose_lowest_energy(
         h1_v, h1_w, num_spin_orbs, num_elecs, proj_spin=0, total_spin=0
     )
     n2_final_energy = n2_h1_energy + sum(n_2_energy)
+    n2_spin_final_energy = n2_spin_h1_energy + sum(n_2_spin_energy)
 
-    return n2_final_energy, all_final_energy
+    return n2_final_energy, n2_spin_final_energy, all_final_energy
+
+
+def get_saved_file_names(
+    parent_dir, gfro_file_name, lr_file_name
+) -> Tuple[List[str], List[str]]:
+    gfro_files = []
+    lr_files = []
+    child_dirs = os.listdir(parent_dir)
+    sorted_parent_dirs = sorted(
+        [os.path.join(parent_dir, c) for c in child_dirs], key=os.path.getctime
+    )
+    for dir in sorted_parent_dirs:
+        gfro_files.append(os.path.join(dir, gfro_file_name))
+        lr_files.append(os.path.join(dir, lr_file_name))
+    return gfro_files, lr_files
+
+
+class PartitionStrategy(Enum):
+    GFRO = "GFRO"
+    LR = "LR"
+
+
+@dataclass
+class PartitioningStats:
+    bond_length: float
+    num_frags: int
+    e_diff: float
+    partition_strategy: PartitionStrategy
+
+
+def partitioning_stats(
+    no_partitioning_energy: float,
+    partitioned_energy: float,
+    frags: list,
+    bond_length: float,
+    partition_strategy: PartitionStrategy,
+):
+    return PartitioningStats(
+        bond_length=bond_length,
+        num_frags=len(frags),
+        e_diff=no_partitioning_energy - partitioned_energy,
+        partition_strategy=partition_strategy,
+    )
+
+
+def range_float(start, end, step):
+    return [x / 10.0 for x in range(int(start * 10), int(end * 10), int(step * 10))]

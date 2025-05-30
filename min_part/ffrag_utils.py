@@ -166,6 +166,7 @@ def gfro_frags_generator(
         fragments.append(FR_frag)
 
         current_norm = np.sqrt(np.sum(np.abs(Htbt * Htbt)))
+        print(f"Current norm: {current_norm}")
 
     if ret_ops:
         frag_ops = []

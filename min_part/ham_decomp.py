@@ -79,7 +79,7 @@ def lr_decomp(tbfo: FermionOperator) -> list[FermionOperator]:
 def frob_norm(tensor) -> float:
     """Returns the norm as defined by this formula:
 
-    \sqrt \sum |tensor * tensor|
+    sqrt sum |tensor * tensor|
 
     Args:
         tensor: an N-rank tensor
@@ -138,7 +138,7 @@ def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
 
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """The full rank tensor is defined as:
-    U^T (\sum_{lm} n_l n_m) U = \sum_{pqrs} \sum_{lm} [\lambda_{lm} U_lp U_lq U_mr U_ms] p^ q r^ s
+    U^T (sum_{lm} n_l n_m) U = sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms] p^ q r^ s
 
     Args:
         lambdas: coefficients for a FR fragment
@@ -164,7 +164,11 @@ def gfr_cost(lambdas, thetas, g_pqrs, n):
 
 
 def gfro_decomp(
-    tbt: np.ndarray, threshold=1e-6, max_iter: int = 10000
+    tbt: np.ndarray,
+    threshold=1e-6,
+    max_iter: int = 10000,
+    only_proceed_if_success: bool = False,
+    seed: int = 0,
 ) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
@@ -177,27 +181,29 @@ def gfro_decomp(
     4. Repeat until L1 norm reaches the desired threshold
 
     Args:
+        seed:
+        only_proceed_if_success:
+        threshold:
+        max_iter:
         tbt: two-body operator in np.array form
 
     Returns:
         list of fragments
     """
+    np.random.seed(seed)
     g_tensor = tbt.copy()
     frags: List[GFROFragment] = []
     iter = 0
     n = tbt.shape[0]
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
-        greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
-        while not greedy_sol.success:
-            warnings.warn(
-                UserWarning(f"Failed to converge on iteration {iter}, trying again.")
+        factor = 10 / frob_norm(g_tensor)
+        x_dim = n * (n + 1) // 2
+        greedy_sol = try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim)
+        if only_proceed_if_success:
+            greedy_sol = retry_until_success(
+                factor, g_tensor, greedy_sol, iter, n, threshold, x_dim
             )
-            tries = iter
-            greedy_sol, x_dim = try_find_greedy_fr_frag(n, threshold, g_tensor)
-            tries += 1
-            if tries > (100 + iter):
-                raise ValueError("Couldn't find good greedy fragment")
-        lambdas_sol = 0.1 * greedy_sol.x[:x_dim]
+        lambdas_sol = greedy_sol.x[:x_dim] / factor
         thetas_sol = greedy_sol.x[x_dim:]
         fr_frag_tensor = make_fr_tensor(lambdas_sol, thetas_sol, n)
         frags.append(
@@ -207,17 +213,32 @@ def gfro_decomp(
         )
         g_tensor -= fr_frag_tensor
         iter += 1
+        print(f"Current norm: {frob_norm(g_tensor)}")
     return frags
 
 
-def try_find_greedy_fr_frag(n, threshold, g_tensor):
-    x_dim = n * (n + 1) // 2
-    x0 = np.random.uniform(low=-1, high=1, size=(2 * x_dim) - n)
+def retry_until_success(factor, g_tensor, greedy_sol, iter, n, threshold, x_dim):
+    tries = iter
+    while not greedy_sol.success:
+        warnings.warn(
+            UserWarning(
+                f"Failed to converge on iteration {iter}, trying again: {str(tries - iter)} try."
+            )
+        )
+        greedy_sol = try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim)
+        if tries > (100 + iter):
+            raise ValueError("Couldn't find good greedy fragment")
+        tries += 1
+    return greedy_sol
+
+
+def try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim) -> OptimizeResult:
+    x0 = np.random.uniform(low=-1e-3, high=1e-3, size=(2 * x_dim) - n)
     greedy_sol: OptimizeResult = minimize(
-        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], 10 * g_tensor, n),
+        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], factor * g_tensor, n),
         x0=x0,
         method="L-BFGS-B",
         options={"maxiter": 10000, "disp": False},
         tol=(threshold / n**4) ** 2,
     )
-    return greedy_sol, x_dim
+    return greedy_sol

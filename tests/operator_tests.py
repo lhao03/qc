@@ -106,3 +106,5 @@ class OperatorTest(unittest.TestCase):
             + FermionOperator("0^ 0^", 3.1**2),
             get_squared_operator(fo_min),
         )
+
+    # === Projection Operator ===
