@@ -109,7 +109,9 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     """
     expected_num_angles = (n * (n + 1) // 2) - n
     if thetas.size != expected_num_angles:
-        raise UserWarning(f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}.")
+        raise UserWarning(
+            f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}."
+        )
     X = np.zeros((n, n))
     t = 0
     for x in range(n):
@@ -125,8 +127,11 @@ def make_unitary(thetas, n: int) -> np.ndarray:
 
 
 def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
-    if lambdas.size != n * (n + 1) / 2:
-        raise UserWarning("There is not enough angles to make a N by N matrix")
+    expected_size = n * (n + 1) // 2
+    if lambdas.size != expected_size:
+        raise UserWarning(
+            f"Expected {expected_size} angles for a {n} by {n} lambda matrix, got {lambdas.size}."
+        )
     l = np.random.rand(n, n)
     t = 0
     for x in range(n):
@@ -154,6 +159,7 @@ def make_fr_tensor_from_u(lambdas, u, n) -> np.ndarray:
     """
     lm = make_lambda_matrix(lambdas, n)
     return contract("lm,lp,lq,mr,ms->pqrs", lm, u, u, u, u)
+
 
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """Makes a two-body tensor, defined as sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms]

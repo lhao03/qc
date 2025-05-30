@@ -1,3 +1,4 @@
+import random
 import unittest
 from functools import reduce
 
@@ -94,26 +95,6 @@ class DecompTest(unittest.TestCase):
         self.assertEqual(x[4][5], -x[5][4])
         self.assertEqual(x[3][7], -x[7][3])
 
-    def test_make_U(self):
-        n = 4
-        m = (n * (n + 1)) // 2 - n
-        thetas = np.random.rand(m)
-        try:
-            u = make_unitary(thetas, n)
-        except:
-            self.fail()
-
-    def test_make_fr_tensor(self):
-        n = 5
-        m = (n * (n + 1)) // 2
-        thetas = np.random.rand(m - n)
-        lambdas = np.random.rand(m)
-        try:
-            tensor = make_fr_tensor(lambdas, thetas, n)
-            fo = tbt2op(tensor)
-        except:
-            self.fail()
-
     def test_make_fr_tensor_two_way(self):
         n = 4
         m = (n * (n + 1)) // 2
@@ -122,7 +103,9 @@ class DecompTest(unittest.TestCase):
         u = make_unitary(thetas, n)
         tensor_from_lambdas_thetas = make_fr_tensor(lambdas=lambdas, thetas=thetas, n=n)
         tensor_from_lambdas_u = make_fr_tensor_from_u(lambdas=lambdas, u=u, n=n)
-        self.assertTrue(np.array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u))
+        self.assertTrue(
+            np.array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u)
+        )
 
     def test_grfo_h2(self):
         """This test checks for the correct GFRO partitioning of H2.
@@ -137,7 +120,7 @@ class DecompTest(unittest.TestCase):
         n = self.H_tbt.shape[0]
         for frag in gfro_frags:
             u = make_unitary(frag.thetas, n)
-            self.assertAlmostEqual(np.linalg.det(u), 1, places=5)
+            self.assertAlmostEqual(np.linalg.det(u), 1, places=7)
 
         self.assertEqual(
             reduce(lambda op1, op2: op1 + op2, [f.operators for f in gfro_frags]),
@@ -145,21 +128,40 @@ class DecompTest(unittest.TestCase):
         )
 
     def test_grfo_artificial(self):
-        """This test checks for the correct GFRO partitioning of H2.
-
-        Some constraints to be checked are:
-
-        The sum of the GFRO fragments == the sum of the unpartitioned fragments
-        Each U at each step chosen are unitary
-
-        """
         n = 4
-        m = n * (n+1)//2
-        fake_u = np.array([[],
-                           [],
-                           [],
-                           []])
-        fake_lambdas = [0.5 for _ in range(m)]
-        fake_hamiltonian = make_fr_tensor(fake_lambdas, )
-
-
+        m = n * (n + 1) // 2
+        fake_u = np.array(
+            [
+                [0.70710029, 0.00303002, 0.70710028, 0.00303002],
+                [-0.00303002, 0.70710029, -0.00303002, 0.70710028],
+                [-0.70710493, -0.00161596, 0.70710494, 0.00161596],
+                [0.00161597, -0.70710493, -0.00161596, 0.70710494],
+            ]
+        )
+        fake_lambdas = np.array(sorted([0.1 * random.randint(1, 10) for _ in range(m)]))
+        self.assertAlmostEqual(np.linalg.det(fake_u), 1, places=7)
+        fake_hamiltonian = make_fr_tensor_from_u(fake_lambdas, fake_u, n)
+        gfro_frags = gfro_decomp(fake_hamiltonian)
+        self.assertTrue(len(gfro_frags) == 1)
+        self.assertEqual(gfro_frags[0].operators, tbt2op(fake_hamiltonian))
+        print(gfro_frags[0].lambdas)
+        print(fake_lambdas)
+        self.assertTrue(
+            np.allclose(
+                sorted(gfro_frags[0].lambdas), fake_lambdas, rtol=1e-05, atol=1e-08
+            )
+        )
+        fr_u = make_unitary(thetas=gfro_frags[0].thetas, n=n)
+        rows_checked = 0
+        for row in fake_u:
+            for i, gen_row in enumerate(fr_u):
+                try:
+                    if np.allclose(row, gen_row, rtol=1e-05, atol=1e-08) or np.allclose(
+                        row, -1 * gen_row, rtol=1e-05, atol=1e-08
+                    ):
+                        fr_u = np.delete(fr_u, (i), axis=0)
+                        rows_checked += 1
+                        break
+                except:
+                    continue
+        self.assertEqual(rows_checked, fake_u.shape[0])
