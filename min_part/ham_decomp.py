@@ -136,6 +136,13 @@ def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
     return l
 
 
+def make_fr_tensor_from_u(lambdas, u, n) -> np.ndarray:
+    """Makes a two-body tensor defined as
+    U^T (sum_{lm} n_l n_m) U = sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms] p^ q r^ s
+
+    """
+    pass
+
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """The full rank tensor is defined as:
     U^T (sum_{lm} n_l n_m) U = sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms] p^ q r^ s

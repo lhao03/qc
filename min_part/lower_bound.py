@@ -19,11 +19,9 @@ from min_part.utils import (
     save_frags,
     get_saved_file_names,
     open_frags,
-    range_float,
 )
-from molecules import mol_h2, mol_h4
-from pert_trotter.fermi_frag import Do_GFRO
-from plots import plot_energies
+from molecules import mol_h2
+from min_part.plots import plot_energies
 from tensor_utils import get_chem_tensors, obt2op, tbt2op
 from utils import do_lr_fo
 

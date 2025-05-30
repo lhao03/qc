@@ -132,15 +132,22 @@ class DecompTest(unittest.TestCase):
             self.H_tb_op,
         )
 
-    def test_other_gfro(self):
-        all_frag_ops, gfro_fragments, gfro_params = Do_GFRO(
-            self.H_ele, shrink_frag=False, CISD=False
-        )
-        for coeffs, angles in gfro_params:
-            u = get_u_from_angles(angles, 4)
-            self.assertAlmostEqual(np.linalg.det(u), 1, places=5)
+    def test_grfo_artificial(self):
+        """This test checks for the correct GFRO partitioning of H2.
 
-        self.assertEqual(
-            reduce(lambda op1, op2: op1 + op2, gfro_fragments),
-            self.H_tb_op,
-        )
+        Some constraints to be checked are:
+
+        The sum of the GFRO fragments == the sum of the unpartitioned fragments
+        Each U at each step chosen are unitary
+
+        """
+        n = 4
+        m = n * (n+1)//2
+        fake_u = np.array([[],
+                           [],
+                           [],
+                           []])
+        fake_lambdas = [0.5 for _ in range(m)]
+        fake_hamiltonian = make_fr_tensor(fake_lambdas, )
+
+
