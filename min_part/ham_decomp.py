@@ -194,6 +194,7 @@ def gfro_decomp(
     max_iter: int = 10000,
     only_proceed_if_success: bool = False,
     seed: int = 0,
+    debug: bool = False,
 ) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
@@ -238,7 +239,8 @@ def gfro_decomp(
         )
         g_tensor -= fr_frag_tensor
         iter += 1
-        print(f"Current norm: {frob_norm(g_tensor)}")
+        if debug:
+            print(f"Current norm: {frob_norm(g_tensor)}")
     return frags
 
 

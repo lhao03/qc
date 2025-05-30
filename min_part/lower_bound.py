@@ -21,7 +21,7 @@ from min_part.utils import (
     open_frags,
 )
 from molecules import mol_h2
-from min_part.plots import plot_energies
+from min_part.plots import plot_energies, PlotNames
 from tensor_utils import get_chem_tensors, obt2op, tbt2op
 from utils import do_lr_fo
 
@@ -44,7 +44,7 @@ mol_name = "H2"
 mol_of_interest = mol_h2
 global_id = random.randint(0, 100)
 parent_dir = f"../data/{mol_name.lower()}"
-child_dir = os.path.join(parent_dir, "05-29", str(global_id))
+child_dir = os.path.join(parent_dir, "05-30", str(global_id))
 
 load = False
 if load:
@@ -137,11 +137,7 @@ plot_energies(
         gfro_n_subspace_energies,
     ],
     title=f"{mol_name} Energies from Partitioning, No Spin Constraints",
-    labels=[
-        "No Partitioning",
-        "LR F(M, 2)",
-        "GFRO F(M, 2)",
-    ],
+    labels=[PlotNames.NO_PARTITIONING, PlotNames.LR_N, PlotNames.GFRO_N],
     dir=child_dir,
 )
 
@@ -153,11 +149,7 @@ plot_energies(
         gfro_n_s_subspace_energies,
     ],
     title=f"{mol_name} Energies from Partitioning, Spin Constraints",
-    labels=[
-        "No Partitioning",
-        "LR F(M, 2) + Spin",
-        "GFRO F(M, 2) + Spin",
-    ],
+    labels=[PlotNames.NO_PARTITIONING, PlotNames.LR_N_S, PlotNames.GFRO_N_S],
     dir=child_dir,
 )
 
@@ -174,13 +166,13 @@ plot_energies(
     ],
     title=f"{mol_name} Energies from Partitioning, All Bounds",
     labels=[
-        "No Partitioning",
-        "LR F(M, 2)",
-        "GFRO F(M, 2)",
-        "LR F(M, 2) + Spin",
-        "GFRO F(M, 2) + Spin",
-        "LR: All Fock Space",
-        "GFRO: All Fock Space",
+        PlotNames.NO_PARTITIONING,
+        PlotNames.LR_N,
+        PlotNames.GFRO_N,
+        PlotNames.LR_N_S,
+        PlotNames.GFRO_N_S,
+        PlotNames.LR_F_SPACE,
+        PlotNames.GFRO_F_SPACE,
     ],
     dir=child_dir,
 )
@@ -196,23 +188,23 @@ plot_energies(
     ],
     title=f"{mol_name} Energies from Partitioning, Tightest Bounds",
     labels=[
-        "No Partitioning",
-        "LR F(M, 2)",
-        "GFRO F(M, 2)",
-        "LR F(M, 2) + Spin",
-        "GFRO F(M, 2) + Spin",
+        PlotNames.NO_PARTITIONING,
+        PlotNames.LR_N,
+        PlotNames.GFRO_N,
+        PlotNames.LR_N_S,
+        PlotNames.GFRO_N_S,
     ],
     dir=child_dir,
 )
 
 energies = {
-    "no_partitioning": no_partitioning,
-    "lr_n_subspace_energies": lr_n_subspace_energies,
-    "gfro_n_subspace_energies": gfro_n_subspace_energies,
-    "lr_n_s_subspace_energies": lr_n_s_subspace_energies,
-    "gfro_n_s_subspace_energies": gfro_n_s_subspace_energies,
-    "lr_all_subspace_energies": lr_all_subspace_energies,
-    "gfro_all_subspace_energies": gfro_all_subspace_energies,
+    PlotNames.NO_PARTITIONING.value: no_partitioning,
+    PlotNames.LR_N.value: lr_n_subspace_energies,
+    PlotNames.GFRO_N.value: gfro_n_subspace_energies,
+    PlotNames.LR_N_S.value: lr_n_s_subspace_energies,
+    PlotNames.GFRO_N_S.value: gfro_n_s_subspace_energies,
+    PlotNames.LR_F_SPACE.value: lr_all_subspace_energies,
+    PlotNames.GFRO_F_SPACE.value: gfro_all_subspace_energies,
 }
 
 energies_json = json.dumps(energies)
