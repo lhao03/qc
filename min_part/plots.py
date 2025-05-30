@@ -2,6 +2,15 @@ import os.path
 
 import matplotlib.pyplot as plt
 
+colors = [
+    "#377eb8", # blue
+    "#ff7f00", # orange
+    "#f781bf", # pink
+    "#a65628", # brown
+    "#984ea3", # purple
+    "#e41a1c", # red
+]
+
 
 def plot_energies(xpoints, points, labels, title, dir):
     plt.clf()

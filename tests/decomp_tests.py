@@ -112,7 +112,7 @@ class DecompTest(unittest.TestCase):
         except:
             self.fail()
 
-    def test_grfo(self):
+    def test_grfo_h2(self):
         """This test checks for the correct GFRO partitioning of H2.
 
         Some constraints to be checked are:

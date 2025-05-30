@@ -136,16 +136,12 @@ plot_energies(
         no_partitioning,
         lr_n_subspace_energies,
         gfro_n_subspace_energies,
-        # lr_all_subspace_energies,
-        # gfro_all_subspace_energies,
     ],
     title=f"{mol_name} Energies from Partitioning, No Spin Constraints",
     labels=[
         "No Partitioning",
         "LR F(M, 2)",
         "GFRO F(M, 2)",
-        # "LR: All Fock Space",
-        # "GFRO: All Fock Space",
     ],
     dir=child_dir,
 )
@@ -156,16 +152,36 @@ plot_energies(
         no_partitioning,
         lr_n_s_subspace_energies,
         gfro_n_s_subspace_energies,
-        # lr_all_subspace_energies,
-        # gfro_all_subspace_energies,
     ],
     title=f"{mol_name} Energies from Partitioning, Spin Constraints",
     labels=[
         "No Partitioning",
         "LR F(M, 2) + Spin",
         "GFRO F(M, 2) + Spin",
-        # "LR: All Fock Space",
-        # "GFRO: All Fock Space",
+    ],
+    dir=child_dir,
+)
+
+plot_energies(
+    xpoints=xpoints,
+    points=[
+        no_partitioning,
+        lr_n_subspace_energies,
+        gfro_n_subspace_energies,
+        lr_n_s_subspace_energies,
+        gfro_n_s_subspace_energies,
+        lr_all_subspace_energies,
+        gfro_all_subspace_energies,
+    ],
+    title=f"{mol_name} Energies from Partitioning, All Bounds",
+    labels=[
+        "No Partitioning",
+        "LR F(M, 2)",
+        "GFRO F(M, 2)",
+        "LR F(M, 2) + Spin",
+        "GFRO F(M, 2) + Spin",
+        "LR: All Fock Space",
+        "GFRO: All Fock Space",
     ],
     dir=child_dir,
 )
@@ -179,7 +195,7 @@ plot_energies(
         lr_n_s_subspace_energies,
         gfro_n_s_subspace_energies,
     ],
-    title=f"{mol_name} Energies from Partitioning, All Bounds",
+    title=f"{mol_name} Energies from Partitioning, Tightest Bounds",
     labels=[
         "No Partitioning",
         "LR F(M, 2)",
@@ -190,13 +206,16 @@ plot_energies(
     dir=child_dir,
 )
 
-for energies in [
-    no_partitioning,
-    lr_n_subspace_energies,
-    gfro_n_subspace_energies,
-    lr_n_s_subspace_energies,
-    gfro_n_s_subspace_energies,
-    lr_all_subspace_energies,
-    gfro_all_subspace_energies,
-]:
-    print(energies)
+energies = {
+    "no_partitioning": no_partitioning,
+    "lr_n_subspace_energies": lr_n_subspace_energies,
+    "gfro_n_subspace_energies": gfro_n_subspace_energies,
+    "lr_n_s_subspace_energies": lr_n_s_subspace_energies,
+    "gfro_n_s_subspace_energies": gfro_n_s_subspace_energies,
+    "lr_all_subspace_energies": lr_all_subspace_energies,
+    "gfro_all_subspace_energies": gfro_all_subspace_energies,
+}
+
+energies_json = json.dumps(energies)
+with open(os.path.join(child_dir, f"{mol_name}_{str(global_id)}.json"), "a") as f:
+    f.write(energies_json)
