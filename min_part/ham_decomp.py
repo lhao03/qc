@@ -107,8 +107,9 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     Returns:
         an N by N matrix
     """
-    if thetas.size != (n * (n + 1) / 2) - n:
-        raise UserWarning("There is not enough angles to make a N by N matrix")
+    expected_num_angles = (n * (n + 1) // 2) - n
+    if thetas.size != expected_num_angles:
+        raise UserWarning(f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}.")
     X = np.zeros((n, n))
     t = 0
     for x in range(n):
@@ -144,15 +145,15 @@ def make_fr_tensor_from_u(lambdas, u, n) -> np.ndarray:
     pass
 
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
-    """The full rank tensor is defined as:
-    U^T (sum_{lm} n_l n_m) U = sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms] p^ q r^ s
+    """Makes a two-body tensor, defined as sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms]
 
     Args:
         lambdas: coefficients for a FR fragment
         thetas: angles for the orbital rotation of a FR fragment
+        n: shape of the original two-body tensor, where n x n x n x n
 
     Returns:
-        tensor representing the FR fragment
+        tensor of the FR fragment
     """
     lm = make_lambda_matrix(lambdas, n)
     U = make_unitary(thetas, n)

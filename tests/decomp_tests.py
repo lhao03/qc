@@ -16,6 +16,7 @@ from min_part.ham_decomp import (
     gfr_cost,
     frob_norm,
     gfro_decomp,
+    make_fr_tensor_from_u,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
@@ -65,7 +66,7 @@ class DecompTest(unittest.TestCase):
         n = 5
         m = (n * (n + 1)) // 2
         lambdas = np.random.rand(m)
-        thetas = np.random.rand(m)
+        thetas = np.random.rand(m - n)
         tensor = make_fr_tensor(lambdas, thetas, n)
         tensor_half = tensor - 0.5 * tensor
         larger_norm = frob_norm(tensor)
@@ -75,19 +76,19 @@ class DecompTest(unittest.TestCase):
     def test_cost_function(self):
         n = 5
         m = (n * (n + 1)) // 2
-        thetas = np.random.rand(m)
+        thetas = np.random.rand(m - n)
         lambdas = np.random.rand(m)
         tensor = make_fr_tensor(lambdas, thetas, n)
         res = gfr_cost(lambdas, thetas, tensor, n)
         self.assertEqual(res, 0)
         non_zero = gfr_cost(
-            lambdas, thetas, make_fr_tensor(lambdas, np.random.rand(m), n), n
+            lambdas, thetas, make_fr_tensor(lambdas, np.random.rand(m - n), n), n
         )
         self.assertNotEqual(non_zero, 0)
 
     def test_make_X(self):
         n = 10
-        m = (n * (n + 1)) // 2
+        m = (n * (n + 1)) // 2 - n
         x = make_x_matrix(thetas=np.random.rand(m), n=10)
         self.assertEqual(x[8][9], -x[9][8])
         self.assertEqual(x[4][5], -x[5][4])
@@ -95,7 +96,8 @@ class DecompTest(unittest.TestCase):
 
     def test_make_U(self):
         n = 4
-        thetas = np.array([0, 1, 2, 3, 0, 4, 5, 0, 6, 0])
+        m = (n * (n + 1)) // 2 - n
+        thetas = np.random.rand(m)
         try:
             u = make_unitary(thetas, n)
         except:
@@ -104,13 +106,23 @@ class DecompTest(unittest.TestCase):
     def test_make_fr_tensor(self):
         n = 5
         m = (n * (n + 1)) // 2
-        thetas = np.random.rand(m)
+        thetas = np.random.rand(m - n)
         lambdas = np.random.rand(m)
         try:
             tensor = make_fr_tensor(lambdas, thetas, n)
             fo = tbt2op(tensor)
         except:
             self.fail()
+
+    def test_make_fr_tensor_two_way(self):
+        n = 4
+        m = (n * (n + 1)) // 2
+        thetas = np.random.rand(m - n)
+        lambdas = np.random.rand(m)
+        u = make_unitary(thetas, n)
+        tensor_from_lambdas_thetas = make_fr_tensor(lambdas=lambdas, thetas=thetas, n=n)
+        tensor_from_lambdas_u = make_fr_tensor_from_u(lambdas=lambdas, u=u, n=n)
+        self.assertTrue(np.array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u))
 
     def test_grfo_h2(self):
         """This test checks for the correct GFRO partitioning of H2.
