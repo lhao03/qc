@@ -48,3 +48,27 @@ def get_n_body_fo(tensor: np.ndarray) -> FermionOperator:
     """Creates the n-body `FermionOperator` from a rank log2(n) tensor"""
     n = tensor.shape[0]
     fo = FermionOperator()
+
+
+def get_no_from_tensor(lambda_m: np.ndarray) -> FermionOperator:
+    """Creates the GFRO fragment in number operator form without orbital rotations.
+
+    sum_{lm} lambda_{lm} n_l n_m
+
+    Args:
+        lambda_m: the n by n matrix defining the eigenvalues for the new orbitals from the U matrix. There are m unique values
+        in lambda_m, where n * (n + 1) / 2 = m. n are the original number of spin orbitals (usually atomic ones).
+
+    Returns:
+        `FermionOperator` form of the fragment: sum_{lm} lambda_{lm} n_l n_m
+    """
+    s = lambda_m.shape[0]
+    gfro_operator = FermionOperator()
+    for l in range(s):
+        for m in range(s):
+            n_l = f"{str(l)}^ {str(l)}"
+            n_m = f"{str(m)}^ {str(m)}"
+            gfro_operator += FermionOperator(
+                term=f"{n_l} {n_m}", coefficient=lambda_m[l][m]
+            )
+    return gfro_operator

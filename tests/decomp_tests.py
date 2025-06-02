@@ -3,8 +3,11 @@ import unittest
 from functools import reduce
 
 import numpy as np
+import scipy as sp
 from openfermion import (
     count_qubits,
+    jordan_wigner,
+    qubit_operator_sparse,
 )
 
 from min_part.ffrag_utils import get_u_from_angles
@@ -18,9 +21,12 @@ from min_part.ham_decomp import (
     frob_norm,
     gfro_decomp,
     make_fr_tensor_from_u,
+    make_lambda_matrix,
 )
+from min_part.ham_occ import generate_occupied_spin_orb_permutations, gfro_fragment_occ
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
+from min_part.tensor import get_no_from_tensor
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 from pert_trotter.fermi_frag import Do_GFRO
 
@@ -128,6 +134,32 @@ class DecompTest(unittest.TestCase):
             np.array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u)
         )
 
+    def test_get_no_from_tensor(self):
+        n = 4
+        m = n * (n + 1) // 2
+        only_diag_lambdas = np.zeros(m)
+        only_diag_lambdas[0] = random.randint(1, 10) * 0.1
+        only_diag_lambdas[4] = random.randint(1, 10) * 0.1
+        only_diag_lambdas[7] = random.randint(1, 10) * 0.1
+        only_diag_lambdas[9] = random.randint(1, 10) * 0.1
+        diag_matrix_lm = make_lambda_matrix(only_diag_lambdas, n)
+        only_diag_operators = get_no_from_tensor(
+            diag_matrix_lm
+        )
+        self.assertEqual(n, len(only_diag_operators.terms))
+        for term, ceoff in only_diag_operators.terms.items():
+            i = term[0][0]
+            self.assertEqual(diag_matrix_lm[i][i], ceoff)
+
+        full_lambdas = np.random.rand(m)
+        full_lm = make_lambda_matrix(full_lambdas, n)
+        full_lambda_operator = get_no_from_tensor(full_lm)
+        self.assertEqual(n * n, len(full_lambda_operator.terms))
+        for term, coeff in full_lambda_operator.terms.items():
+            l = term[0][0]
+            m = term[2][0]
+            self.assertEqual(coeff, full_lm[l][m])
+
     def test_grfo_h2(self):
         """This test checks for the correct GFRO partitioning of H2.
 
@@ -165,8 +197,6 @@ class DecompTest(unittest.TestCase):
         gfro_frags = gfro_decomp(fake_hamiltonian)
         self.assertTrue(len(gfro_frags) == 1)
         self.assertEqual(gfro_frags[0].operators, tbt2op(fake_hamiltonian))
-        print(gfro_frags[0].lambdas)
-        print(fake_lambdas)
         self.assertTrue(
             np.allclose(
                 sorted(gfro_frags[0].lambdas), fake_lambdas, rtol=1e-05, atol=1e-08
@@ -186,3 +216,45 @@ class DecompTest(unittest.TestCase):
                 except:
                     continue
         self.assertEqual(rows_checked, fake_u.shape[0])
+
+    def test_grfo_artificial_occs(self):
+        """This test checks that diagonalization of GFRO fragments returns
+        the same values as substituting in occupation numbers.
+        """
+        n = 4
+        m = n * (n + 1) // 2
+        fake_u = np.array(
+            [
+                [0.70710029, 0.00303002, 0.70710028, 0.00303002],
+                [-0.00303002, 0.70710029, -0.00303002, 0.70710028],
+                [-0.70710493, -0.00161596, 0.70710494, 0.00161596],
+                [0.00161597, -0.70710493, -0.00161596, 0.70710494],
+            ]
+        )
+        fake_lambdas = np.array(sorted([0.1 * random.randint(1, 10) for _ in range(m)]))
+        fake_hamiltonian = make_fr_tensor_from_u(fake_lambdas, fake_u, n)
+        gfro_frags = gfro_decomp(fake_hamiltonian)
+        for frag_details in gfro_frags:
+            diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
+            )
+            occupations, eigenvalues = gfro_fragment_occ(
+                fragment=frag_details, num_spin_orbs=n
+            )
+            self.assertTrue(
+                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
+            )
+
+    def test_grfo_h2_occs(self):
+        gfro_frags = gfro_decomp(tbt=self.H_tbt)
+        n = self.H_tbt.shape[0]
+        for frag_details in gfro_frags:
+            diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
+            )
+            occupations, eigenvalues = gfro_fragment_occ(
+                fragment=frag_details, num_spin_orbs=n
+            )
+            self.assertTrue(
+                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
+            )
