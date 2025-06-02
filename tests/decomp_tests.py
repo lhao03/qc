@@ -95,6 +95,27 @@ class DecompTest(unittest.TestCase):
         self.assertEqual(x[4][5], -x[5][4])
         self.assertEqual(x[3][7], -x[7][3])
 
+    def test_make_permutations(self):
+        n = 3
+        combinations_s = generate_occupied_spin_orb_permutations(n)
+        self.assertEqual(
+            [
+                (),
+                (0,),
+                (1,),
+                (2,),
+                (0, 1),
+                (0, 2),
+                (1, 2),
+                (
+                    0,
+                    1,
+                    2,
+                ),
+            ],
+            combinations_s,
+        )
+
     def test_make_fr_tensor_two_way(self):
         n = 4
         m = (n * (n + 1)) // 2
