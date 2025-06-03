@@ -10,7 +10,6 @@ from openfermion import (
     qubit_operator_sparse,
 )
 
-from min_part.ffrag_utils import get_u_from_angles
 from min_part.ham_decomp import (
     make_supermatrix,
     four_tensor_to_two_tensor_indices,
@@ -28,7 +27,6 @@ from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import get_no_from_tensor
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
-from pert_trotter.fermi_frag import Do_GFRO
 
 
 class DecompTest(unittest.TestCase):
@@ -143,9 +141,7 @@ class DecompTest(unittest.TestCase):
         only_diag_lambdas[7] = random.randint(1, 10) * 0.1
         only_diag_lambdas[9] = random.randint(1, 10) * 0.1
         diag_matrix_lm = make_lambda_matrix(only_diag_lambdas, n)
-        only_diag_operators = get_no_from_tensor(
-            diag_matrix_lm
-        )
+        only_diag_operators = get_no_from_tensor(diag_matrix_lm)
         self.assertEqual(n, len(only_diag_operators.terms))
         for term, ceoff in only_diag_operators.terms.items():
             i = term[0][0]

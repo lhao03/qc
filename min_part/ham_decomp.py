@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 import scipy as sp
@@ -195,6 +195,8 @@ def gfro_decomp(
     only_proceed_if_success: bool = False,
     seed: int = 0,
     debug: bool = False,
+    previous_lambdas: Optional[List[np.ndarray]] = None,
+    previous_thetas: Optional[List[np.ndarray]] = None,
 ) -> list[GFROFragment]:
     """Greedy Full Rank Optimization (GFRO) as described by 'Hamiltonian Decomposition Techniques' by Smik Patel,
     and various Izmaylov group publications.
@@ -207,6 +209,9 @@ def gfro_decomp(
     4. Repeat until L1 norm reaches the desired threshold
 
     Args:
+        previous_lambdas:
+        previous_thetas:
+        debug:
         seed:
         only_proceed_if_success:
         threshold:
@@ -221,6 +226,19 @@ def gfro_decomp(
     frags: List[GFROFragment] = []
     iter = 0
     n = tbt.shape[0]
+
+    if previous_thetas and previous_lambdas:
+        if len(previous_thetas) != len(previous_lambdas):
+            raise UserWarning("Need the same number of lambda and theta arguments!")
+        for prev_t, prev_l in zip(previous_thetas, previous_lambdas):
+            fr_frag_tensor = make_fr_tensor(prev_l, prev_t, n)
+            frags.append(
+                GFROFragment(
+                    lambdas=prev_l, thetas=prev_t, operators=tbt2op(fr_frag_tensor)
+                )
+            )
+            g_tensor -= fr_frag_tensor
+
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
         factor = 10 / frob_norm(g_tensor)
         x_dim = n * (n + 1) // 2
@@ -241,7 +259,8 @@ def gfro_decomp(
         iter += 1
         if debug:
             print(f"Current norm: {frob_norm(g_tensor)}")
-    return frags
+
+    return list(filter(lambda f: len(f.operators.terms) > 0, frags))
 
 
 def retry_until_success(factor, g_tensor, greedy_sol, iter, n, threshold, x_dim):

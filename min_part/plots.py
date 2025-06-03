@@ -49,7 +49,7 @@ class ColorBlindFriendly:
 
 def plot_energies(
     xpoints: List[float],
-    points: List[np.ndarray],
+    points: List[List[float]],
     labels: List[PlotNames],
     title: str,
     dir: str,

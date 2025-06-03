@@ -161,7 +161,7 @@ def gfro_frags_generator(
         FR_frag = build_FR_frag_tbt(coeffs, angles, N)
 
         Htbt -= FR_frag
-        if spacial == True:
+        if spacial:
             FR_frag = spac2spin(FR_frag)
         fragments.append(FR_frag)
 

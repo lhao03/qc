@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 import warnings
@@ -17,6 +18,7 @@ from openfermion import (
 
 from min_part.ffrag_utils import LR_frags_generator
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
+from min_part.plots import PlotNames
 from min_part.tensor_utils import get_chem_tensors, obt2op
 
 
@@ -26,12 +28,21 @@ class EnergyOccupation:
     spin_orbs: float
 
 
+@dataclass
+class LowerBoundConfig:
+    xpoints: List[float]
+    num_spin_orbs: int
+    mol_name: str
+    mol_of_interest: any
+    stable_bond_length: float
+
+
 def choose_lowest_energy(
     eigenvalues, eigenvectors, num_spin_orbs, num_elecs, proj_spin, total_spin
 ) -> Tuple[float, float]:
     """Choose the minimum eigenvalue based on these constraints: number of electrons, projected spin and total spin.
 
-    Assumes the eigenvectors is a matrix containing slater determinants. Currently, can only
+    Assumes the eigenvectors is a matrix containing slater determinants.
     """
     possible_energies = []
     possible_energies_2 = []
@@ -51,6 +62,7 @@ def choose_lowest_energy(
                 s_z, proj_spin, abs_tol=1e-6
             ):
                 possible_energies_2.append(e)
+    # print(f"2e: {possible_energies} ,\n spin: {possible_energies_2}")
     if len(possible_energies) == 0:
         warnings.warn(
             UserWarning("Returning 0 energy value, no values to filter from.")
@@ -111,7 +123,7 @@ def save_frags(frags, file_name):
 
 
 def open_frags(file_name):
-    pkl_file = open(f"{file_name}.pkl", "rb")
+    pkl_file = open(f"{file_name}", "rb")
     return pickle.load(pkl_file)
 
 
@@ -126,20 +138,21 @@ def diag_partitioned_fragments(
     n_2_spin_energy = []
     all_energies = []
     for i, frag in enumerate(h2_frags):
-        eigenvalues, eigenvectors = sp.linalg.eigh(
-            qubit_operator_sparse(jordan_wigner(frag)).toarray()
-        )
-        n_2, n_2_spin = choose_lowest_energy(
-            eigenvalues,
-            eigenvectors,
-            num_spin_orbs,
-            num_elecs,
-            proj_spin=0,
-            total_spin=0,
-        )
-        n_2_energy.append(n_2)
-        n_2_spin_energy.append(n_2_spin)
-        all_energies.append(min(eigenvalues))
+        if len(frag.terms) > 0:
+            eigenvalues, eigenvectors = sp.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(frag)).toarray()
+            )
+            n_2, n_2_spin = choose_lowest_energy(
+                eigenvalues,
+                eigenvectors,
+                num_spin_orbs,
+                num_elecs,
+                proj_spin=0,
+                total_spin=0,
+            )
+            n_2_energy.append(n_2)
+            n_2_spin_energy.append(n_2_spin)
+            all_energies.append(min(eigenvalues))
 
     # === all of fock space ===
     all_final_energy = min(h1_v) + sum(all_energies)
@@ -150,23 +163,21 @@ def diag_partitioned_fragments(
     )
     n2_final_energy = n2_h1_energy + sum(n_2_energy)
     n2_spin_final_energy = n2_spin_h1_energy + sum(n_2_spin_energy)
-
+    print(f"====> fragment energy: {n_2_spin_energy}")
     return n2_final_energy, n2_spin_final_energy, all_final_energy
 
 
-def get_saved_file_names(
-    parent_dir, gfro_file_name, lr_file_name
-) -> Tuple[List[str], List[str]]:
-    gfro_files = []
-    lr_files = []
-    child_dirs = os.listdir(parent_dir)
-    sorted_parent_dirs = sorted(
-        [os.path.join(parent_dir, c) for c in child_dirs], key=os.path.getctime
+def get_saved_file_names(parent_dir) -> Tuple[List[str], List[str]]:
+    gfro_child_dirs = os.listdir(os.path.join(parent_dir, "gfro"))
+    lr_child_dirs = os.listdir(os.path.join(parent_dir, "lr"))
+    sorted_gfro = sorted(
+        [os.path.join(parent_dir, "gfro", c) for c in gfro_child_dirs],
+        key=os.path.getctime,
     )
-    for dir in sorted_parent_dirs:
-        gfro_files.append(os.path.join(dir, gfro_file_name))
-        lr_files.append(os.path.join(dir, lr_file_name))
-    return gfro_files, lr_files
+    sorted_lr = sorted(
+        [os.path.join(parent_dir, "lr", c) for c in lr_child_dirs], key=os.path.getctime
+    )
+    return list(sorted_gfro), list(sorted_lr)
 
 
 class PartitionStrategy(Enum):
@@ -199,3 +210,60 @@ def partitioning_stats(
 
 def range_float(start, end, step):
     return [x / 10.0 for x in range(int(start * 10), int(end * 10), int(step * 10))]
+
+
+def save_energies(
+    child_dir,
+    config_settings,
+    global_id,
+    no_partitioning,
+    lr_n_subspace_energies,
+    gfro_n_subspace_energies,
+    lr_n_s_subspace_energies,
+    gfro_n_s_subspace_energies,
+    lr_all_subspace_energies,
+    gfro_all_subspace_energies,
+):
+    energies = {
+        PlotNames.NO_PARTITIONING.value: no_partitioning,
+        PlotNames.LR_N.value: lr_n_subspace_energies,
+        PlotNames.GFRO_N.value: gfro_n_subspace_energies,
+        PlotNames.LR_N_S.value: lr_n_s_subspace_energies,
+        PlotNames.GFRO_N_S.value: gfro_n_s_subspace_energies,
+        PlotNames.LR_F_SPACE.value: lr_all_subspace_energies,
+        PlotNames.GFRO_F_SPACE.value: gfro_all_subspace_energies,
+    }
+
+    energies_json = json.dumps(energies)
+    with open(
+        os.path.join(child_dir, f"{config_settings.mol_name}_{str(global_id)}.json"),
+        "w",
+    ) as f:
+        f.write(energies_json)
+
+
+def load_energies(
+    child_dir,
+    config_settings,
+    global_id,
+):
+    try:
+        with open(
+            os.path.join(
+                child_dir, f"{config_settings.mol_name}_{str(global_id)}.json"
+            ),
+            "r",
+        ) as file:
+            data = json.load(file)
+        return (
+            data[PlotNames.NO_PARTITIONING.value],
+            data[PlotNames.LR_N.value],
+            data[PlotNames.GFRO_N.value],
+            data[PlotNames.LR_N_S.value],
+            data[PlotNames.GFRO_N_S.value],
+            data[PlotNames.LR_F_SPACE.value],
+            data[PlotNames.GFRO_F_SPACE.value],
+        )
+    except FileNotFoundError:
+        warnings.warn("JSON not found, continuing with empty arrays.")
+    return [], [], [], [], [], [], []

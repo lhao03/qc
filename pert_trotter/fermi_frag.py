@@ -224,8 +224,15 @@ def Do_LR_LCU(H_FO, shrink_frag, CISD, save=True, load=True, projector_func=None
 
 # Do GFRO
 def Do_GFRO(
-    H_FO, shrink_frag, CISD, tol=1e-6, save=True, spacial=False, projector_func=None
+    H_FO,
+    # shrink_frag, CISD,
+    tol=1e-6,
+    # save=True,
+    spacial=False,
+    # projector_func=None
+    seed=0,
 ):
+    np.random.seed(seed)
     const, obt, tbt = get_chem_tensors(H_FO)
     obt_op = obt2op(obt)
 
