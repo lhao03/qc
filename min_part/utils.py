@@ -49,20 +49,20 @@ def choose_lowest_energy(
     for i in range(eigenvectors.shape[1]):
         e = eigenvalues[i]
         w = eigenvectors[:, i]
-        n = get_particle_number(w, e=num_spin_orbs)
-        s_2 = get_total_spin(w, num_spin_orbs // 2)
-        s_z = get_projected_spin(w, num_spin_orbs // 2)
-        if (
-            isclose(n, num_elecs, abs_tol=1e-6)
-            # and isclose(s_2, total_spin, abs_tol=1e-6)
-            # and isclose(s_z, proj_spin, abs_tol=1e-6)
-        ):
-            possible_energies.append(e)
-            if isclose(s_2, total_spin, abs_tol=1e-6) and isclose(
-                s_z, proj_spin, abs_tol=1e-6
+        if w.shape[0] == num_spin_orbs**2:
+            n = get_particle_number(w, e=num_spin_orbs)
+            s_2 = get_total_spin(w, num_spin_orbs // 2)
+            s_z = get_projected_spin(w, num_spin_orbs // 2)
+            if (
+                isclose(n, num_elecs, abs_tol=1e-6)
+                # and isclose(s_2, total_spin, abs_tol=1e-6)
+                # and isclose(s_z, proj_spin, abs_tol=1e-6)
             ):
-                possible_energies_2.append(e)
-    # print(f"2e: {possible_energies} ,\n spin: {possible_energies_2}")
+                possible_energies.append(e)
+                if isclose(s_2, total_spin, abs_tol=1e-6) and isclose(
+                    s_z, proj_spin, abs_tol=1e-6
+                ):
+                    possible_energies_2.append(e)
     if len(possible_energies) == 0:
         warnings.warn(
             UserWarning("Returning 0 energy value, no values to filter from.")
