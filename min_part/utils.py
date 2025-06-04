@@ -17,9 +17,11 @@ from openfermion import (
 )
 
 from min_part.ffrag_utils import LR_frags_generator
+from min_part.ham_decomp import gfro_fragment_occ
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
 from min_part.plots import PlotNames
 from min_part.tensor_utils import get_chem_tensors, obt2op
+from min_part.typing import GFROFragment
 
 
 @dataclass
@@ -35,6 +37,7 @@ class LowerBoundConfig:
     mol_name: str
     mol_of_interest: any
     stable_bond_length: float
+    date: str
 
 
 def choose_lowest_energy(
@@ -44,7 +47,7 @@ def choose_lowest_energy(
     num_elecs,
     proj_spin,
     total_spin,
-    debug=True,
+    debug=False,
 ) -> Tuple[float, float]:
     """Choose the minimum eigenvalue based on these constraints: number of electrons, projected spin and total spin.
 
@@ -136,13 +139,13 @@ def save_frags(frags, file_name):
 
 
 def open_frags(file_name):
-    with  open(f"{file_name}", "rb") as pkl_file:
+    with open(f"{file_name}", "rb") as pkl_file:
         frags = pickle.load(pkl_file)
     return frags
 
 
 def diag_partitioned_fragments(
-    h2_frags: List[FermionOperator],
+    h2_frags: List[FermionOperator] | List[GFROFragment],
     h1_v: np.ndarray,
     h1_w: np.ndarray,
     num_elecs: int,
@@ -152,6 +155,11 @@ def diag_partitioned_fragments(
     n_2_spin_energy = []
     all_energies = []
     for i, frag in enumerate(h2_frags):
+        if isinstance(frag, GFROFragment):
+            occupations, eigenvalues = gfro_fragment_occ(
+                fragment=frag, num_spin_orbs=num_spin_orbs
+            )
+            frag = frag.operators
         if len(frag.terms) > 0:
             eigenvalues, eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(frag)).toarray()
@@ -281,3 +289,10 @@ def load_energies(
     except FileNotFoundError:
         warnings.warn("JSON not found, continuing with empty arrays.")
     return [], [], [], [], [], [], []
+
+
+def closetoin(i, arr):
+    for a in arr:
+        if isclose(i, a):
+            return True
+    return False

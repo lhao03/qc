@@ -8,11 +8,13 @@ from openfermion import (
 
 
 def extract_eigenvalue(operator, w):
+    w[w < 1e-15] = 0
     b = operator * w
     n = np.divide(b, w)
     n = n[~np.isnan(n)]
-    n = n[0]
-    return n
+    if len(n) == 0:
+        return 0
+    return n[0]
 
 
 def tuple2str(*args) -> str:
