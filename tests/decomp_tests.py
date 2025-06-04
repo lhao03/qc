@@ -20,7 +20,9 @@ from min_part.ham_decomp import (
     frob_norm,
     gfro_decomp,
     make_fr_tensor_from_u,
-    make_lambda_matrix, generate_occupied_spin_orb_permutations, gfro_fragment_occ,
+    make_lambda_matrix,
+    generate_occupied_spin_orb_permutations,
+    gfro_fragment_occ,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
