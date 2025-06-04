@@ -3,8 +3,7 @@ from typing import Any, List, Optional
 
 import numpy as np
 import scipy as sp
-import scipy.linalg
-from openfermion import FermionOperator
+from openfermion import FermionOperator, jordan_wigner, qubit_operator_sparse
 from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
@@ -12,6 +11,7 @@ from min_part.reorder import reorder_operators_for_lr
 from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import tbt2op
 from min_part.typing import GFROFragment
+from min_part.utils import choose_lowest_energy
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -177,13 +177,23 @@ def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     return contract("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
 
 
-def gfr_cost(lambdas, thetas, g_pqrs, n):
+def gfro_cost(lambdas, thetas, g_pqrs, n):
     t = n * (n + 1) / 2
     if lambdas.shape[0] != 1 and thetas.shape[0] != t - n:
         raise ValueError(
             "Expanded n * (n + 1) / 2 elements in lambdas and [n * (n + 1) / 2] -n elements in thetas"
         )
     w_pqrs = make_fr_tensor(lambdas, thetas, n)
+    # w2_e, w2_w = sp.linalg.eigh(
+    #     qubit_operator_sparse(jordan_wigner(tbt2op(w_pqrs))).toarray()
+    # )
+    # w_energy_n, w_energy_n_s = choose_lowest_energy(w2_e, w2_w, 4, 2, 0, 0)
+    #
+    # h2_e, h2_w = sp.linalg.eigh(
+    #     qubit_operator_sparse(jordan_wigner(tbt2op(g_pqrs))).toarray()
+    # )
+    # g_energy_n, g_energy_n_s = choose_lowest_energy(h2_e, h2_w, 4, 2, 0, 0)
+    # return g_energy_n - w_energy_n
     diff = g_pqrs - w_pqrs
     return np.sum(np.abs(diff * diff))
 
@@ -194,7 +204,7 @@ def gfro_decomp(
     max_iter: int = 10000,
     only_proceed_if_success: bool = False,
     seed: int = 0,
-    debug: bool = False,
+    debug: bool = True,
     previous_lambdas: Optional[List[np.ndarray]] = None,
     previous_thetas: Optional[List[np.ndarray]] = None,
 ) -> list[GFROFragment]:
@@ -227,25 +237,39 @@ def gfro_decomp(
     iter = 0
     n = tbt.shape[0]
 
-    if previous_thetas and previous_lambdas:
-        if len(previous_thetas) != len(previous_lambdas):
-            raise UserWarning("Need the same number of lambda and theta arguments!")
-        for prev_t, prev_l in zip(previous_thetas, previous_lambdas):
-            fr_frag_tensor = make_fr_tensor(prev_l, prev_t, n)
-            frags.append(
-                GFROFragment(
-                    lambdas=prev_l, thetas=prev_t, operators=tbt2op(fr_frag_tensor)
-                )
-            )
-            g_tensor -= fr_frag_tensor
-
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
         factor = 10 / frob_norm(g_tensor)
         x_dim = n * (n + 1) // 2
-        greedy_sol = try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim)
+        prev_lambda = (
+            previous_lambdas[iter]
+            if previous_lambdas and iter < len(previous_lambdas)
+            else None
+        )
+        prev_theta = (
+            previous_thetas[iter]
+            if previous_thetas and iter < len(previous_thetas)
+            else None
+        )
+        greedy_sol = try_find_greedy_fr_frag(
+            n,
+            threshold,
+            g_tensor,
+            factor,
+            x_dim,
+            prev_lambda=prev_lambda,
+            prev_theta=prev_theta,
+        )
         if only_proceed_if_success:
             greedy_sol = retry_until_success(
-                factor, g_tensor, greedy_sol, iter, n, threshold, x_dim
+                factor,
+                g_tensor,
+                greedy_sol,
+                iter,
+                n,
+                threshold,
+                x_dim,
+                prev_lambda=prev_lambda,
+                prev_theta=prev_theta,
             )
         lambdas_sol = greedy_sol.x[:x_dim] / factor
         thetas_sol = greedy_sol.x[x_dim:]
@@ -263,7 +287,17 @@ def gfro_decomp(
     return list(filter(lambda f: len(f.operators.terms) > 0, frags))
 
 
-def retry_until_success(factor, g_tensor, greedy_sol, iter, n, threshold, x_dim):
+def retry_until_success(
+    factor,
+    g_tensor,
+    greedy_sol,
+    iter,
+    n,
+    threshold,
+    x_dim,
+    prev_lambda,
+    prev_theta,
+):
     tries = iter
     while not greedy_sol.success:
         warnings.warn(
@@ -271,17 +305,33 @@ def retry_until_success(factor, g_tensor, greedy_sol, iter, n, threshold, x_dim)
                 f"Failed to converge on iteration {iter}, trying again: {str(tries - iter)} try."
             )
         )
-        greedy_sol = try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim)
+        greedy_sol = try_find_greedy_fr_frag(
+            n, threshold, g_tensor, factor, x_dim, prev_lambda, prev_theta
+        )
         if tries > (100 + iter):
             raise ValueError("Couldn't find good greedy fragment")
         tries += 1
     return greedy_sol
 
 
-def try_find_greedy_fr_frag(n, threshold, g_tensor, factor, x_dim) -> OptimizeResult:
-    x0 = np.random.uniform(low=-1e-3, high=1e-3, size=(2 * x_dim) - n)
+def try_find_greedy_fr_frag(
+    n,
+    threshold,
+    g_tensor,
+    factor: float,
+    x_dim: int,
+    prev_lambda: Optional = None,
+    prev_theta: Optional = None,
+) -> OptimizeResult:
+    x0 = (
+        np.concatenate((prev_lambda, prev_theta))
+        if isinstance(prev_theta, np.ndarray) and isinstance(prev_lambda, np.ndarray)
+        else np.random.uniform(low=-1e-3, high=1e-3, size=(2 * x_dim) - n)
+    )
     greedy_sol: OptimizeResult = minimize(
-        lambda x0: gfr_cost(x0[:x_dim], x0[x_dim:], factor * g_tensor, n),
+        lambda x0: gfro_cost(
+            lambdas=x0[:x_dim], thetas=x0[x_dim:], g_pqrs=factor * g_tensor, n=n
+        ),
         x0=x0,
         method="L-BFGS-B",
         options={"maxiter": 10000, "disp": False},

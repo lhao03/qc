@@ -16,7 +16,7 @@ from min_part.ham_decomp import (
     make_x_matrix,
     make_unitary,
     make_fr_tensor,
-    gfr_cost,
+    gfro_cost,
     frob_norm,
     gfro_decomp,
     make_fr_tensor_from_u,
@@ -84,9 +84,9 @@ class DecompTest(unittest.TestCase):
         thetas = np.random.rand(m - n)
         lambdas = np.random.rand(m)
         tensor = make_fr_tensor(lambdas, thetas, n)
-        res = gfr_cost(lambdas, thetas, tensor, n)
+        res = gfro_cost(lambdas, thetas, tensor, n)
         self.assertEqual(res, 0)
-        non_zero = gfr_cost(
+        non_zero = gfro_cost(
             lambdas, thetas, make_fr_tensor(lambdas, np.random.rand(m - n), n), n
         )
         self.assertNotEqual(non_zero, 0)

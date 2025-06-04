@@ -52,9 +52,7 @@ class LowerBoundTest(unittest.TestCase):
         load = False
         continue_on = False
         if load or continue_on:
-            child_dir = os.path.join(parent_dir, "06-02", global_id)
             gfro_files, lr_files = get_saved_file_names(child_dir)
-
             (
                 no_partitioning,
                 lr_n_subspace_energies,
@@ -91,7 +89,8 @@ class LowerBoundTest(unittest.TestCase):
             eigenvalues, eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(H_ele)).toarray()
             )
-            no_partitioning.append(eigenvalues[0])
+            unpartitioned_energy = eigenvalues[0]
+            no_partitioning.append(unpartitioned_energy)
 
             if load:
                 gfro_data = open_frags(gfro_files[i])
@@ -103,8 +102,12 @@ class LowerBoundTest(unittest.TestCase):
                     previous_lambdas=prev_gfro_lambdas,
                 )
                 _, _, lr_frags = do_lr_fo(H_ele, projector_func=None)
-            # _, gfro_frags, _ = Do_GFRO( H_ele,)
+            # _, gfro_frags, _ = Do_GFRO(
+            #     H_ele,
+            # )
             gfro_frags = [f.operators for f in gfro_data]
+            # prev_gfro_thetas = [f.thetas for f in gfro_data]
+            # prev_gfro_lambdas = [f.lambdas for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
             h1_v, h1_w = sp.linalg.eigh(
@@ -125,15 +128,12 @@ class LowerBoundTest(unittest.TestCase):
             lr_n_s_subspace_energies.append(lr_n_s_energy)
             lr_all_subspace_energies.append(lr_all_subspace_energy)
 
-            print("GFRO Fragment Analysis")
             for data in gfro_data:
                 u = make_unitary(data.thetas, config_settings.num_spin_orbs)
                 self.assertTrue(np.isclose(np.linalg.det(u), 1))
 
             gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
-            try:
-                self.assertEqual(gfro_operator_sum, H_tb_op)
-            except AssertionError:
+            if gfro_operator_sum != H_tb_op:
                 gfro_data = gfro_decomp(
                     tbt=H_tbt,
                     previous_thetas=None,
@@ -143,6 +143,7 @@ class LowerBoundTest(unittest.TestCase):
                 gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
                 self.assertEqual(gfro_operator_sum, H_tb_op)
 
+            print("GFRO Fragment Analysis")
             (
                 gfro_n_subspace_energy,
                 gfro_n_s_subspace_energy,
@@ -179,8 +180,6 @@ class LowerBoundTest(unittest.TestCase):
             else:
                 print(f"{bond_length} may be stable")
                 stable_bond_length.append(bond_length)
-                prev_gfro_thetas = [f.thetas for f in gfro_data]
-                prev_gfro_lambdas = [f.lambdas for f in gfro_data]
 
         plot_energies(
             xpoints=config_settings.xpoints,

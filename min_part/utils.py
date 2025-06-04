@@ -38,7 +38,13 @@ class LowerBoundConfig:
 
 
 def choose_lowest_energy(
-    eigenvalues, eigenvectors, num_spin_orbs, num_elecs, proj_spin, total_spin
+    eigenvalues,
+    eigenvectors,
+    num_spin_orbs,
+    num_elecs,
+    proj_spin,
+    total_spin,
+    debug=True,
 ) -> Tuple[float, float]:
     """Choose the minimum eigenvalue based on these constraints: number of electrons, projected spin and total spin.
 
@@ -46,6 +52,7 @@ def choose_lowest_energy(
     """
     possible_energies = []
     possible_energies_2 = []
+    occs_spin = []
     for i in range(eigenvectors.shape[1]):
         e = eigenvalues[i]
         w = eigenvectors[:, i]
@@ -53,6 +60,7 @@ def choose_lowest_energy(
             n = get_particle_number(w, e=num_spin_orbs)
             s_2 = get_total_spin(w, num_spin_orbs // 2)
             s_z = get_projected_spin(w, num_spin_orbs // 2)
+            occs_spin.append((e, n, s_2, s_z))
             if (
                 isclose(n, num_elecs, abs_tol=1e-6)
                 # and isclose(s_2, total_spin, abs_tol=1e-6)
@@ -67,6 +75,11 @@ def choose_lowest_energy(
         warnings.warn(
             UserWarning("Returning 0 energy value, no values to filter from.")
         )
+    if debug:
+        print("new vector")
+        for occ in occs_spin:
+            print(f"{occ[0]}, elecs: {occ[1]}, spin: {occ[2]}{occ[3]}")
+        print("===")
     return (
         min(possible_energies, default=0),
         min(possible_energies_2, default=0),
@@ -123,8 +136,9 @@ def save_frags(frags, file_name):
 
 
 def open_frags(file_name):
-    pkl_file = open(f"{file_name}", "rb")
-    return pickle.load(pkl_file)
+    with  open(f"{file_name}", "rb") as pkl_file:
+        frags = pickle.load(pkl_file)
+    return frags
 
 
 def diag_partitioned_fragments(
@@ -159,7 +173,7 @@ def diag_partitioned_fragments(
 
     # === projected onto gs ===
     n2_h1_energy, n2_spin_h1_energy = choose_lowest_energy(
-        h1_v, h1_w, num_spin_orbs, num_elecs, proj_spin=0, total_spin=0
+        h1_v, h1_w, num_spin_orbs, num_elecs, proj_spin=0, total_spin=0, debug=False
     )
     n2_final_energy = n2_h1_energy + sum(n_2_energy)
     n2_spin_final_energy = n2_spin_h1_energy + sum(n_2_spin_energy)
