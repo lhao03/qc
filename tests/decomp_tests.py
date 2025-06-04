@@ -20,9 +20,8 @@ from min_part.ham_decomp import (
     frob_norm,
     gfro_decomp,
     make_fr_tensor_from_u,
-    make_lambda_matrix,
+    make_lambda_matrix, generate_occupied_spin_orb_permutations, gfro_fragment_occ,
 )
-from min_part.ham_occ import generate_occupied_spin_orb_permutations, gfro_fragment_occ
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import get_no_from_tensor
@@ -31,7 +30,7 @@ from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 
 class DecompTest(unittest.TestCase):
     def setUp(self):
-        bond_length = 0.8
+        bond_length = 0.45
         self.mol = mol_h2(bond_length)
         H, num_elecs = obtain_OF_hamiltonian(self.mol)
         self.n_qubits = count_qubits(H)

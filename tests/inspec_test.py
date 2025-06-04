@@ -16,9 +16,9 @@ class InspectTest(unittest.TestCase):
         global gfro_files
 
         config_settings = h2_settings
-        global_id = str(19)
+        global_id = "reference-2"
         parent_dir = f"../data/{config_settings.mol_name.lower()}"
-        child_dir = os.path.join(parent_dir, "06-03", str(global_id))
+        child_dir = os.path.join(parent_dir, "06-04", str(global_id))
 
         load = True
         if load:

@@ -26,6 +26,7 @@ from min_part.utils import (
     save_energies,
     load_energies,
     get_saved_file_names,
+    closetoin,
 )
 from min_part.plots import plot_energies, PlotNames
 
@@ -44,10 +45,10 @@ class LowerBoundTest(unittest.TestCase):
         gfro_all_subspace_energies = []
 
         config_settings = h2_settings
-        global_id = str(random.randint(0, 100))
+        global_id = "fix-flop" # str(random.randint(0, 100))
         parent_dir = f"../data/{config_settings.mol_name.lower()}"
-        child_dir = os.path.join(parent_dir, "06-03", str(global_id))
-        stable_bond_length = []
+        child_dir = os.path.join(parent_dir, config_settings.date, str(global_id))
+        unstable_bond_length = [0.45, 0.8, 0.9, 1.7, 1.75, 2.1]
 
         load = False
         continue_on = False
@@ -65,7 +66,7 @@ class LowerBoundTest(unittest.TestCase):
         elif not continue_on:
             while os.path.exists(child_dir):
                 global_id = random.randint(0, 100)
-                child_dir = os.path.join(parent_dir, "06-02", str(global_id))
+                child_dir = os.path.join(parent_dir, config_settings.date, str(global_id))
             if not os.path.isdir(child_dir):
                 os.makedirs(os.path.join(child_dir, "gfro"))
                 os.makedirs(os.path.join(child_dir, "lr"))
@@ -98,16 +99,12 @@ class LowerBoundTest(unittest.TestCase):
             else:
                 gfro_data = gfro_decomp(
                     tbt=H_tbt,
-                    previous_thetas=prev_gfro_thetas,
-                    previous_lambdas=prev_gfro_lambdas,
+                    previous_thetas= None
+                ,
+                    previous_lambdas= None
                 )
                 _, _, lr_frags = do_lr_fo(H_ele, projector_func=None)
-            # _, gfro_frags, _ = Do_GFRO(
-            #     H_ele,
-            # )
             gfro_frags = [f.operators for f in gfro_data]
-            # prev_gfro_thetas = [f.thetas for f in gfro_data]
-            # prev_gfro_lambdas = [f.lambdas for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
             h1_v, h1_w = sp.linalg.eigh(
@@ -149,7 +146,7 @@ class LowerBoundTest(unittest.TestCase):
                 gfro_n_s_subspace_energy,
                 gfro_all_subspace_energy,
             ) = diag_partitioned_fragments(
-                h2_frags=gfro_frags,
+                h2_frags=gfro_data,
                 h1_v=h1_v,
                 h1_w=h1_w,
                 num_elecs=num_elecs,
@@ -179,7 +176,6 @@ class LowerBoundTest(unittest.TestCase):
                 print(f"{bond_length} is unstable")
             else:
                 print(f"{bond_length} may be stable")
-                stable_bond_length.append(bond_length)
 
         plot_energies(
             xpoints=config_settings.xpoints,
