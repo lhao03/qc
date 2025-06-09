@@ -2,9 +2,8 @@ import os
 import unittest
 from typing import List
 
-
+from d_types.fragment_types import GFROFragment
 from min_part.molecules import h2_settings
-from min_part.typing import GFROFragment
 from min_part.utils import (
     open_frags,
     get_saved_file_names,

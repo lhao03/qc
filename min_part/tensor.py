@@ -48,6 +48,7 @@ def get_n_body_fo(tensor: np.ndarray) -> FermionOperator:
     """Creates the n-body `FermionOperator` from a rank log2(n) tensor"""
     n = tensor.shape[0]
     fo = FermionOperator()
+    raise NotImplementedError
 
 
 def get_no_from_tensor(lambda_m: np.ndarray) -> FermionOperator:

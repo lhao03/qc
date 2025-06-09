@@ -13,11 +13,11 @@ from openfermion import (
 )
 from openfermion.linalg import qubit_operator_sparse
 
-from min_part.ham_decomp import gfro_decomp, make_unitary
+from d_types.fragment_types import GFROFragment
+from min_part.gfro_decomp import make_unitary, gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
 from min_part.tensor_utils import tbt2op, get_chem_tensors, obt2op
-from min_part.typing import GFROFragment
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,

@@ -16,28 +16,12 @@ from openfermion import (
     qubit_operator_sparse,
 )
 
+from d_types.fragment_types import GFROFragment
 from min_part.ffrag_utils import LR_frags_generator
-from min_part.ham_decomp import gfro_fragment_occ
+from min_part.gfro_decomp import gfro_fragment_occ
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
 from min_part.plots import PlotNames
 from min_part.tensor_utils import get_chem_tensors, obt2op
-from min_part.typing import GFROFragment
-
-
-@dataclass
-class EnergyOccupation:
-    energy: float
-    spin_orbs: float
-
-
-@dataclass
-class LowerBoundConfig:
-    xpoints: List[float]
-    num_spin_orbs: int
-    mol_name: str
-    mol_of_interest: any
-    stable_bond_length: float
-    date: str
 
 
 def choose_lowest_energy(
@@ -78,11 +62,6 @@ def choose_lowest_energy(
         warnings.warn(
             UserWarning("Returning 0 energy value, no values to filter from.")
         )
-    if debug:
-        print("new vector")
-        for occ in occs_spin:
-            print(f"{occ[0]}, elecs: {occ[1]}, spin: {occ[2]}{occ[3]}")
-        print("===")
     return (
         min(possible_energies, default=0),
         min(possible_energies_2, default=0),
@@ -185,7 +164,6 @@ def diag_partitioned_fragments(
     )
     n2_final_energy = n2_h1_energy + sum(n_2_energy)
     n2_spin_final_energy = n2_spin_h1_energy + sum(n_2_spin_energy)
-    print(f"====> fragment energy: {n_2_spin_energy}")
     return n2_final_energy, n2_spin_final_energy, all_final_energy
 
 

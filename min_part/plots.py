@@ -56,7 +56,13 @@ def plot_energies(
 ):
     plt.clf()
     for label, set_of_points in zip(labels, points):
-        plt.plot(xpoints, set_of_points, color=PlotNames.get_color(label), marker='|', alpha=0.6)
+        plt.plot(
+            xpoints,
+            set_of_points,
+            color=PlotNames.get_color(label),
+            marker="|",
+            alpha=0.6,
+        )
     plt.xlabel("Bond Length (Å)")
     plt.ylabel("Energy (Ha)")
     plt.legend([l.value for l in labels])

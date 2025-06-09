@@ -1,6 +1,6 @@
 import numpy as np
 
-from min_part.utils import LowerBoundConfig
+from d_types.config_types import LowerBoundConfig
 
 
 def mol_n2(i):
@@ -26,5 +26,5 @@ h2_settings = LowerBoundConfig(
     mol_name="H2",
     mol_of_interest=mol_h2,
     stable_bond_length=0.8,
-    date="06-04"
+    date="06-09",
 )

@@ -72,7 +72,9 @@ class OperatorTest(unittest.TestCase):
 
     def test_total_spin_operator_1_elec(self):
         s = get_total_spin(self.eigenvectors[:, 4], 2)
-        self.assertEqual(extract_eigenvalue(self.s_2_of, self.eigenvectors[:, 4]), s)
+        self.assertEqual(
+            extract_eigenvalue(self.s_2_of, self.eigenvectors[:, 4], panic=True), s
+        )
 
     def test_total_spin_operator_2_elec(self):
         s = get_total_spin(self.eigenvectors[:, 0], 2)

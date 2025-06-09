@@ -5,11 +5,14 @@ from openfermion import (
     FermionOperator,
 )
 from julia import Pkg
-Pkg.activate("/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/julia/MolHamLinAlg")
+
+Pkg.activate("../MolHamLinAlg")
 from julia import MolHamLinAlg
 
-def extract_eigenvalue(operator, w):
-    return MolHamLinAlg.extract_eigen(operator.toarray(), w)
+
+def extract_eigenvalue(operator, w, panic: bool = True):
+    return MolHamLinAlg.extract_eigen(operator.toarray(), w, panic)
+
 
 def tuple2str(*args) -> str:
     fo_str = []
@@ -141,7 +144,7 @@ def get_particle_number(w, e: int) -> float:
     on_operator = qubit_operator_sparse(
         jordan_wigner(number_operator(n_modes=e, parity=-1))
     )
-    return extract_eigenvalue(on_operator, w)
+    return extract_eigenvalue(on_operator, w, panic=True)
 
 
 def get_total_spin(w, p: int) -> float:
@@ -158,7 +161,7 @@ def get_total_spin(w, p: int) -> float:
         the projected spin
     """
     s_2 = qubit_operator_sparse(jordan_wigner(make_total_spin_operator(p)))
-    return extract_eigenvalue(s_2, w)
+    return extract_eigenvalue(s_2, w, panic=False)
 
 
 def get_projected_spin(w, p: int) -> float:
@@ -173,4 +176,4 @@ def get_projected_spin(w, p: int) -> float:
         The projected spin, 0 if singlet, 1 if triplet.
     """
     s_z_operator = qubit_operator_sparse(jordan_wigner(make_spin_z_operator(p=p)))
-    return extract_eigenvalue(s_z_operator, w)
+    return extract_eigenvalue(s_z_operator, w, panic=False)
