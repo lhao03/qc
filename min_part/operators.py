@@ -1,21 +1,15 @@
-import numpy as np
 from openfermion import (
     number_operator,
     qubit_operator_sparse,
     jordan_wigner,
     FermionOperator,
 )
-
+from julia import Pkg
+Pkg.activate("/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/julia/MolHamLinAlg")
+from julia import MolHamLinAlg
 
 def extract_eigenvalue(operator, w):
-    w[w < 1e-15] = 0
-    b = operator * w
-    n = np.divide(b, w)
-    n = n[~np.isnan(n)]
-    if len(n) == 0:
-        return 0
-    return n[0]
-
+    return MolHamLinAlg.extract_eigen(operator.toarray(), w)
 
 def tuple2str(*args) -> str:
     fo_str = []

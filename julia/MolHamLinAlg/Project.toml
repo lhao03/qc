@@ -1,0 +1,4 @@
+name = "MolHamLinAlg"
+uuid = "5c8b6b33-8701-41e8-be2b-ae5d6cb070f9"
+authors = ["lucyhao <hao.lucyy@gmail.com>"]
+version = "0.1.0"
