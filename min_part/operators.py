@@ -4,14 +4,12 @@ from openfermion import (
     jordan_wigner,
     FermionOperator,
 )
-from julia import Pkg
 
-Pkg.activate("../MolHamLinAlg")
-from julia import MolHamLinAlg
+from min_part import julia_ops
 
 
 def extract_eigenvalue(operator, w, panic: bool = True):
-    return MolHamLinAlg.extract_eigen(operator.toarray(), w, panic)
+    return julia_ops.extract_eigen(operator, w, panic)
 
 
 def tuple2str(*args) -> str:

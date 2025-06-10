@@ -12,8 +12,15 @@ class FermionicFragment:
 
 
 @dataclass
+class FluidCoeff:
+    coeff: float
+    thetas: np.ndarray
+
+
+@dataclass
 class FluidFermionicFragment(FermionicFragment):
-    lambdas: np.ndarray
+    static_frags: np.ndarray
+    fluid_frags: List[FluidCoeff]
 
 
 @dataclass
