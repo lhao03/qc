@@ -6,6 +6,7 @@ import numpy as np
 
 Nums = List[int] | List[float] | np.ndarray
 
+
 @dataclass
 class FermionicFragment:
     thetas: Nums
@@ -14,7 +15,7 @@ class FermionicFragment:
 
 @dataclass
 class FluidCoeff:
-    coeff: float
+    coeff: Nums
     thetas: Nums
 
 

@@ -8,7 +8,7 @@ from numpy import ndarray, dtype
 from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
-from d_types.fragment_types import GFROFragment
+from d_types.fragment_types import GFROFragment, Nums
 from min_part.tensor_utils import tbt2op
 
 
@@ -58,8 +58,8 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
     return X
 
 
-def make_unitary(thetas, n: int) -> np.ndarray:
-    return sp.linalg.expm(make_x_matrix(thetas, n))
+def make_unitary(thetas: Nums, n: int) -> np.ndarray:
+    return sp.linalg.expm(make_x_matrix(np.array(thetas), n))
 
 
 def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:

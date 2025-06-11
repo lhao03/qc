@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 export extract_eigen
-export eigendecomp
+export UV_eigendecomp
 
 function extract_eigen(op::Matrix, ev::Vector, panic)
     ev = map((e) -> abs(e) > 1e-10 ? e : 0, ev)
@@ -19,8 +19,7 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     real_e
 end
 
-function eigendecomp(mat)
-    e_vals = eigvals(mat)
-    e_vecs = eigvecs(mat)
-    e_vecs, Diagonal(e_vals)
+function UV_eigendecomp(mat)
+    vals, vecs = eigen(mat)
+    vecs, vals
 end
