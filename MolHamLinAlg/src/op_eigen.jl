@@ -1,4 +1,7 @@
+using LinearAlgebra
+
 export extract_eigen
+export eigendecomp
 
 function extract_eigen(op::Matrix, ev::Vector, panic)
     ev = map((e) -> abs(e) > 1e-10 ? e : 0, ev)
@@ -14,4 +17,10 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     img_e = imag(eig)
     img_e == 0 || error("Eigenvalues should be real, got $(eig)")
     real_e
+end
+
+function eigendecomp(mat)
+    e_vals = eigvals(mat)
+    e_vecs = eigvecs(mat)
+    e_vecs, Diagonal(e_vals)
 end

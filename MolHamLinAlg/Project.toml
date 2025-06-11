@@ -2,3 +2,9 @@ name = "MolHamLinAlg"
 uuid = "5c8b6b33-8701-41e8-be2b-ae5d6cb070f9"
 authors = ["lucyhao <hao.lucyy@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[compat]
+LinearAlgebra = "1.11.0"

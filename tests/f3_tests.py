@@ -6,8 +6,14 @@ from openfermion import (
     count_qubits,
 )
 
-from min_part.f_3_ops import get_one_body_parts, remove_one_body_parts, oneb2op, twob2op
-from min_part.gfro_decomp import make_fr_tensor_from_u, gfro_decomp
+from min_part.f_3_ops import (
+    get_one_body_parts,
+    remove_one_body_parts,
+    oneb2op,
+    twob2op,
+    obt2fluid,
+)
+from min_part.gfro_decomp import make_fr_tensor_from_u, gfro_decomp, make_unitary
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
@@ -59,6 +65,8 @@ class FluidFragmentTest(unittest.TestCase):
             self.assertEqual(frag.operators, fluid_ops + static_ops)
 
     def test_convert_one_body_to_f3(self):
+        f3_frag = obt2fluid(self.H_obt)
+        self.assertAlmostEqual(np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7)
         pass
 
     def test_convert_two_body_to_f3(self):

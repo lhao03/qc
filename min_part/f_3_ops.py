@@ -16,7 +16,7 @@ from min_part.gfro_decomp import (
     make_unitary,
 )
 from min_part.julia_ops import solve_quad
-from min_part.tensor_utils import tbt2op
+from min_part.tensor_utils import tbt2op, obt2op
 
 
 def get_one_body_parts(lambdas: Nums) -> Nums:
@@ -117,5 +117,21 @@ def make_super_unitary_matrix():
 def make_augmented_hpq_matrix():
     pass
 
+def obt2fluid(obt: np.ndarray) -> FluidFermionicFragment:
+    """
+    Converts a one-body tensor to a `FluidFermionicFragment` type via diagonalization of the tensor.
+    Args:
+        obt:
+
+    Returns:
+        `FluidFermionicFragment` object of the one-body tensor
+    """
+    pass
+
 def rediag_onebody(undiagonalized_onebody: FluidFermionicFragment) -> LRFragment:
     pass
+
+def obt2op_from_u(obt: np.ndarray, thetas) -> FermionOperator:
+    unitary = make_unitary(thetas, obt.shape[0])
+    obt_rotated = np.einsum("ab,ap,bq->pq",obt, unitary, unitary)
+    return obt2op(obt_rotated)
