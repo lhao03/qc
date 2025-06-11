@@ -4,33 +4,34 @@ from typing import List
 from openfermion import FermionOperator
 import numpy as np
 
+Nums = List[int] | List[float] | np.ndarray
 
 @dataclass
 class FermionicFragment:
-    thetas: np.ndarray
+    thetas: Nums
     operators: FermionOperator
 
 
 @dataclass
 class FluidCoeff:
     coeff: float
-    thetas: np.ndarray
+    thetas: Nums
 
 
 @dataclass
 class FluidFermionicFragment(FermionicFragment):
-    static_frags: np.ndarray
+    static_frags: Nums
     fluid_frags: List[FluidCoeff]
 
 
 @dataclass
 class GFROFragment(FermionicFragment):
-    lambdas: np.ndarray
+    lambdas: Nums
 
 
 @dataclass
 class LRFragment(FermionicFragment):
-    h_p: np.ndarray
+    h_p: Nums
 
 
 @dataclass

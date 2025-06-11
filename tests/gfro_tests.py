@@ -202,7 +202,9 @@ class DecompTest(unittest.TestCase):
         )
         fake_lambdas = np.array(sorted([0.1 * random.randint(1, 10) for _ in range(m)]))
         fake_hamiltonian = make_fr_tensor_from_u(fake_lambdas, fake_u, n)
+        fake_hamiltonian_operator = tbt2op(fake_hamiltonian)
         gfro_frags = gfro_decomp(fake_hamiltonian)
+        self.assertEqual(1, len(gfro_frags))
         for frag_details in gfro_frags:
             diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
@@ -213,6 +215,7 @@ class DecompTest(unittest.TestCase):
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
             )
+            self.assertEqual(fake_hamiltonian_operator, frag_details.operators)
 
     def test_grfo_h2_occs(self):
         gfro_frags = gfro_decomp(tbt=self.H_tbt)
