@@ -34,7 +34,7 @@ class FluidFragmentTest(unittest.TestCase):
         self.H_ob_op = obt2op(self.H_obt)
         self.H_tb_op = tbt2op(self.H_tbt)
         self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
-        self.h2_frags = gfro_decomp(self.H_tbt)
+        self.gfro_h2_frags = gfro_decomp(self.H_tbt)
 
     def test_get_one_body_parts(self):
         n = 5
@@ -72,7 +72,7 @@ class FluidFragmentTest(unittest.TestCase):
         self.assertEqual(frag_details.operators, fluid_ops + static_ops)
 
     def test_1b_2b_to_ops_h2(self):
-        for frag in self.h2_frags:
+        for frag in self.gfro_h2_frags:
             fluid_ops = oneb2op(
                 FluidCoeff(coeff=get_one_body_parts(frag.lambdas), thetas=frag.thetas)
             )
@@ -129,10 +129,11 @@ class FluidFragmentTest(unittest.TestCase):
         )
 
     def test_convert_gfro_2b_to_f3_h2(self):
-        fluid_h2_frags = [fragment2fluid(f) for f in self.h2_frags]
+        fluid_h2_frags = [fragment2fluid(f) for f in self.gfro_h2_frags]
         for fff in fluid_h2_frags:
             self.assertEqual(
-                fff.operators, oneb2op(fff.fluid_frags[0]) +  twob2op(fff.static_frags, fff.thetas)
+                fff.operators,
+                oneb2op(fff.fluid_frags[0]) + twob2op(fff.static_frags, fff.thetas),
             )
 
     def test_convert_lr_2b_to_f3(self):
