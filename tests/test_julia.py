@@ -24,9 +24,12 @@ class JuliaTest(unittest.TestCase):
         self.assertTrue(np.array_equal(jl_eig * vec, py_eig * vec))
 
     def test_julia_eigendecomp(self):
-        mat_rand = np.random.rand(100,100)
+        mat_rand = np.array([[-4. , -17.], [2. , 2.]], dtype=np.complex64)
         U, V = self.mhla.eigendecomp(mat_rand)
         U, V = np.array(U), np.array(V)
+        np_V, np_U = np.linalg.eig(mat_rand)
         julia_res = U @ V @ np.linalg.inv(U)
+        np_res = np_U @ np.diagflat(np_V) @ np.linalg.inv(np_U)
         self.assertTrue(np.allclose(julia_res, mat_rand))
-
+        self.assertTrue(np.allclose(np_res, mat_rand))
+        self.assertTrue(np.allclose(np_res, julia_res))

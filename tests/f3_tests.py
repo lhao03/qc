@@ -67,7 +67,6 @@ class FluidFragmentTest(unittest.TestCase):
     def test_convert_one_body_to_f3(self):
         f3_frag = obt2fluid(self.H_obt)
         self.assertAlmostEqual(np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7)
-        pass
 
     def test_convert_two_body_to_f3(self):
         pass
