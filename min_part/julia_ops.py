@@ -1,7 +1,7 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
-from julia import Pkg
+from julia import Pkg, Main
 
 Pkg.activate("../MolHamLinAlg")
 from julia import MolHamLinAlg
@@ -17,3 +17,7 @@ def solve_quad(a, b, c):
 
 def UV_eigendecomp(matrix) -> Tuple[np.ndarray, np.ndarray]:
     return MolHamLinAlg.UV_eigendecomp(matrix)
+
+
+def lr_decomp_params(tbt) -> Tuple[np.ndarray, np.ndarray]:
+    return MolHamLinAlg.lr_decomposition(tbt)

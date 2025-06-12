@@ -16,6 +16,7 @@ from openfermion.linalg import qubit_operator_sparse
 from d_types.fragment_types import GFROFragment
 from min_part.gfro_decomp import make_unitary, gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
+from min_part.lr_decomp import lr_decomp
 from min_part.molecules import h2_settings
 from min_part.tensor_utils import tbt2op, get_chem_tensors, obt2op
 from min_part.utils import (
@@ -75,6 +76,8 @@ class LowerBoundTest(unittest.TestCase):
             gfro_data: List[GFROFragment] = open_frags(gfro_files[15])
 
         for i, bond_length in enumerate(config_settings.xpoints):
+            if bond_length == 0.55:
+                print("dog")
             print(f"Now partitioning: {bond_length} angstroms.")
             mol = config_settings.mol_of_interest(bond_length)
             H, num_elecs = obtain_OF_hamiltonian(mol)
@@ -89,14 +92,12 @@ class LowerBoundTest(unittest.TestCase):
             unpartitioned_energy = eigenvalues[0]
             no_partitioning.append(unpartitioned_energy)
 
-            if load:
-                gfro_data = open_frags(gfro_files[i])
-                lr_frags = open_frags(lr_files[i])
-            else:
-                gfro_data = gfro_decomp(
+            gfro_data = gfro_decomp(
                     tbt=H_tbt, previous_thetas=None, previous_lambdas=None
                 )
-                _, _, lr_frags = do_lr_fo(H_ele, projector_func=None)
+            # lr_details = lr_decomp(tbt=H_tbt)
+            # lr_frags = [f.operators for f in lr_details]
+            lr_frags , _= do_lr_fo(H_ele, projector_func=None)
             gfro_frags = [f.operators for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op

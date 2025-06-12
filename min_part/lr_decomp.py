@@ -4,8 +4,12 @@ import numpy as np
 import scipy as sp
 from openfermion import FermionOperator
 
+from d_types.fragment_types import LRFragment
+from min_part.f_3_ops import extract_thetas
+from min_part.julia_ops import lr_decomp_params
 from min_part.reorder import reorder_operators_for_lr
 from min_part.tensor import get_n_body_tensor
+from min_part.tensor_utils import tbt2op
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -31,7 +35,7 @@ def four_tensor_to_two_tensor_indices(p, q, r, s, n) -> tuple[Any, Any]:
         q:
         r:
         s:
-        n: the dimension(s) of the rank four tensor
+        n: the dimension of the rank four tensor
 
     Returns:
         pq: int for the pq orbitals
@@ -42,10 +46,9 @@ def four_tensor_to_two_tensor_indices(p, q, r, s, n) -> tuple[Any, Any]:
     return pq, rs
 
 
-def lr_decomp(tbfo: FermionOperator) -> list[FermionOperator]:
+def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     """Low Rank (LR) decomposition of the two-fermion part of the Hamiltonian.
     Implements the algorithm based on https://arxiv.org/pdf/1808.02625
-    and https://pubs.acs.org/doi/10.1021/acs.jctc.7b00605.
 
     Procedure:
     1. reorder creation and annihilation operators of the two-body operator into two-body (V') and one-body parts.
@@ -60,14 +63,22 @@ def lr_decomp(tbfo: FermionOperator) -> list[FermionOperator]:
     Returns:
         list of one-fermion fragments
     """
-    reordered_tbt = reorder_operators_for_lr(tbfo)
-    tbt = get_n_body_tensor(reordered_tbt)
-    if len(set(tbt.shape)) != 1:
-        raise ValueError("Expected the two-fermion tensor to be size N x N x N x N")
-    tbt_supermatrix = make_supermatrix(tbt)
-    e_ls, v_ls = sp.linalg.eigh(tbt_supermatrix)
-    for i in range(v_ls.shape[1]):
-        lambdas, v_us = sp.linalg.eigh(v_ls)
+    lr_frags = lr_decomp_params(tbt)
+    lr_frag_details = []
+    for i, lr_frag in enumerate(lr_frags):
+        lambdas = lr_frag[0]
+        unitary = lr_frag[1]
+        tensor = lr_frag[2]
+        operators = tbt2op(tensor)
+        if operators.induced_norm(2) > 1e-6:
+            lr_frag_details.append(
+                LRFragment(
+                    lambdas=lambdas,
+                    operators=operators,
+                    thetas=extract_thetas(unitary),
+                )
+            )
+    return lr_frag_details
 
 
 def lr_fragment_occ(

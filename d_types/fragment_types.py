@@ -32,7 +32,7 @@ class GFROFragment(FermionicFragment):
 
 @dataclass
 class LRFragment(FermionicFragment):
-    h_p: Nums
+    lambdas: Nums
 
 
 @dataclass

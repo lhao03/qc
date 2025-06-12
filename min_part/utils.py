@@ -108,7 +108,7 @@ def do_lr_fo(
             projector_func(obt_op, excitation_level=None),
             [projector_func(lr_f, excitation_level=None) for lr_f in LR_fragments],
         )
-    return const * FermionOperator.identity(), obt_op, LR_fragments
+    return LR_fragments, LR_params
 
 
 def save_frags(frags, file_name):

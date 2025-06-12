@@ -10,12 +10,12 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     b = filter(!isnan, b)
     eig = b[1]
     if panic
-        all(isapprox.(b, eig; atol=1e-10)) || error("Expected all elements of eigenvalue vector to be the same, but got: $(b)")
-        eig * ev == bv || error("O v != b v, got: $(bv) and $(eig * ev).")
+        all(isapprox.(b, eig; atol=1e-10)) || error("Expected all elements of eigenvalue vector to be the same, but got: $(b). Original vector was: $(ev)")
+        isapprox(eig * ev, bv; atol=1e-8) || error("O v != b v, got: $(bv) and $(eig * ev).")
     end
     real_e = real(eig)
     img_e = imag(eig)
-    img_e == 0 || error("Eigenvalues should be real, got $(eig)")
+    isapprox(img_e, 0, atol=1e-10) || error("Eigenvalues should be real, got $(eig)")
     real_e
 end
 

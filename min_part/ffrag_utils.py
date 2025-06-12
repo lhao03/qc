@@ -488,13 +488,12 @@ def LR_frags_generator(Htbt, tol=1e-6, ret_params: bool = True, spacial: bool = 
             #     frag   += FermionOperator(term, coef)
 
             # LR_fragments.append(cur_D*frag*frag)
-
             d, u = np.linalg.eigh(L)
             d = d.reshape((len(d), 1))
             coeff_mat = cur_D * d @ d.T
-            params.append((coeff_mat, u))
-
             frag_tbt = build_FR_frag_tbt_ez(coeff_mat, u)
+            params.append((coeff_mat, u, frag_tbt))
+
             if spacial == True:
                 frag_tbt = spac2spin(frag_tbt)
             LR_fragments.append(tbt2op(frag_tbt))

@@ -47,3 +47,25 @@ class JuliaTest(unittest.TestCase):
         self.assertTrue(np.allclose(julia_res, mat_rand))
         self.assertTrue(np.allclose(np_res, mat_rand))
         self.assertTrue(np.allclose(np_res, julia_res))
+
+    def test_reshape(self):
+        a = np.array(
+            [
+                [
+                    [[0.7376019, 0.3476717], [0.61618133, 0.83134308]],
+                    [[0.35529539, 0.64242154], [0.4372626, 0.09276076]],
+                ],
+                [
+                    [[0.33597802, 0.21136249], [0.56391499, 0.86597161]],
+                    [[0.48161747, 0.0801986], [0.91312608, 0.86679826]],
+                ],
+            ]
+        )
+        a_rs = a.reshape((4, 4))
+        j_a_rs = self.mhla.rowwise_reshape_four_rank_to_two_rank(a)
+        self.assertTrue(np.array_equal(j_a_rs, a_rs))
+
+        v = np.random.rand(100, 1)
+        v_rs = v.reshape((10, 10))
+        j_rs = self.mhla.rowwise_reshape_vec_to_mat(v, 10)
+        self.assertTrue(np.array_equal(v_rs, j_rs))

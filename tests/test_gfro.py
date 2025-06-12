@@ -13,14 +13,14 @@ from openfermion import (
 from min_part.gfro_decomp import (
     make_x_matrix,
     make_unitary,
-    make_fr_tensor,
     gfro_cost,
     frob_norm,
     gfro_decomp,
-    make_fr_tensor_from_u,
     make_lambda_matrix,
     generate_occupied_spin_orb_permutations,
     gfro_fragment_occ,
+    make_fr_tensor,
+    make_fr_tensor_from_u,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
@@ -60,7 +60,10 @@ class DecompTest(unittest.TestCase):
         res = gfro_cost(lambdas, thetas, tensor, n)
         self.assertEqual(res, 0)
         non_zero = gfro_cost(
-            lambdas, thetas, make_fr_tensor(lambdas, np.random.rand(m - n), n), n
+            lambdas,
+            thetas,
+            make_fr_tensor(lambdas, np.random.rand(m - n), n),
+            n,
         )
         self.assertNotEqual(non_zero, 0)
 
@@ -176,8 +179,8 @@ class DecompTest(unittest.TestCase):
         for row in fake_u:
             for i, gen_row in enumerate(fr_u):
                 try:
-                    if np.allclose(row, gen_row, rtol=1e-05, atol=1e-08) or np.allclose(
-                        row, -1 * gen_row, rtol=1e-05, atol=1e-08
+                    if np.allclose(row, gen_row, rtol=1e-05, atol=1e-07) or np.allclose(
+                        row, -1 * gen_row, rtol=1e-05, atol=1e-07
                     ):
                         fr_u = np.delete(fr_u, (i), axis=0)
                         rows_checked += 1

@@ -17,7 +17,7 @@ from min_part.f_3_ops import (
     obf3to_op,
     fragment2fluid,
 )
-from min_part.gfro_decomp import make_fr_tensor_from_u, gfro_decomp, make_unitary
+from min_part.gfro_decomp import gfro_decomp, make_unitary, make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import get_n_body_tensor
