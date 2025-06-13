@@ -1,54 +1,58 @@
 using LinearAlgebra
 using PyCall
-using Base: collect_preferences
+using Base: collect_preferences, permutecols!!
 using Tullio: @einsum
+using Test
 
 export lr_decomposition
-export rowwise_reshape_vec_to_mat
-export rowwise_reshape_four_rank_to_two_rank
+export rowwise_reshape
+export vecs2mat_reshape
+export reshape_eigs
 
 function lr_decomposition(tbt)
     n = size(tbt)[1]
-    flattened_tbt =  rowwise_reshape_four_rank_to_two_rank(tbt)
+    flattened_tbt = rowwise_reshape(tbt, n^2)
     diags, Ls = eigen(flattened_tbt)
-    Vs = map(L -> rowwise_reshape_vec_to_mat(L, n), eachcol(Ls))
+    Vs = vecs2mat_reshape(Ls, n)
     lr_fragments = []
+    lr_tensors = []
     for i in 1:n^2
         if norm(sqrt(abs(diags[i])) .* Vs[i]) > 1e-6
+            display(Vs[i])
             d, U = eigen(Vs[i])
-            d = reshape(d, (size(d)[1], 1))
+            d = reshape_eigs(d)
             C = diags[i] .* d * transpose(d)
-            @einsum A[p, q, r,s ] := C[i, j] * U[p, i] * U[q, i] * U[r, j] * U[s, j]
+            @einsum A[p, q, r,s] := C[i, j] * U[p, i] * U[q, i] * U[r, j] * U[s, j]
+            # display(C)
+            display(U)
+            # for i in 1:n
+            #     for j in 1:n
+            #         println("$(i), $(j)")
+            #         display(A[i, j, :, :])
+            #     end
+            # end
             push!(lr_fragments, (C, U, A))
+            push!(lr_tensors, A)
         end
     end
+    # isapprox(tbt, foldl(.+, lr_tensors)) || error("LR Decomposition Failed")
     lr_fragments
 end
 
-function rowwise_reshape_four_rank_to_two_rank(mat)
-    n = size(mat)[1]
-    row_flattened_mat = []
-    for i in 1:n
-        for j in 1:n
-            row_slice = mat[i, j, :, :]
-            rows = eachrow(row_slice)
-            row_vec = transpose(collect(foldl(vcat, rows)))
-            push!(row_flattened_mat, row_vec)
-        end
-    end
-    vcat(row_flattened_mat...)
+function rowwise_reshape(mat, n)
+    reshape(permutedims(mat, (2, 1, 4, 3)), (n, n))
 end
 
-function rowwise_reshape_vec_to_mat(v, n)::Matrix{Complex}
-    e = 1
-    rows = []
-    for _ in 1:n
-        row = []
-        for _ in 1:n
-            push!(row, v[e])
-            e += 1
-        end
-        push!(rows, row)
+function vecs2mat_reshape(Ls, n)
+    reshaped_vecs = []
+    for col in eachcol(Ls)
+        col = map((e) -> abs(e) > 1e-10 ? e : 0, col)
+        push!(reshaped_vecs, transpose(reshape(col, (n, n))))
     end
-    stack(rows;dims=1)
+    reshaped_vecs
 end
+
+function reshape_eigs(d)
+    reshape(d, (size(d)[1], 1))
+end
+

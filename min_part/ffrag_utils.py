@@ -480,6 +480,7 @@ def LR_frags_generator(Htbt, tol=1e-6, ret_params: bool = True, spacial: bool = 
 
     for L, cur_D in zip(Ls, cur_Ds):
         if np.linalg.norm(np.sqrt(np.abs(cur_D)) * L) > tol:
+            print(L)
             # frag  = FermionOperator()
             # for p in range(N):
             #   for q in range(N):
@@ -489,9 +490,12 @@ def LR_frags_generator(Htbt, tol=1e-6, ret_params: bool = True, spacial: bool = 
 
             # LR_fragments.append(cur_D*frag*frag)
             d, u = np.linalg.eigh(L)
+            print(u)
             d = d.reshape((len(d), 1))
             coeff_mat = cur_D * d @ d.T
             frag_tbt = build_FR_frag_tbt_ez(coeff_mat, u)
+            # other_tbt = (cur_D * L @ np.linalg.inv(L)).reshape((N, N, N, N))
+            # np.testing.assert_almost_equal(other_tbt, frag_tbt)
             params.append((coeff_mat, u, frag_tbt))
 
             if spacial == True:
@@ -661,4 +665,4 @@ def build_FR_frag_tbt_ez(coeff_mat, u):
     Returns:
         np.array: chemist two-body-tensor. Shape = (N,N,N,N).
     """
-    return contract("ij,pi,qi,rj,sj -> pqrs", coeff_mat, u, u, u, u)
+    return contract("ij,pi,qi,rj,sj", coeff_mat, u, u, u, u)

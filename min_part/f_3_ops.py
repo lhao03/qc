@@ -16,7 +16,7 @@ from min_part.gfro_decomp import (
     make_lambda_matrix,
     make_unitary,
 )
-from min_part.julia_ops import solve_quad, UV_eigendecomp
+from min_part.julia_ops import solve_quad, eigen_jl
 from min_part.tensor_utils import tbt2op, obt2op
 
 
@@ -154,7 +154,7 @@ def obt2fluid(obt: np.ndarray) -> FluidFermionicFragment:
     Returns:
         `FluidFermionicFragment` object of the one-body tensor
     """
-    U, V = UV_eigendecomp(obt)
+    U, V = eigen_jl(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
     thetas = extract_thetas(U)

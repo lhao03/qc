@@ -72,12 +72,7 @@ class LowerBoundTest(unittest.TestCase):
                 os.makedirs(os.path.join(child_dir, "gfro"))
                 os.makedirs(os.path.join(child_dir, "lr"))
 
-        if continue_on:
-            gfro_data: List[GFROFragment] = open_frags(gfro_files[15])
-
         for i, bond_length in enumerate(config_settings.xpoints):
-            if bond_length == 0.55:
-                print("dog")
             print(f"Now partitioning: {bond_length} angstroms.")
             mol = config_settings.mol_of_interest(bond_length)
             H, num_elecs = obtain_OF_hamiltonian(mol)
@@ -93,17 +88,26 @@ class LowerBoundTest(unittest.TestCase):
             no_partitioning.append(unpartitioned_energy)
 
             gfro_data = gfro_decomp(
-                    tbt=H_tbt, previous_thetas=None, previous_lambdas=None
-                )
-            # lr_details = lr_decomp(tbt=H_tbt)
-            # lr_frags = [f.operators for f in lr_details]
-            lr_frags , _= do_lr_fo(H_ele, projector_func=None)
+                tbt=H_tbt, previous_thetas=None, previous_lambdas=None
+            )
+            lr_details = lr_decomp(tbt=H_tbt)
+            lr_frags_jl = [f.operators for f in lr_details]
+            lr_frags, lr_params = do_lr_fo(H_ele, projector_func=None)
             gfro_frags = [f.operators for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
             h1_v, h1_w = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(H_no_two_body)).toarray()
             )
+
+            lr_operator_sum_jl = reduce(lambda op1, op2: op1 + op2, lr_frags_jl)
+            lr_operator_sum = reduce(lambda op1, op2: op1 + op2, lr_frags)
+            gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
+            self.assertEqual(lr_operator_sum, H_tb_op)
+            for data in gfro_data:
+                u = make_unitary(data.thetas, config_settings.num_spin_orbs)
+                self.assertTrue(np.isclose(np.linalg.det(u), 1))
+            self.assertEqual(gfro_operator_sum, H_tb_op)
 
             print("LR Fragment Analysis")
             lr_n_subspace_energy, lr_n_s_energy, lr_all_subspace_energy = (
@@ -118,21 +122,6 @@ class LowerBoundTest(unittest.TestCase):
             lr_n_subspace_energies.append(lr_n_subspace_energy)
             lr_n_s_subspace_energies.append(lr_n_s_energy)
             lr_all_subspace_energies.append(lr_all_subspace_energy)
-
-            for data in gfro_data:
-                u = make_unitary(data.thetas, config_settings.num_spin_orbs)
-                self.assertTrue(np.isclose(np.linalg.det(u), 1))
-
-            gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
-            if gfro_operator_sum != H_tb_op:
-                gfro_data = gfro_decomp(
-                    tbt=H_tbt,
-                    previous_thetas=None,
-                    previous_lambdas=None,
-                )
-                gfro_frags = [f.operators for f in gfro_data]
-                gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
-                self.assertEqual(gfro_operator_sum, H_tb_op)
 
             print("GFRO Fragment Analysis")
             (

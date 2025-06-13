@@ -15,8 +15,20 @@ def solve_quad(a, b, c):
     return MolHamLinAlg.solve_quad(a, b, c)
 
 
-def UV_eigendecomp(matrix) -> Tuple[np.ndarray, np.ndarray]:
+def eigen_jl(matrix) -> Tuple[np.ndarray, np.ndarray]:
     return MolHamLinAlg.UV_eigendecomp(matrix)
+
+
+def rowwise_reshape(A, n) -> np.ndarray:
+    return MolHamLinAlg.rowwise_reshape(A, n)
+
+
+def reshape_eigs(d) -> np.ndarray:
+    return MolHamLinAlg.reshape_eigs(d)
+
+
+def vecs2mat_reshape(L, n) -> List[np.ndarray]:
+    return [np.array(a) for a in MolHamLinAlg.vecs2mat_reshape(L, n)]
 
 
 def lr_decomp_params(tbt) -> Tuple[np.ndarray, np.ndarray]:

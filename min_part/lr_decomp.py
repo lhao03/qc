@@ -3,6 +3,7 @@ from typing import Any, List
 import numpy as np
 import scipy as sp
 from openfermion import FermionOperator
+from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment
 from min_part.f_3_ops import extract_thetas
@@ -67,15 +68,15 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     lr_frag_details = []
     for i, lr_frag in enumerate(lr_frags):
         lambdas = lr_frag[0]
-        unitary = lr_frag[1]
-        tensor = lr_frag[2]
+        u = lr_frag[1]
+        tensor = contract("ij,pi,qi,rj,sj -> pqrs", lambdas, u, u, u, u)
         operators = tbt2op(tensor)
         if operators.induced_norm(2) > 1e-6:
             lr_frag_details.append(
                 LRFragment(
                     lambdas=lambdas,
                     operators=operators,
-                    thetas=extract_thetas(unitary),
+                    thetas=extract_thetas(u),
                 )
             )
     return lr_frag_details

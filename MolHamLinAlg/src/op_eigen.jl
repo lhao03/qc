@@ -21,5 +21,5 @@ end
 
 function UV_eigendecomp(mat)
     vals, vecs = eigen(mat)
-    vecs, vals
+    vals, vecs
 end

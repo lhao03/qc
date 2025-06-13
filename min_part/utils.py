@@ -4,6 +4,7 @@ import pickle
 import warnings
 from dataclasses import dataclass
 from enum import Enum
+from functools import reduce
 
 import scipy as sp
 from math import isclose
@@ -83,9 +84,9 @@ def do_lr_fo(
     projector_func: Optional = None,
     project: bool = False,
 ):
-    const, obt, tbt = get_chem_tensors(H_FO)
-    obt_op = obt2op(obt)
-
+    # const, obt, tbt = get_chem_tensors(H_FO)
+    # obt_op = obt2op(obt)
+    tbt = H_FO
     # Obtaining LR fragments as list of FermionOperators and (coeffs, angles) defining the fragments.
     lowrank_fragments, lowrank_params = LR_frags_generator(
         tbt, tol=1e-5, ret_params=True
@@ -99,15 +100,21 @@ def do_lr_fo(
         if frag.induced_norm(2) > 1e-6:
             LR_fragments.append(frag)
             LR_params.append(lowrank_params[i])
-    all_frag_ops = [const * FermionOperator.identity(), obt_op]
-    all_frag_ops += LR_fragments
+    # all_frag_ops = [const * FermionOperator.identity(), obt_op]
+    # all_frag_ops += LR_fragments
 
-    if project:
-        return (
-            projector_func(const * FermionOperator.identity(), excitation_level=None),
-            projector_func(obt_op, excitation_level=None),
-            [projector_func(lr_f, excitation_level=None) for lr_f in LR_fragments],
-        )
+    # if project:
+    #     return (
+    #         projector_func(const * FermionOperator.identity(), excitation_level=None),
+    #         projector_func(obt_op, excitation_level=None),
+    #         [projector_func(lr_f, excitation_level=None) for lr_f in LR_fragments],
+    #     )
+    np.testing.assert_allclose(
+        tbt,
+        reduce(lambda a, b: a + b, [l[2] for l in lowrank_params]),
+        atol=1e-5,
+        rtol=1e-6,
+    )
     return LR_fragments, LR_params
 
 

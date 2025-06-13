@@ -195,7 +195,7 @@ def tbt2op(tbt):
                 for s in range(N):
                     term = ((p, 1), (q, 0), (r, 1), (s, 0))
                     coef = tbt[p, q, r, s]
-                    op += FermionOperator(term, coef)
+                    op += FermionOperator(term, float(coef))
     return op
 
 

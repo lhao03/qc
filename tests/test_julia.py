@@ -32,7 +32,7 @@ class JuliaTest(unittest.TestCase):
         mat_rand = np.tril(a) + np.tril(a, -1).T
 
         t0 = time.time()
-        U, V = self.mhla.UV_eigendecomp(mat_rand)
+        U, V = self.mhla.eigen_jl(mat_rand)
         U, V = np.array(U), np.array(V)
         julia_res = U @ np.diagflat(V) @ np.linalg.inv(U)
         t1 = time.time()
