@@ -1,15 +1,12 @@
 from typing import Any, List
 
 import numpy as np
-import scipy as sp
-from openfermion import FermionOperator
 from opt_einsum import contract
 
-from d_types.fragment_types import LRFragment
+from d_types.fragment_types import LRFragment, Nums
 from min_part.f_3_ops import extract_thetas
+from min_part.gfro_decomp import make_unitary
 from min_part.julia_ops import lr_decomp_params
-from min_part.reorder import reorder_operators_for_lr
-from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import tbt2op
 
 
@@ -49,14 +46,6 @@ def four_tensor_to_two_tensor_indices(p, q, r, s, n) -> tuple[Any, Any]:
 
 def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     """Low Rank (LR) decomposition of the two-fermion part of the Hamiltonian.
-    Implements the algorithm based on https://arxiv.org/pdf/1808.02625
-
-    Procedure:
-    1. reorder creation and annihilation operators of the two-body operator into two-body (V') and one-body parts.
-    2. recast V' into a supermatrix indexed by orbitals (ps), (qr), involving electrons 1, 2 (?)
-    3. decompose into rank-three auxiliary tensor L, via diagonalization or CD
-    4. diagonalize/decompose each L^l
-    5. gather fragments to get the double-factorized result
 
     Args:
         tbfo: two-body operator
@@ -67,19 +56,34 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     lr_frags = lr_decomp_params(tbt)
     lr_frag_details = []
     for i, lr_frag in enumerate(lr_frags):
-        lambdas = lr_frag[0]
+        outer_coeff, coeffs = lr_frag[0]
         u = lr_frag[1]
-        tensor = contract("ij,pi,qi,rj,sj -> pqrs", lambdas, u, u, u, u)
+        tensor = lr_frag[2]
         operators = tbt2op(tensor)
         if operators.induced_norm(2) > 1e-6:
             lr_frag_details.append(
                 LRFragment(
-                    lambdas=lambdas,
+                    outer_coeff=outer_coeff,
+                    coeffs=coeffs,
                     operators=operators,
                     thetas=extract_thetas(u),
                 )
             )
     return lr_frag_details
+
+
+def get_lr_fragment_tensor(lr_details: LRFragment):
+    return get_lr_fragment_tensor_from_parts(
+        outer_coeff=lr_details.outer_coeff,
+        coeffs=lr_details.coeffs,
+        thetas=lr_details.thetas,
+    )
+
+
+def get_lr_fragment_tensor_from_parts(outer_coeff: float, coeffs: Nums, thetas: Nums):
+    u = make_unitary(np.array(thetas), n=coeffs.size)
+    coeffs = np.array(coeffs)
+    return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
 
 
 def lr_fragment_occ(

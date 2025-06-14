@@ -22,8 +22,6 @@ from min_part.tensor_utils import tbt2op, get_chem_tensors, obt2op
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,
-    open_frags,
-    do_lr_fo,
     save_energies,
     load_energies,
     get_saved_file_names,
@@ -92,7 +90,7 @@ class LowerBoundTest(unittest.TestCase):
             )
             lr_details = lr_decomp(tbt=H_tbt)
             lr_frags_jl = [f.operators for f in lr_details]
-            lr_frags, lr_params = do_lr_fo(H_ele, projector_func=None)
+            # lr_frags, lr_params = do_lr_fo(H_ele, projector_func=None)
             gfro_frags = [f.operators for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
@@ -101,9 +99,9 @@ class LowerBoundTest(unittest.TestCase):
             )
 
             lr_operator_sum_jl = reduce(lambda op1, op2: op1 + op2, lr_frags_jl)
-            lr_operator_sum = reduce(lambda op1, op2: op1 + op2, lr_frags)
+            # lr_operator_sum = reduce(lambda op1, op2: op1 + op2, lr_frags)
             gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
-            self.assertEqual(lr_operator_sum, H_tb_op)
+            self.assertEqual(lr_operator_sum_jl, H_tb_op)
             for data in gfro_data:
                 u = make_unitary(data.thetas, config_settings.num_spin_orbs)
                 self.assertTrue(np.isclose(np.linalg.det(u), 1))
@@ -112,7 +110,7 @@ class LowerBoundTest(unittest.TestCase):
             print("LR Fragment Analysis")
             lr_n_subspace_energy, lr_n_s_energy, lr_all_subspace_energy = (
                 diag_partitioned_fragments(
-                    h2_frags=lr_frags,
+                    h2_frags=lr_frags_jl,
                     h1_v=h1_v,
                     h1_w=h1_w,
                     num_elecs=num_elecs,
@@ -141,7 +139,7 @@ class LowerBoundTest(unittest.TestCase):
 
             if not load:
                 save_frags(gfro_data, os.path.join(child_dir, "gfro", str(i)))
-                save_frags(lr_frags, os.path.join(child_dir, "lr", str(i)))
+                save_frags(lr_frags_jl, os.path.join(child_dir, "lr", str(i)))
                 save_energies(
                     child_dir,
                     config_settings,

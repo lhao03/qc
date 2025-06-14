@@ -26,5 +26,5 @@ h2_settings = LowerBoundConfig(
     mol_name="H2",
     mol_of_interest=mol_h2,
     stable_bond_length=0.8,
-    date="06-11",
+    date="06-14",
 )

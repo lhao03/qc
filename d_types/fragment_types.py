@@ -32,7 +32,8 @@ class GFROFragment(FermionicFragment):
 
 @dataclass
 class LRFragment(FermionicFragment):
-    lambdas: Nums
+    coeffs: Nums
+    outer_coeff: float
 
 
 @dataclass

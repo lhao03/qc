@@ -7,6 +7,14 @@ Pkg.activate("../MolHamLinAlg")
 from julia import MolHamLinAlg
 
 
+def check_lr_decomp(tbt, lr_tensors):
+    MolHamLinAlg.check_lr_decomp(tbt, lr_tensors)
+
+
+def jl_print(m):
+    MolHamLinAlg.jl_print(m)
+
+
 def extract_eigen(operator, w, panic):
     return MolHamLinAlg.extract_eigen(operator.toarray(), w, panic)
 
