@@ -4,17 +4,20 @@ import unittest
 import numpy as np
 from openfermion import (
     count_qubits,
+    FermionOperator,
 )
+from sympy.physics.quantum.fermion import FermionOp
 
-from d_types.fragment_types import FluidCoeff
+from d_types.fragment_types import FluidCoeff, GFROFragment
 from min_part.f_3_ops import (
-    get_one_body_parts,
-    remove_one_body_parts,
+    get_obp_from_frag_gfro,
+    remove_one_body_parts_gfro,
     oneb2op,
     twob2op,
     obt2fluid,
     obf3to_op,
     fragment2fluid,
+    move_onebody_coeff_gfro,
 )
 from min_part.gfro_decomp import gfro_decomp, make_unitary, make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -31,6 +34,8 @@ class FluidFragmentTest(unittest.TestCase):
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
     H_const, H_obt, H_tbt = get_chem_tensors(H=H, N=n_qubits)
+    H_ob_op = obt2op(H_obt)
+    H_tb_op = tbt2op(H_tbt)
 
     def setUp(self):
         self.gfro_h2_frags = gfro_decomp(self.H_tbt)
@@ -41,7 +46,8 @@ class FluidFragmentTest(unittest.TestCase):
         m = (n * (n + 1)) // 2
         fake_h2 = np.random.rand(m)
         diags = [fake_h2[0], fake_h2[5], fake_h2[9], fake_h2[12], fake_h2[14]]
-        self.assertEqual(diags, get_one_body_parts(np.array(fake_h2)))
+        gfro_frag = GFROFragment(lambdas=np.array(fake_h2), thetas=[], operators=FermionOperator())
+        self.assertEqual(diags, gfro_frag.get_obt_from_frag())
 
     # == GFRO Tests ==
     def test_1b_and_2b_to_ops_artificial(self):
@@ -61,12 +67,12 @@ class FluidFragmentTest(unittest.TestCase):
         frag_details = gfro_frag[0]
         fluid_ops = oneb2op(
             FluidCoeff(
-                coeff=get_one_body_parts(lambdas=frag_details.lambdas),
+                coeff=frag_details.get_obt_from_frag(),
                 thetas=frag_details.thetas,
             )
         )
         static_ops = twob2op(
-            remove_one_body_parts(lambdas=frag_details.lambdas),
+            frag_details.remove_obt_from_frag(),
             thetas=frag_details.thetas,
         )
         self.assertEqual(1, len(gfro_frag))
@@ -75,10 +81,10 @@ class FluidFragmentTest(unittest.TestCase):
     def test_1b_2b_to_ops_h2(self):
         for frag in self.gfro_h2_frags:
             fluid_ops = oneb2op(
-                FluidCoeff(coeff=get_one_body_parts(frag.lambdas), thetas=frag.thetas)
+                FluidCoeff(coeff=frag.get_obt_from_frag(), thetas=frag.thetas)
             )
             static_ops = twob2op(
-                remove_one_body_parts(frag.lambdas), thetas=frag.thetas
+                frag.remove_obt_from_frag(), thetas=frag.thetas
             )
             self.assertEqual(frag.operators, fluid_ops + static_ops)
 
@@ -88,8 +94,8 @@ class FluidFragmentTest(unittest.TestCase):
             np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7
         )
         f3_ops = obf3to_op(lambdas=f3_frag.static_frags, thetas=f3_frag.thetas)
-        self.assertEqual(f3_frag.operators, obt2op(self.H_obt))
-        self.assertEqual(f3_ops, obt2op(self.H_obt))
+        self.assertEqual(f3_frag.operators, self.H_ob_op)
+        self.assertEqual(f3_ops, self.H_ob_op)
         self.assertTrue(np.allclose(self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)))
 
     def test_convert_gfro_2b_to_f3_fake(self):
@@ -125,12 +131,21 @@ class FluidFragmentTest(unittest.TestCase):
             )
 
     def test_add_b_eq_a_coeff_gfro(self):
-        pass
+        ob_f3_frag = obt2fluid(self.H_obt)
+        tb_f3_frags = [fragment2fluid(f) for f in self.gfro_h2_frags]
+        from_frag = tb_f3_frags[0]
+        coeff = from_frag.fluid_frags[0].coeff[0]
+        m_ob_f3, m_tb_f3 = move_onebody_coeff_gfro(from_frag=from_frag, to_frag=ob_f3_frag, coeff=coeff)
+        orig_op = self.H_ob_op + self.H_tb_op
+        self.assertEqual(orig_op, obf)
 
     def test_add_b_less_a_coeff_gfro(self):
         pass
 
     def test_add_b_more_a_coeff_gfro(self):
+        pass
+
+    def test_mutate_each_frag_gfro(self):
         pass
 
     print("== LR ==")

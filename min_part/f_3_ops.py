@@ -20,31 +20,35 @@ from min_part.julia_ops import solve_quad, eigen_jl
 from min_part.tensor_utils import tbt2op, obt2op
 
 
-def get_one_body_parts(lambdas: Nums) -> Nums:
+def get_obp_from_frag_gfro(self: GFROFragment) -> Nums:
     """Returns the one-body part from a lambda matrix formed after LR or GFRO decomposition.
     Args:
-        lambdas: list of amplitudes that form a lambda matrix
+        self: a GFRO fragment
 
     Returns:
         the one body coefficients in ascending order, 1, 2, 3...n
     """
-    n = solve_quad(1, 1, -2 * lambdas.size)
+    n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
     ob = []
     for j in reversed(range(n)):
-        ob.append(lambdas[curr_i])
+        ob.append(self.lambdas[curr_i])
         curr_i += j + 1
     assert len(ob) == n
     return ob
 
 
-def remove_one_body_parts(lambdas: Nums) -> Nums:
-    n = solve_quad(1, 1, -2 * lambdas.size)
+def remove_one_body_parts_gfro(self: GFROFragment) -> Nums:
+    """Given a GFRO fragment, remove all one body parts from the lambda array, which is used to form the lambda matrix.
+    This procedure assumes a GFRO fragment works
+
+    """
+    n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
     for j in reversed(range(n)):
-        lambdas[curr_i] = 0
+        self.lambdas[curr_i] = 0
         curr_i += j + 1
-    return lambdas
+    return self.lambdas
 
 
 def oneb2op(fluid_coeffs: FluidCoeff) -> FermionOperator:
@@ -98,8 +102,8 @@ def fragment2fluid(
     """
     match frag:
         case GFROFragment(thetas, operators, lambdas):
-            fluid_frags = get_one_body_parts(lambdas)
-            static_frags = remove_one_body_parts(lambdas)
+            fluid_frags = frag.get_obt_from_frag()
+            static_frags = frag.remove_obt_from_frag()
             fluid_coeff = FluidCoeff(coeff=fluid_frags, thetas=thetas)
             if not performant:
                 assert operators == oneb2op(fluid_coeff) + twob2op(static_frags, thetas)
@@ -120,7 +124,7 @@ def fragment2fluid(
             )
 
 
-def move_onebody_coeff(
+def move_onebody_coeff_gfro(
     from_frag: FluidFermionicFragment,
     to_frag: FluidFermionicFragment,
     coeff: float,
@@ -184,9 +188,14 @@ def rediag_onebody(undiagonalized_onebody: FluidFermionicFragment) -> LRFragment
     pass
 
 
-def obf3to_op(lambdas: np.ndarray, thetas) -> FermionOperator:
+def obf3to_op(lambdas: Nums, thetas: Nums) -> FermionOperator:
     n = lambdas.size
     l_mat = np.diagflat(lambdas)
     unitary = make_unitary(thetas, n)
     obt = np.einsum("ab,ap,bq->pq", l_mat, unitary, unitary)
     return obt2op(obt)
+
+GFROFragment.get_obt_from_frag = get_obp_from_frag_gfro
+GFROFragment.remove_obt_from_frag = remove_one_body_parts_gfro
+LRFragment.get_obt_from_frag = None
+LRFragment.remove_obt_from_frag = None

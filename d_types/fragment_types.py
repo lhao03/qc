@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from ast import Num
 from dataclasses import dataclass
 from typing import List
@@ -13,6 +14,13 @@ class FermionicFragment:
     thetas: Nums
     operators: FermionOperator
 
+    @abstractmethod
+    def get_obt_from_frag(self) -> Nums:
+        pass
+
+    @abstractmethod
+    def remove_obt_from_frag(self) -> Nums:
+        pass
 
 @dataclass
 class FluidCoeff:
