@@ -41,3 +41,7 @@ def vecs2mat_reshape(L, n) -> List[np.ndarray]:
 
 def lr_decomp_params(tbt) -> Tuple[np.ndarray, np.ndarray]:
     return MolHamLinAlg.lr_decomposition(tbt)
+
+
+def jl_compare_matrices(a, b):
+    MolHamLinAlg.jl_compare_matrices(a, b)

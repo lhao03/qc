@@ -16,7 +16,7 @@ from min_part.gfro_decomp import (
     make_lambda_matrix,
     make_unitary,
 )
-from min_part.julia_ops import solve_quad, eigen_jl
+from min_part.julia_ops import solve_quad, eigen_jl, jl_print
 from min_part.tensor_utils import tbt2op, obt2op
 
 
@@ -128,21 +128,24 @@ def make_augmented_hpq_matrix():
     pass
 
 
-def extract_thetas(U) -> Nums:
-    """Extracts theta values from a unitary matrix paramertized by amplitudes.
+def extract_thetas(U) -> Tuple[Nums, Nums]:
+    """Extracts theta values from a unitary matrix paramertized by real amplitudes.
     Args:
         U: the unitary
 
     Returns:
         theta values
     """
-    X, _ = sp.linalg.logm(U, disp=False)
-    thetas = []
+    X: np.ndarray = sp.linalg.logm(U)
+    m = ((U.shape[0] * (U.shape[0] + 1)) // 2) - U.shape[0]
+    thetas = np.zeros((m, 1), dtype=np.complex128)
     u = U.shape[0]
-    for i in range(u):
+    counter = 0
+    for i in range(u - 1):
         for j in range(i + 1, u):
-            thetas.append(X[i, j])
-    return thetas
+            thetas[counter] = X[j, i]
+            counter += 1
+    return thetas, X.diagonal()
 
 
 def obt2fluid(obt: np.ndarray) -> FluidFermionicFragment:

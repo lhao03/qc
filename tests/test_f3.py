@@ -88,11 +88,12 @@ class FluidFragmentTest(unittest.TestCase):
                 [-0.00303002, 0.70710029, -0.00303002, 0.70710028],
                 [-0.70710493, -0.00161596, 0.70710494, 0.00161596],
                 [0.00161597, -0.70710493, -0.00161596, 0.70710494],
-            ]
+            ],
+            dtype=np.float64,
         )
         thetas = extract_thetas(fake_u)
         made_u = make_unitary(thetas, 4)
-        self.assertTrue(np.allclose(fake_u, made_u))
+        np.testing.assert_array_almost_equal(fake_u, made_u)
 
     def test_convert_one_body_to_f3(self):
         f3_frag = obt2fluid(self.H_obt)

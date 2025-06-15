@@ -10,6 +10,7 @@ export vecs2mat_reshape
 export reshape_eigs
 export jl_print
 export check_lr_decomp
+export jl_compare_matrices
 
 function lr_decomposition(tbt)
     n = size(tbt)[1]
@@ -53,4 +54,11 @@ end
 
 function jl_print(m)
     display(m)
+end
+
+function jl_compare_matrices(a, b)
+    diffs = findall(a.!=b)
+    for diff in diffs
+        println("$(diff): $(a[diff]), $(b[diff])")
+    end
 end

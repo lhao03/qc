@@ -1,0 +1,4 @@
+# file: /Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/min_part/ffrag_utils.py
+# hypothesis_version: 6.135.7
+
+[-0.001, 1e-07, 1e-06, 1e-05, 0.0001, 0.001, 0.1, 100, 10000, 'COBYLA', 'Current norm = ', 'L-BFGS-B', 'Method 1', 'Method 2', 'cobyla', 'complex128', 'disp', 'ij,pi,qi,rj,sj', 'maxiter']

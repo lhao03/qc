@@ -5,10 +5,12 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import scipy as sp
 from numpy import ndarray, dtype
+from numpy.core.numeric import isclose
 from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
 from d_types.fragment_types import GFROFragment, Nums
+from min_part.julia_ops import jl_print
 from min_part.tensor_utils import tbt2op
 
 
@@ -48,18 +50,28 @@ def make_x_matrix(thetas: np.ndarray, n: int) -> np.ndarray:
         raise UserWarning(
             f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}."
         )
-    X = np.zeros((n, n))
+    X = np.zeros((n, n), dtype=np.complex128)
     t = 0
     for x in range(n):
         for y in range(x + 1, n):
-            X[y][x] = -thetas[t]
-            X[x][y] = thetas[t]
+            val = thetas[t]
+            v_real = val.real
+            v_imag = val.imag
+            if not isclose(0, val):
+                X[x][y] = complex(real=-v_real, imag=v_imag)
+                X[y][x] = complex(real=v_real, imag=v_imag)
             t += 1
     return X
 
 
 def make_unitary(thetas: Nums, n: int) -> np.ndarray:
-    return sp.linalg.expm(make_x_matrix(np.array(thetas), n))
+    X = make_x_matrix(np.array(thetas), n)
+    u = sp.linalg.expm(X)
+    u.setflags(write=True)
+    num_err = np.finfo(u.dtype).eps
+    tol = num_err * 10
+    u.real[abs(u.real) < tol] = 0.0
+    return u
 
 
 def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:

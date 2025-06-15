@@ -2,7 +2,6 @@ import os
 import random
 import unittest
 from functools import reduce
-from typing import List
 
 import numpy as np
 import scipy as sp
@@ -13,7 +12,6 @@ from openfermion import (
 )
 from openfermion.linalg import qubit_operator_sparse
 
-from d_types.fragment_types import GFROFragment
 from min_part.gfro_decomp import make_unitary, gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import lr_decomp
@@ -88,9 +86,8 @@ class LowerBoundTest(unittest.TestCase):
             gfro_data = gfro_decomp(
                 tbt=H_tbt, previous_thetas=None, previous_lambdas=None
             )
-            lr_details = lr_decomp(tbt=H_tbt)
-            lr_frags_jl = [f.operators for f in lr_details]
-            # lr_frags, lr_params = do_lr_fo(H_ele, projector_func=None)
+            lr_data = lr_decomp(tbt=H_tbt)
+            lr_frags_jl = [f.operators for f in lr_data]
             gfro_frags = [f.operators for f in gfro_data]
 
             H_no_two_body = H_const * FermionOperator.identity() + H_ob_op
@@ -99,13 +96,13 @@ class LowerBoundTest(unittest.TestCase):
             )
 
             lr_operator_sum_jl = reduce(lambda op1, op2: op1 + op2, lr_frags_jl)
-            # lr_operator_sum = reduce(lambda op1, op2: op1 + op2, lr_frags)
             gfro_operator_sum = reduce(lambda op1, op2: op1 + op2, gfro_frags)
             self.assertEqual(lr_operator_sum_jl, H_tb_op)
-            for data in gfro_data:
-                u = make_unitary(data.thetas, config_settings.num_spin_orbs)
-                self.assertTrue(np.isclose(np.linalg.det(u), 1))
             self.assertEqual(gfro_operator_sum, H_tb_op)
+
+            for gr_data, lr_data in zip(gfro_data, lr_data):
+                u = make_unitary(gr_data.thetas, config_settings.num_spin_orbs)
+                self.assertTrue(np.isclose(np.linalg.det(u), 1))
 
             print("LR Fragment Analysis")
             lr_n_subspace_energy, lr_n_s_energy, lr_all_subspace_energy = (

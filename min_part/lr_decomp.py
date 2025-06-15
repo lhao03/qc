@@ -1,12 +1,14 @@
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import numpy as np
+import scipy as sp
+from numpy import isclose
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
 from min_part.f_3_ops import extract_thetas
-from min_part.gfro_decomp import make_unitary
-from min_part.julia_ops import lr_decomp_params
+from min_part.gfro_decomp import make_x_matrix
+from min_part.julia_ops import lr_decomp_params, jl_print
 from min_part.tensor_utils import tbt2op
 
 
@@ -58,6 +60,7 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     for i, lr_frag in enumerate(lr_frags):
         outer_coeff, coeffs = lr_frag[0]
         u = lr_frag[1]
+        thetas, diags = extract_thetas(u)
         tensor = lr_frag[2]
         operators = tbt2op(tensor)
         if operators.induced_norm(2) > 1e-6:
@@ -66,7 +69,8 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
                     outer_coeff=outer_coeff,
                     coeffs=coeffs,
                     operators=operators,
-                    thetas=extract_thetas(u),
+                    thetas=thetas,
+                    diag_coeffs=diags,
                 )
             )
     return lr_frag_details
@@ -77,13 +81,24 @@ def get_lr_fragment_tensor(lr_details: LRFragment):
         outer_coeff=lr_details.outer_coeff,
         coeffs=lr_details.coeffs,
         thetas=lr_details.thetas,
+        diags=lr_details.diag_coeffs,
     )
 
 
-def get_lr_fragment_tensor_from_parts(outer_coeff: float, coeffs: Nums, thetas: Nums):
-    u = make_unitary(np.array(thetas), n=coeffs.size)
+def get_lr_fragment_tensor_from_parts(
+    outer_coeff: float, coeffs: Nums, thetas: Nums, diags: Nums
+):
     coeffs = np.array(coeffs)
+    u = make_unitary_im(thetas=thetas, diags=diags, n=diags.size)
     return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
+
+
+def make_unitary_im(thetas, diags, n):
+    X = make_x_matrix(np.array(thetas), n)
+    for i, d in enumerate(diags):
+        if not isclose(d, 0):
+            X[i, i] = d
+    return sp.linalg.expm(X)
 
 
 def lr_fragment_occ(

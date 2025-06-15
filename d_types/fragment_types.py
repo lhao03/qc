@@ -1,3 +1,4 @@
+from ast import Num
 from dataclasses import dataclass
 from typing import List
 
@@ -33,6 +34,7 @@ class GFROFragment(FermionicFragment):
 @dataclass
 class LRFragment(FermionicFragment):
     coeffs: Nums
+    diag_coeffs: Nums
     outer_coeff: float
 
 
