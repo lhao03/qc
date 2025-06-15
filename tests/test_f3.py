@@ -13,28 +13,28 @@ from min_part.f_3_ops import (
     oneb2op,
     twob2op,
     obt2fluid,
-    extract_thetas,
     obf3to_op,
     fragment2fluid,
 )
 from min_part.gfro_decomp import gfro_decomp, make_unitary, make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
+from min_part.lr_decomp import lr_decomp
 from min_part.molecules import mol_h2
 from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 
 
+
 class FluidFragmentTest(unittest.TestCase):
+    bond_length = 0.80
+    mol = mol_h2(bond_length)
+    H, num_elecs = obtain_OF_hamiltonian(mol)
+    n_qubits = count_qubits(H)
+    H_const, H_obt, H_tbt = get_chem_tensors(H=H, N=n_qubits)
+
     def setUp(self):
-        bond_length = 0.80
-        self.mol = mol_h2(bond_length)
-        H, num_elecs = obtain_OF_hamiltonian(self.mol)
-        self.n_qubits = count_qubits(H)
-        self.H_const, self.H_obt, self.H_tbt = get_chem_tensors(H=H, N=self.n_qubits)
-        self.H_ob_op = obt2op(self.H_obt)
-        self.H_tb_op = tbt2op(self.H_tbt)
-        self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
         self.gfro_h2_frags = gfro_decomp(self.H_tbt)
+        self.lr_h2_frags = lr_decomp(self.H_tbt)
 
     def test_get_one_body_parts(self):
         n = 5
@@ -88,8 +88,8 @@ class FluidFragmentTest(unittest.TestCase):
             np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7
         )
         f3_ops = obf3to_op(lambdas=f3_frag.static_frags, thetas=f3_frag.thetas)
-        self.assertEqual(f3_frag.operators, self.H_ob_op)
-        self.assertEqual(f3_ops, self.H_ob_op)
+        self.assertEqual(f3_frag.operators, obt2op(self.H_obt))
+        self.assertEqual(f3_ops, obt2op(self.H_obt))
         self.assertTrue(np.allclose(self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)))
 
     def test_convert_gfro_2b_to_f3_fake(self):
@@ -124,6 +124,17 @@ class FluidFragmentTest(unittest.TestCase):
                 oneb2op(fff.fluid_frags[0]) + twob2op(fff.static_frags, fff.thetas),
             )
 
+    def test_add_b_eq_a_coeff_gfro(self):
+        pass
+
+    def test_add_b_less_a_coeff_gfro(self):
+        pass
+
+    def test_add_b_more_a_coeff_gfro(self):
+        pass
+
+    print("== LR ==")
+
     def test_convert_lr_2b_to_f3(self):
         pass
 
@@ -134,4 +145,13 @@ class FluidFragmentTest(unittest.TestCase):
         pass
 
     def test_rediag_1b(self):
+        pass
+
+    def test_add_b_eq_a_coeff_lr(self):
+        pass
+
+    def test_add_b_less_a_coeff_lr(self):
+        pass
+
+    def test_add_b_more_a_coeff_lr(self):
         pass

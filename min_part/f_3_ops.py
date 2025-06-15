@@ -108,7 +108,15 @@ def fragment2fluid(
                 fluid_frags=[FluidCoeff(coeff=fluid_frags, thetas=thetas)],
                 thetas=thetas,
                 operators=operators,
-                diag_thetas=[]
+                diag_thetas=[],
+            )
+        case LRFragment(thetas, operators, coeffs, diag_coeffs, outer_coeff):
+            return FluidFermionicFragment(
+                static_frags=None,
+                fluid_frags=None,
+                thetas=None,
+                operators=None,
+                diag_thetas=None,
             )
 
 
@@ -118,7 +126,7 @@ def move_onebody_coeff(
     coeff: float,
     mutate: bool = True,
 ) -> Optional[Tuple[FluidFermionicFragment, FluidFermionicFragment]]:
-    pass
+    """Moves any real float amount of the one-body coeffcient from a two-electron fragment to a one-body fragment"""
 
 
 def make_super_unitary_matrix():
@@ -164,7 +172,11 @@ def obt2fluid(obt: np.ndarray) -> FluidFermionicFragment:
     thetas, diags = extract_thetas(U)
 
     return FluidFermionicFragment(
-        thetas=thetas, diag_thetas=diags, fluid_frags=[], static_frags=V, operators=obt2op(obt)
+        thetas=thetas,
+        diag_thetas=diags,
+        fluid_frags=[],
+        static_frags=V,
+        operators=obt2op(obt),
     )
 
 
