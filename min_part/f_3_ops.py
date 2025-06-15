@@ -16,7 +16,7 @@ from min_part.gfro_decomp import (
     make_lambda_matrix,
     make_unitary,
 )
-from min_part.julia_ops import solve_quad, eigen_jl, jl_print
+from min_part.julia_ops import solve_quad, eigen_jl
 from min_part.tensor_utils import tbt2op, obt2op
 
 
@@ -108,6 +108,7 @@ def fragment2fluid(
                 fluid_frags=[FluidCoeff(coeff=fluid_frags, thetas=thetas)],
                 thetas=thetas,
                 operators=operators,
+                diag_thetas=[]
             )
 
 
@@ -157,12 +158,13 @@ def obt2fluid(obt: np.ndarray) -> FluidFermionicFragment:
     Returns:
         `FluidFermionicFragment` object of the one-body tensor
     """
-    U, V = eigen_jl(obt)
+    V, U = eigen_jl(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
-    thetas = extract_thetas(U)
+    thetas, diags = extract_thetas(U)
+
     return FluidFermionicFragment(
-        thetas=thetas, fluid_frags=[], static_frags=V, operators=obt2op(obt)
+        thetas=thetas, diag_thetas=diags, fluid_frags=[], static_frags=V, operators=obt2op(obt)
     )
 
 

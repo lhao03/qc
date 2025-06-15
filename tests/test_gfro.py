@@ -10,6 +10,7 @@ from openfermion import (
     qubit_operator_sparse,
 )
 
+from min_part.f_3_ops import extract_thetas
 from min_part.gfro_decomp import (
     make_x_matrix,
     make_unitary,
@@ -145,6 +146,8 @@ class DecompTest(unittest.TestCase):
         n = self.H_tbt.shape[0]
         for frag in gfro_frags:
             u = make_unitary(frag.thetas, n)
+            thetas, diags = extract_thetas(u)
+            np.testing.assert_array_almost_equal(u, make_unitary(thetas, 4))
             self.assertAlmostEqual(np.linalg.det(u), 1, places=7)
 
         self.assertEqual(

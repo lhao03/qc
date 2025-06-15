@@ -43,6 +43,7 @@ class FluidFragmentTest(unittest.TestCase):
         diags = [fake_h2[0], fake_h2[5], fake_h2[9], fake_h2[12], fake_h2[14]]
         self.assertEqual(diags, get_one_body_parts(np.array(fake_h2)))
 
+    # == GFRO Tests ==
     def test_1b_and_2b_to_ops_artificial(self):
         n = 4
         m = n * (n + 1) // 2
@@ -80,20 +81,6 @@ class FluidFragmentTest(unittest.TestCase):
                 remove_one_body_parts(frag.lambdas), thetas=frag.thetas
             )
             self.assertEqual(frag.operators, fluid_ops + static_ops)
-
-    def test_extract_thetas(self):
-        fake_u = np.array(
-            [
-                [0.70710029, 0.00303002, 0.70710028, 0.00303002],
-                [-0.00303002, 0.70710029, -0.00303002, 0.70710028],
-                [-0.70710493, -0.00161596, 0.70710494, 0.00161596],
-                [0.00161597, -0.70710493, -0.00161596, 0.70710494],
-            ],
-            dtype=np.float64,
-        )
-        thetas = extract_thetas(fake_u)
-        made_u = make_unitary(thetas, 4)
-        np.testing.assert_array_almost_equal(fake_u, made_u)
 
     def test_convert_one_body_to_f3(self):
         f3_frag = obt2fluid(self.H_obt)

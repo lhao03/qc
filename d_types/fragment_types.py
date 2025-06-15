@@ -22,6 +22,7 @@ class FluidCoeff:
 
 @dataclass
 class FluidFermionicFragment(FermionicFragment):
+    diag_thetas: Nums
     static_frags: Nums
     fluid_frags: List[FluidCoeff]
 
