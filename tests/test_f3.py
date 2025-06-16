@@ -69,9 +69,8 @@ class FluidFragmentTest(unittest.TestCase):
 
     def test_1b_2b_to_ops_h2(self):
         for frag in self.gfro_h2_frags:
-            fluid_ops = obt2op(obp_of_tbp_2t(frag.get_ob_lambdas(), thetas=frag.thetas))
-            static_ops = frag.to_op()
-            self.assertEqual(frag.operators, fluid_ops + static_ops)
+            fluid_frag = frag.to_fluid()
+            self.assertEqual(frag.operators, fluid_frag.to_op())
 
     def test_convert_one_body_to_f3(self):
         f3_frag = obt2fluid(self.H_obt)
