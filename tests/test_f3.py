@@ -1,6 +1,6 @@
 import random
 import unittest
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 from openfermion import (
@@ -8,12 +8,12 @@ from openfermion import (
     FermionOperator,
 )
 
-from d_types.fragment_types import GFROFragment, OneBodyFragment
+from d_types.fragment_types import GFROFragment
 from min_part.f_3_ops import (
     obp_of_tbp_2t,
     obt2fluid,
-    collect_ob2op,
     gfro2fluid,
+    fluid_ob2op,
 )
 from min_part.gfro_decomp import gfro_decomp, make_unitary, make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -77,11 +77,7 @@ class FluidFragmentTest(unittest.TestCase):
         self.assertAlmostEqual(
             np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7
         )
-        f3_ops = collect_ob2op(
-            lambdas=f3_frag.fluid_lambdas,
-            thetas=f3_frag.thetas,
-            diag_thetas=f3_frag.diag_thetas,
-        )
+        f3_ops = fluid_ob2op(f3_frag)
         self.assertEqual(f3_frag.operators, self.H_ob_op)
         self.assertEqual(f3_ops, self.H_ob_op)
         np.testing.assert_array_almost_equal(
@@ -105,16 +101,9 @@ class FluidFragmentTest(unittest.TestCase):
         gfro_frags = gfro_decomp(fake_hamiltonian)
         frag_details = gfro_frags[0]
         gfro_fluid = frag_details.to_fluid()
-        fluid_frags = gfro_fluid.fluid_parts.fluid_lambdas
-        static_frags = gfro_fluid.fluid_parts.static_lambdas
         self.assertEqual(
             fake_hamiltonian_operator,
-            obp_of_tbp_2t(fluid_frags, gfro_fluid.thetas) + gfro_fluid.to_op(),
-        )
-        self.assertEqual(
-            fake_hamiltonian_operator,
-            obp_of_tbp_2t(fluid_frags, gfro_fluid.thetas)
-            + gfro_fluid.to_op(),  # TODO test static frags
+            gfro_fluid.to_op(),
         )
 
     def test_convert_gfro_2b_to_f3_h2(self):

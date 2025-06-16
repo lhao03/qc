@@ -144,7 +144,7 @@ def obp_of_tbp_2t(lambdas, thetas) -> np.ndarray:
 # === One Body Helpers
 def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     """
-    Converts a one-body tensor to a `FluidFermionicFragment` type via diagonalization of the tensor.
+    Converts a one-body tensor to a `OneBodyFragment` type via diagonalization of the tensor.
     Args:
         obt:
 
@@ -155,16 +155,27 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
     thetas, diags = extract_thetas(U)
+    n = V.size
+    d = n
+    i = 0
+    j = 0
+    lambdas = np.zeros(((n * (n + 1)) // 2, 1))
+    while d != 0:
+        lambdas[i] = V[j]
+        i += d
+        d -= 1
+        j += 1
 
     return OneBodyFragment(
         thetas=thetas,
         diag_thetas=diags,
+        lambdas=lambdas,
         fluid_lambdas=[],
         operators=obt2op(obt),
     )
 
 
-def rediag_onebody(obf: OneBodyFragment) -> np.ndarray:
+def fluid_ob2op(obf: OneBodyFragment) -> FermionOperator:
     """Rediagonalization of the one body fragment, according to https://quantum-journal.org/papers/q-2023-01-03-889/pdf/.
 
     whwere h_{pq}' = h_{pq} + sum of every U c U^T
@@ -175,13 +186,11 @@ def rediag_onebody(obf: OneBodyFragment) -> np.ndarray:
     Returns:
         the modified fluid one body fragment
     """
-    n = obf.diag_thetas.size
-    orig_U = make_unitary_im(thetas=obf.thetas, diags=obf.diag_thetas, n=n)
+    n = solve_quad(1, 1, -2 * obf.lambdas.size)
+    orig_U = make_unitary(thetas=obf.thetas, n=n)
     h_pq = contract(
-        "lm,lp,lq,mr,ms->pqrs",
-        make_lambda_matrix(obf.diag_thetas, n),
-        orig_U,
-        orig_U,
+        "lm,lp,mq->pq",
+        make_lambda_matrix(obf.lambdas, n),
         orig_U,
         orig_U,
     )
@@ -190,24 +199,10 @@ def rediag_onebody(obf: OneBodyFragment) -> np.ndarray:
         fluid_l[orb, orb] = fluid_part.coeff
         unitary = make_unitary(fluid_part.thetas, n)
         fluid_h = contract(
-            "lm,lp,lq,mr,ms->pqrs", fluid_l, unitary, unitary, unitary, unitary
+            "lm,lp,mq->pq",
+            fluid_l,
+            unitary,
+            unitary,
         )
         h_pq += fluid_h
-    return h_pq
-
-
-def collect_ob2op(lambdas: Nums, thetas: Nums, diag_thetas: Nums) -> FermionOperator:
-    """Collects a one-electron fluid fragment with many parts from many GFRO/LR fragments to `FermionOperator`.
-
-    Args:
-        lambdas:
-        thetas:
-
-    Returns:
-        the one-body fluid fragment in operator form
-    """
-    n = lambdas.size
-    l_mat = np.diagflat(lambdas)
-    unitary = make_unitary_im(thetas, diag_thetas, n)
-    obt = np.einsum("ab,ap,bq->pq", l_mat, unitary, unitary)
-    return obt2op(obt)
+    return obt2op(h_pq)

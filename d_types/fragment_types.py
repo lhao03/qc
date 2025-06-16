@@ -26,6 +26,7 @@ class OneBodyFragment:
     fluid_lambdas: List[Tuple[int, FluidCoeff]]
     thetas: Nums
     diag_thetas: Nums
+    lambdas: Nums
     operators: FermionOperator
 
 
