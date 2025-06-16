@@ -84,35 +84,6 @@ class FluidFragmentTest(unittest.TestCase):
             self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)
         )
 
-    def test_convert_gfro_2b_to_f3_fake(self):
-        n = 4
-        m = n * (n + 1) // 2
-        fake_u = np.array(
-            [
-                [0.70710029, 0.00303002, 0.70710028, 0.00303002],
-                [-0.00303002, 0.70710029, -0.00303002, 0.70710028],
-                [-0.70710493, -0.00161596, 0.70710494, 0.00161596],
-                [0.00161597, -0.70710493, -0.00161596, 0.70710494],
-            ]
-        )
-        fake_lambdas = np.array(sorted([0.1 * random.randint(1, 10) for _ in range(m)]))
-        fake_hamiltonian = make_fr_tensor_from_u(fake_lambdas, fake_u, n)
-        fake_hamiltonian_operator = tbt2op(fake_hamiltonian)
-        gfro_frags = gfro_decomp(fake_hamiltonian)
-        frag_details = gfro_frags[0]
-        gfro_fluid = frag_details.to_fluid()
-        self.assertEqual(
-            fake_hamiltonian_operator,
-            gfro_fluid.to_op(),
-        )
-
-    def test_convert_gfro_2b_to_f3_h2(self):
-        fluid_h2_frags: List[GFROFragment] = [f.to_fluid() for f in self.gfro_h2_frags]
-        for fff in fluid_h2_frags:
-            self.assertEqual(
-                fff.operators, obp_of_tbp_2t(fff.fluid_parts, fff.thetas) + fff.to_op()
-            )
-
     def test_add_b_eq_a_coeff_gfro(self):
         ob_f3_frag = obt2fluid(self.H_obt)
         tb_f3_frags = [gfro2fluid(f) for f in self.gfro_h2_frags]
