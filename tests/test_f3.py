@@ -11,7 +11,6 @@ from openfermion import (
 from d_types.fragment_types import GFROFragment, OneBodyFragment
 from min_part.f_3_ops import (
     obp_of_tbp_2t,
-    tbt2op_gfro,
     obt2fluid,
     collect_ob2op,
     gfro2fluid,
@@ -64,14 +63,9 @@ class FluidFragmentTest(unittest.TestCase):
         gfro_frag = gfro_decomp(fake_hamiltonian)
         frag_details = gfro_frag[0]
         fluid_gfro: GFROFragment = frag_details.to_fluid()
-        fluid_ops = obt2op(
-            obp_of_tbp_2t(
-                fluid_gfro.fluid_parts.fluid_lambdas, thetas=frag_details.thetas
-            )
-        )
-        static_ops = fluid_gfro.to_op()
+        fluid_gfro_op = fluid_gfro.to_op()
         self.assertEqual(1, len(gfro_frag))
-        self.assertEqual(frag_details.operators, fluid_ops + static_ops)
+        self.assertEqual(frag_details.operators, fluid_gfro_op)
 
     def test_1b_2b_to_ops_h2(self):
         for frag in self.gfro_h2_frags:
@@ -150,8 +144,6 @@ class FluidFragmentTest(unittest.TestCase):
 
     def test_mutate_each_frag_gfro(self):
         pass
-
-    print("== LR ==")
 
     def test_convert_lr_2b_to_f3(self):
         pass

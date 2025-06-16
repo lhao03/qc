@@ -5,17 +5,6 @@ from typing import List, Optional, Tuple
 from openfermion import FermionOperator
 import numpy as np
 
-from min_part.f_3_ops import (
-    get_obp_from_frag_gfro,
-    remove_obt_gfro,
-    gfro2fluid,
-    tbt2op_gfro,
-    move_onebody_coeff_gfro,
-    get_obp_from_frag_lr,
-    lr2fluid,
-    tbtop_lr,
-    move_onebody_coeff_lr,
-)
 
 Nums = List[int] | List[float] | np.ndarray
 
@@ -101,15 +90,15 @@ class GFROFragment(FermionicFragment):
         return gfro2fluid(self)
 
     def to_op(self):
-        """Makes the `FermionOperator` Object from two-body parts for GFRO fragment.
+        """Makes the `FermionOperator` Object of the fluid GFROFragment, summing together one and two body parts.
 
         Args:
             self:
 
         Returns:
-             `FermionOperator` containing only one body parts
+             `FermionOperator` containing "one" (the one body part from the two body fragment) and two body parts
         """
-        return tbt2op_gfro(self)
+        return tbt_ob_2op_gfro(self)
 
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):
         """Moves any real float amount of the one-body coeffcient from a two-electron fragment to a one-body fragment.
@@ -160,3 +149,17 @@ class FragmentedHamiltonian:
     constant: any
     one_body: FermionicFragment
     two_body: List[FermionicFragment]
+
+
+# == For importing functions and avoiding circular import error ==
+from min_part.f_3_ops import (  # noqa: E402
+    get_obp_from_frag_gfro,
+    remove_obt_gfro,
+    gfro2fluid,
+    tbt_ob_2op_gfro,
+    move_onebody_coeff_gfro,
+    get_obp_from_frag_lr,
+    lr2fluid,
+    tbtop_lr,
+    move_onebody_coeff_lr,
+)

@@ -44,7 +44,11 @@ def remove_obt_gfro(self: GFROFragment) -> Nums:
     return self.lambdas
 
 
-def tbt2op_gfro(self: GFROFragment) -> FermionOperator:
+def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
+    if not self.fluid_parts:
+        raise UserWarning(
+            "Call `to_fluid` method to partition into fluid and static parts!"
+        )
     lambdas = np.array(self.lambdas)
     n = solve_quad(1, 1, -2 * lambdas.size)
     l_mat = make_lambda_matrix(lambdas, n)
@@ -57,14 +61,11 @@ def tbt2op_gfro(self: GFROFragment) -> FermionOperator:
 def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
-    if not performant:
-        assert (
-            self.operators
-            == obp_of_tbp_2t(fluid_frags, thetas=self.thetas) + self.to_op()
-        )
     self.fluid_parts = FluidParts(
         static_lambdas=static_frags, fluid_lambdas=fluid_frags
     )
+    if not performant:
+        assert self.operators == self.to_op()
     return self
 
 
