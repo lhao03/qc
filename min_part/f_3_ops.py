@@ -18,13 +18,12 @@ from min_part.gfro_decomp import (
     extract_thetas,
 )
 from min_part.julia_ops import solve_quad, eigen_jl
-from min_part.lr_decomp import make_unitary_im
 from min_part.tensor_utils import tbt2op, obt2op
 
 # == GFRO Helpers
 
 
-def get_obp_from_frag_gfro(self: GFROFragment) -> Nums:
+def get_obp_from_frag_gfro(self: GFROFragment) -> np.ndarray:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
     ob = []
@@ -32,7 +31,7 @@ def get_obp_from_frag_gfro(self: GFROFragment) -> Nums:
         ob.append(self.lambdas[curr_i])
         curr_i += j + 1
     assert len(ob) == n
-    return ob
+    return np.array(ob, dtype=np.float64)
 
 
 def remove_obt_gfro(self: GFROFragment) -> Nums:
@@ -44,7 +43,18 @@ def remove_obt_gfro(self: GFROFragment) -> Nums:
     return self.lambdas
 
 
-def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
+def put_lambdas_together(self: GFROFragment):
+    n = solve_quad(1, 1, -2 * self.lambdas.size)
+    curr_i = 0
+    curr_orb = 0
+    for j in reversed(range(n)):
+        self.lambdas[curr_i] = self.fluid_parts.fluid_lambdas[curr_orb]
+        curr_i += j + 1
+        curr_orb += 1
+    return self.lambdas
+
+
+def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
     if not self.fluid_parts:
         raise UserWarning(
             "Call `to_fluid` method to partition into fluid and static parts!"
@@ -53,9 +63,13 @@ def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
     n = solve_quad(1, 1, -2 * lambdas.size)
     l_mat = make_lambda_matrix(lambdas, n)
     unitary = make_unitary(self.thetas, n)
-    tbt = contract("lm,lp,lq,mr,ms->pqrs", l_mat, unitary, unitary, unitary, unitary)
+    return contract("lm,lp,lq,mr,ms->pqrs", l_mat, unitary, unitary, unitary, unitary)
+
+
+def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
     obt = obp_of_tbp_2t(self.fluid_parts.fluid_lambdas, self.thetas)
-    return tbt2op(obt + tbt)
+    self.operators = tbt2op(obt + tbt_ob_2ten_gfro(self))
+    return self.operators
 
 
 def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
@@ -78,10 +92,11 @@ def move_onebody_coeff_gfro(
 ) -> Optional[Tuple[GFROFragment, OneBodyFragment]]:
     if not mutate:
         raise NotImplementedError
-    assert orb <= self.fluid_parts.fluid_lambdas.coeff.size
+    assert orb <= self.fluid_parts.fluid_lambdas.size
     assert coeff.imag == 0
     self.fluid_parts.fluid_lambdas[orb] -= coeff
     to.fluid_lambdas.append((orb, FluidCoeff(coeff=coeff, thetas=self.thetas)))
+    self.lambdas = put_lambdas_together(self)
     return self, to
 
 
@@ -175,26 +190,16 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     )
 
 
-def fluid_ob2op(obf: OneBodyFragment) -> FermionOperator:
-    """Rediagonalization of the one body fragment, according to https://quantum-journal.org/papers/q-2023-01-03-889/pdf/.
-
-    whwere h_{pq}' = h_{pq} + sum of every U c U^T
-
-    Args:
-        undiagonalized_onebody
-
-    Returns:
-        the modified fluid one body fragment
-    """
-    n = solve_quad(1, 1, -2 * obf.lambdas.size)
-    orig_U = make_unitary(thetas=obf.thetas, n=n)
+def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
+    n = solve_quad(1, 1, -2 * self.lambdas.size)
+    orig_U = make_unitary(thetas=self.thetas, n=n)
     h_pq = contract(
         "lm,lp,mq->pq",
-        make_lambda_matrix(obf.lambdas, n),
+        make_lambda_matrix(self.lambdas, n),
         orig_U,
         orig_U,
     )
-    for orb, fluid_part in obf.fluid_lambdas:
+    for orb, fluid_part in self.fluid_lambdas:
         fluid_l = np.zeros((n, n))
         fluid_l[orb, orb] = fluid_part.coeff
         unitary = make_unitary(fluid_part.thetas, n)
@@ -205,4 +210,18 @@ def fluid_ob2op(obf: OneBodyFragment) -> FermionOperator:
             unitary,
         )
         h_pq += fluid_h
-    return obt2op(h_pq)
+    return h_pq
+
+
+def fluid_ob2op(self: OneBodyFragment) -> FermionOperator:
+    """Rediagonalization of the one body fragment, according to https://quantum-journal.org/papers/q-2023-01-03-889/pdf/.
+
+    whwere h_{pq}' = h_{pq} + sum of every U c U^T
+
+    Args:
+        undiagonalized_onebody
+
+    Returns:
+        the modified fluid one body fragment
+    """
+    return obt2op(fluid_ob2ten(self))

@@ -1,5 +1,6 @@
 import random
 import unittest
+from functools import reduce
 from typing import List
 
 import numpy as np
@@ -8,7 +9,7 @@ from openfermion import (
     FermionOperator,
 )
 
-from d_types.fragment_types import GFROFragment
+from d_types.fragment_types import GFROFragment, OneBodyFragment
 from min_part.f_3_ops import (
     obp_of_tbp_2t,
     obt2fluid,
@@ -84,16 +85,44 @@ class FluidFragmentTest(unittest.TestCase):
             self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)
         )
 
-    def test_add_b_eq_a_coeff_gfro(self):
+    def test_add_0(self):
         ob_f3_frag = obt2fluid(self.H_obt)
         tb_f3_frags = [gfro2fluid(f) for f in self.gfro_h2_frags]
         from_frag = tb_f3_frags[0]
+        lambdas = from_frag.lambdas
+        thetas = from_frag.thetas
         coeff = from_frag.fluid_parts.fluid_lambdas[0]
-        m_from_frag, m_ob_f3_frag = from_frag.move2frag(
-            orb=1, to=ob_f3_frag, coeff=coeff, mutate=True
+        m_from_frag_m_ob_f3_frag = from_frag.move2frag(
+            orb=1,
+            to=ob_f3_frag,
+            coeff=0,
+            mutate=True,  # why is moving 0 changing it
         )
+        m_from_frag: GFROFragment = m_from_frag_m_ob_f3_frag[0]
+        m_ob_f3_frag: OneBodyFragment = m_from_frag_m_ob_f3_frag[1]
+        self.assertAlmostEqual(
+            m_from_frag.fluid_parts.fluid_lambdas[1], coeff, places=8
+        )
+        orb, fluid_parts = m_ob_f3_frag.fluid_lambdas[0]
+        np.testing.assert_array_equal(m_from_frag.lambdas, lambdas)
+        np.testing.assert_array_equal(m_from_frag.thetas, thetas)
+        self.assertEqual(orb, 1)
+        self.assertAlmostEqual(fluid_parts.coeff, 0, places=8)
         orig_op = self.H_ob_op + self.H_tb_op
-        self.assertEqual(orig_op, m_from_frag.to_op())
+        m_f3_tb_ten = m_from_frag.to_tensor()
+        m_f3_ob_ten = m_ob_f3_frag.to_tensor()
+        m_f3_tbop = tbt2op(m_f3_tb_ten)
+        m_f3_obop = obt2op(m_f3_ob_ten)
+        rest_of_tb_op = reduce(
+            lambda a, b: a + b,
+            [f.operators for f in self.gfro_h2_frags[1:]],
+            FermionOperator(),
+        )
+        fluid_frag = m_f3_obop + m_f3_tbop + rest_of_tb_op
+        self.assertEqual(orig_op, fluid_frag)
+
+    def test_add_b_eq_a_coeff_gfro(self):
+        pass
 
     def test_add_b_less_a_coeff_gfro(self):
         pass

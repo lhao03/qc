@@ -29,6 +29,12 @@ class OneBodyFragment:
     lambdas: Nums
     operators: FermionOperator
 
+    def to_op(self):
+        return fluid_ob2op(self)
+
+    def to_tensor(self):
+        return fluid_ob2ten(self)
+
 
 @dataclass
 class FermionicFragment:
@@ -90,6 +96,9 @@ class GFROFragment(FermionicFragment):
         """
         return gfro2fluid(self)
 
+    def to_tensor(self):
+        return tbt_ob_2ten_gfro(self)
+
     def to_op(self):
         """Makes the `FermionOperator` Object of the fluid GFROFragment, summing together one and two body parts.
 
@@ -115,7 +124,7 @@ class GFROFragment(FermionicFragment):
         Returns:
             the mutated/new GFROFragment and OneBodyFragment(no
         """
-        raise move_onebody_coeff_gfro(self, to, coeff, orb, mutate)
+        return move_onebody_coeff_gfro(self, to, coeff, orb, mutate)
 
 
 def remove_obt_lr(self):
@@ -163,4 +172,7 @@ from min_part.f_3_ops import (  # noqa: E402
     lr2fluid,
     tbtop_lr,
     move_onebody_coeff_lr,
+    fluid_ob2op,
+    tbt_ob_2ten_gfro,
+    fluid_ob2ten,
 )
