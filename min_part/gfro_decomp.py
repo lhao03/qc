@@ -310,3 +310,23 @@ def gfro_fragment_occ(
                 occ_energy += lambda_matrix[l][m]
         occ_energies.append(occ_energy)
     return occupation_combinations, np.array(occ_energies)
+
+
+def extract_thetas(U) -> Tuple[Nums, Nums]:
+    """Extracts theta values from a unitary matrix paramertized by real amplitudes.
+    Args:
+        U: the unitary
+
+    Returns:
+        theta values
+    """
+    X: np.ndarray = sp.linalg.logm(U)
+    m = ((U.shape[0] * (U.shape[0] + 1)) // 2) - U.shape[0]
+    thetas = np.zeros((m, 1), dtype=np.complex128)
+    u = U.shape[0]
+    counter = 0
+    for i in range(u - 1):
+        for j in range(i + 1, u):
+            thetas[counter] = X[j, i]
+            counter += 1
+    return thetas, X.diagonal()

@@ -1,23 +1,20 @@
 import random
 import unittest
+from typing import List, Tuple
 
 import numpy as np
 from openfermion import (
     count_qubits,
     FermionOperator,
 )
-from sympy.physics.quantum.fermion import FermionOp
 
-from d_types.fragment_types import FluidCoeff, GFROFragment
+from d_types.fragment_types import GFROFragment, OneBodyFragment
 from min_part.f_3_ops import (
-    get_obp_from_frag_gfro,
-    remove_one_body_parts_gfro,
-    oneb2op,
-    twob2op,
+    obp_of_tbp_2t,
+    tbt2op_gfro,
     obt2fluid,
-    obf3to_op,
-    fragment2fluid,
-    move_onebody_coeff_gfro,
+    collect_ob2op,
+    gfro2fluid,
 )
 from min_part.gfro_decomp import gfro_decomp, make_unitary, make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -25,7 +22,6 @@ from min_part.lr_decomp import lr_decomp
 from min_part.molecules import mol_h2
 from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
-
 
 
 class FluidFragmentTest(unittest.TestCase):
@@ -46,8 +42,10 @@ class FluidFragmentTest(unittest.TestCase):
         m = (n * (n + 1)) // 2
         fake_h2 = np.random.rand(m)
         diags = [fake_h2[0], fake_h2[5], fake_h2[9], fake_h2[12], fake_h2[14]]
-        gfro_frag = GFROFragment(lambdas=np.array(fake_h2), thetas=[], operators=FermionOperator())
-        self.assertEqual(diags, gfro_frag.get_obt_from_frag())
+        gfro_frag = GFROFragment(
+            lambdas=np.array(fake_h2), thetas=[], operators=FermionOperator()
+        )
+        self.assertEqual(diags, gfro_frag.get_ob_lambdas())
 
     # == GFRO Tests ==
     def test_1b_and_2b_to_ops_artificial(self):
@@ -65,27 +63,20 @@ class FluidFragmentTest(unittest.TestCase):
         fake_hamiltonian = make_fr_tensor_from_u(fake_lambdas, fake_u, n)
         gfro_frag = gfro_decomp(fake_hamiltonian)
         frag_details = gfro_frag[0]
-        fluid_ops = oneb2op(
-            FluidCoeff(
-                coeff=frag_details.get_obt_from_frag(),
-                thetas=frag_details.thetas,
+        fluid_gfro: GFROFragment = frag_details.to_fluid()
+        fluid_ops = obt2op(
+            obp_of_tbp_2t(
+                fluid_gfro.fluid_parts.fluid_lambdas, thetas=frag_details.thetas
             )
         )
-        static_ops = twob2op(
-            frag_details.remove_obt_from_frag(),
-            thetas=frag_details.thetas,
-        )
+        static_ops = fluid_gfro.to_op()
         self.assertEqual(1, len(gfro_frag))
         self.assertEqual(frag_details.operators, fluid_ops + static_ops)
 
     def test_1b_2b_to_ops_h2(self):
         for frag in self.gfro_h2_frags:
-            fluid_ops = oneb2op(
-                FluidCoeff(coeff=frag.get_obt_from_frag(), thetas=frag.thetas)
-            )
-            static_ops = twob2op(
-                frag.remove_obt_from_frag(), thetas=frag.thetas
-            )
+            fluid_ops = obt2op(obp_of_tbp_2t(frag.get_ob_lambdas(), thetas=frag.thetas))
+            static_ops = frag.to_op()
             self.assertEqual(frag.operators, fluid_ops + static_ops)
 
     def test_convert_one_body_to_f3(self):
@@ -93,10 +84,16 @@ class FluidFragmentTest(unittest.TestCase):
         self.assertAlmostEqual(
             np.linalg.det(make_unitary(f3_frag.thetas, 4)), 1, places=7
         )
-        f3_ops = obf3to_op(lambdas=f3_frag.static_frags, thetas=f3_frag.thetas)
+        f3_ops = collect_ob2op(
+            lambdas=f3_frag.fluid_lambdas,
+            thetas=f3_frag.thetas,
+            diag_thetas=f3_frag.diag_thetas,
+        )
         self.assertEqual(f3_frag.operators, self.H_ob_op)
         self.assertEqual(f3_ops, self.H_ob_op)
-        self.assertTrue(np.allclose(self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)))
+        np.testing.assert_array_almost_equal(
+            self.H_obt, get_n_body_tensor(f3_ops, n=1, m=4)
+        )
 
     def test_convert_gfro_2b_to_f3_fake(self):
         n = 4
@@ -114,30 +111,36 @@ class FluidFragmentTest(unittest.TestCase):
         fake_hamiltonian_operator = tbt2op(fake_hamiltonian)
         gfro_frags = gfro_decomp(fake_hamiltonian)
         frag_details = gfro_frags[0]
-        gfro_fluid = fragment2fluid(frag_details)
-        fluid_frags = gfro_fluid.fluid_frags
-        static_frags = gfro_fluid.static_frags
+        gfro_fluid = frag_details.to_fluid()
+        fluid_frags = gfro_fluid.fluid_parts.fluid_lambdas
+        static_frags = gfro_fluid.fluid_parts.static_lambdas
         self.assertEqual(
             fake_hamiltonian_operator,
-            oneb2op(fluid_frags[0]) + twob2op(static_frags, gfro_fluid.thetas),
+            obp_of_tbp_2t(fluid_frags, gfro_fluid.thetas) + gfro_fluid.to_op(),
+        )
+        self.assertEqual(
+            fake_hamiltonian_operator,
+            obp_of_tbp_2t(fluid_frags, gfro_fluid.thetas)
+            + gfro_fluid.to_op(),  # TODO test static frags
         )
 
     def test_convert_gfro_2b_to_f3_h2(self):
-        fluid_h2_frags = [fragment2fluid(f) for f in self.gfro_h2_frags]
+        fluid_h2_frags: List[GFROFragment] = [f.to_fluid() for f in self.gfro_h2_frags]
         for fff in fluid_h2_frags:
             self.assertEqual(
-                fff.operators,
-                oneb2op(fff.fluid_frags[0]) + twob2op(fff.static_frags, fff.thetas),
+                fff.operators, obp_of_tbp_2t(fff.fluid_parts, fff.thetas) + fff.to_op()
             )
 
     def test_add_b_eq_a_coeff_gfro(self):
         ob_f3_frag = obt2fluid(self.H_obt)
-        tb_f3_frags = [fragment2fluid(f) for f in self.gfro_h2_frags]
+        tb_f3_frags = [gfro2fluid(f) for f in self.gfro_h2_frags]
         from_frag = tb_f3_frags[0]
-        coeff = from_frag.fluid_frags[0].coeff[0]
-        m_ob_f3, m_tb_f3 = move_onebody_coeff_gfro(from_frag=from_frag, to_frag=ob_f3_frag, coeff=coeff)
+        coeff = from_frag.fluid_parts.fluid_lambdas[0]
+        m_from_frag, m_ob_f3_frag = from_frag.move2frag(
+            orb=1, to=ob_f3_frag, coeff=coeff, mutate=True
+        )
         orig_op = self.H_ob_op + self.H_tb_op
-        self.assertEqual(orig_op, obf)
+        self.assertEqual(orig_op, m_from_frag.to_op())
 
     def test_add_b_less_a_coeff_gfro(self):
         pass

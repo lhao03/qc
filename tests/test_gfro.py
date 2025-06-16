@@ -10,7 +10,6 @@ from openfermion import (
     qubit_operator_sparse,
 )
 
-from min_part.f_3_ops import extract_thetas
 from min_part.gfro_decomp import (
     make_x_matrix,
     make_unitary,
@@ -22,6 +21,7 @@ from min_part.gfro_decomp import (
     gfro_fragment_occ,
     make_fr_tensor,
     make_fr_tensor_from_u,
+    extract_thetas,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2

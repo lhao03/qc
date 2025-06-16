@@ -11,8 +11,7 @@ from openfermion import (
     count_qubits,
 )
 
-from min_part.f_3_ops import extract_thetas
-from min_part.gfro_decomp import make_fr_tensor_from_u, make_x_matrix
+from min_part.gfro_decomp import make_fr_tensor_from_u, make_x_matrix, extract_thetas
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.julia_ops import (
     rowwise_reshape,
