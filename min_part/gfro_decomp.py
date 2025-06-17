@@ -57,15 +57,23 @@ def make_x_matrix(thetas: np.ndarray, n: int, imag: bool = False) -> np.ndarray:
             val = thetas[t]
             v_real = val.real
             v_imag = val.imag
-            if not isclose(0, val):
-                X[x][y] = complex(real=-v_real, imag=v_imag) if v_imag != 0 else -v_real
-                X[y][x] = complex(real=v_real, imag=v_imag) if v_imag != 0 else v_real
+            if not isclose(0, v_real) and not isclose(0, v_imag):
+                X[x][y] = complex(real=-v_real, imag=v_imag)
+                X[y][x] = complex(real=v_real, imag=v_imag)
+            elif not isclose(0, v_real) and isclose(0, v_imag):
+                X[x][y] = -v_real
+                X[y][x] = v_real
+            elif isclose(0, v_real) and not isclose(0, v_imag):
+                X[x][y] = complex(real=0, imag=v_imag)
+                X[y][x] = complex(real=0, imag=v_imag)
+            else:
+                pass
             t += 1
     return X
 
 
-def make_unitary(thetas: Nums, n: int) -> np.ndarray:
-    X = make_x_matrix(np.array(thetas), n)
+def make_unitary(thetas: Nums, n: int, imag: bool = False) -> np.ndarray:
+    X = make_x_matrix(np.array(thetas), n, imag=imag)
     u = sp.linalg.expm(X)
     u.setflags(write=True)
     num_err = np.finfo(u.dtype).eps
@@ -322,7 +330,7 @@ def extract_thetas(U) -> Tuple[Nums, Nums]:
     """
     X: np.ndarray = sp.linalg.logm(U)
     m = ((U.shape[0] * (U.shape[0] + 1)) // 2) - U.shape[0]
-    thetas = np.zeros((m, 1), dtype=np.complex128)
+    thetas = np.zeros((m,), dtype=np.complex128)
     u = U.shape[0]
     counter = 0
     for i in range(u - 1):

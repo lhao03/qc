@@ -1,3 +1,4 @@
+from copy import copy, deepcopy
 from typing import Tuple, Optional
 
 import numpy as np
@@ -18,6 +19,7 @@ from min_part.gfro_decomp import (
     extract_thetas,
 )
 from min_part.julia_ops import solve_quad, eigen_jl
+from min_part.lr_decomp import make_unitary_im
 from min_part.tensor_utils import tbt2op, obt2op
 
 # == GFRO Helpers
@@ -26,21 +28,29 @@ from min_part.tensor_utils import tbt2op, obt2op
 def get_obp_from_frag_gfro(self: GFROFragment) -> np.ndarray:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
-    ob = []
+    ob = np.ones((n,), dtype=np.float64)
+    i = 0
     for j in reversed(range(n)):
-        ob.append(self.lambdas[curr_i])
+        ob[i] = self.lambdas[curr_i]
         curr_i += j + 1
+        i += 1
     assert len(ob) == n
-    return np.array(ob, dtype=np.float64)
+    return ob
 
 
 def remove_obt_gfro(self: GFROFragment) -> Nums:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
+    static_frags = np.zeros((self.lambdas.size,))
+    skip_indx = []
     for j in reversed(range(n)):
-        self.lambdas[curr_i] = 0
+        skip_indx.append(curr_i)
         curr_i += j + 1
-    return self.lambdas
+
+    for i, l in enumerate(self.lambdas):
+        if i not in skip_indx:
+            static_frags[i] = self.lambdas[i]
+    return static_frags
 
 
 def put_lambdas_together(self: GFROFragment):
@@ -59,7 +69,7 @@ def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
         raise UserWarning(
             "Call `to_fluid` method to partition into fluid and static parts!"
         )
-    lambdas = np.array(self.lambdas)
+    lambdas = np.array(self.fluid_parts.static_lambdas)
     n = solve_quad(1, 1, -2 * lambdas.size)
     l_mat = make_lambda_matrix(lambdas, n)
     unitary = make_unitary(self.thetas, n)
@@ -67,17 +77,21 @@ def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
 
 
 def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
+    # self.lambdas = put_lambdas_together(self)
     obt = obp_of_tbp_2t(self.fluid_parts.fluid_lambdas, self.thetas)
     self.operators = tbt2op(obt + tbt_ob_2ten_gfro(self))
     return self.operators
 
 
 def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
+    self.lambdas.setflags(write=False)
+    self.thetas.setflags(write=False)
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
     self.fluid_parts = FluidParts(
         static_lambdas=static_frags, fluid_lambdas=fluid_frags
     )
+    self.fluid_parts.static_lambdas.setflags(write=False)
     if not performant:
         assert self.operators == self.to_op()
     return self
@@ -92,11 +106,14 @@ def move_onebody_coeff_gfro(
 ) -> Optional[Tuple[GFROFragment, OneBodyFragment]]:
     if not mutate:
         raise NotImplementedError
+    if not self.fluid_parts:
+        raise UserWarning(
+            "Call `to_fluid` method to partition into fluid and static parts!"
+        )
     assert orb <= self.fluid_parts.fluid_lambdas.size
     assert coeff.imag == 0
     self.fluid_parts.fluid_lambdas[orb] -= coeff
     to.fluid_lambdas.append((orb, FluidCoeff(coeff=coeff, thetas=self.thetas)))
-    self.lambdas = put_lambdas_together(self)
     return self, to
 
 
@@ -174,7 +191,7 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     d = n
     i = 0
     j = 0
-    lambdas = np.zeros(((n * (n + 1)) // 2, 1))
+    lambdas = np.zeros(((n * (n + 1)) // 2,))
     while d != 0:
         lambdas[i] = V[j]
         i += d
@@ -192,7 +209,7 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
-    orig_U = make_unitary(thetas=self.thetas, n=n)
+    orig_U = make_unitary_im(thetas=self.thetas, diags=self.diag_thetas, n=n)
     h_pq = contract(
         "lm,lp,mq->pq",
         make_lambda_matrix(self.lambdas, n),
@@ -224,4 +241,5 @@ def fluid_ob2op(self: OneBodyFragment) -> FermionOperator:
     Returns:
         the modified fluid one body fragment
     """
-    return obt2op(fluid_ob2ten(self))
+    self.operators = obt2op(fluid_ob2ten(self))
+    return self.operators

@@ -18,6 +18,7 @@ from min_part.operators import (
     get_squared_operator,
     extract_eigenvalue,
     make_total_spin_operator,
+    collapse_to_number_operator,
 )
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
 
@@ -107,6 +108,52 @@ class OperatorTest(unittest.TestCase):
             - FermionOperator("0^ 3", 1.2 * 3.1)
             + FermionOperator("0^ 0^", 3.1**2),
             get_squared_operator(fo_min),
+        )
+
+    # == Number Operator ===
+    def test_num_op_collapose(self):
+        self.assertEqual(
+            FermionOperator("1^ 1 2^ 2")
+            + FermionOperator("3^ 2 3^ 2")
+            + FermionOperator("0^ 0"),
+            collapse_to_number_operator(
+                FermionOperator("1^ 1 2^ 2")
+                + FermionOperator("3^ 2 3^ 2")
+                + FermionOperator("0^ 0 0^ 0")
+            ),
+        )
+
+        self.assertEqual(
+            FermionOperator("1^ 1 3^ 2 3^ 2")
+            + FermionOperator("3^ 2 1^ 1 3^ 2")
+            + FermionOperator("3^ 2 1^ 1 3^ 2 0^ 0 3^ 2 3^ 2"),
+            collapse_to_number_operator(
+                FermionOperator("1^ 1 1^ 1 3^ 2 3^ 2")
+                + FermionOperator("3^ 2 1^ 1 3^ 2")
+                + FermionOperator("3^ 2 1^ 1 3^ 2 0^ 0 0^ 0 3^ 2 3^ 2"),
+            ),
+        )
+
+        self.assertEqual(
+            FermionOperator("1^ 1 3^ 2 3^ 2")
+            + FermionOperator("3^ 2 1^ 1 3^ 2")
+            + FermionOperator("1^ 1 0^ 0"),
+            collapse_to_number_operator(
+                FermionOperator("1^ 1 1^ 1 3^ 2 3^ 2")
+                + FermionOperator("3^ 2 1^ 1 3^ 2")
+                + FermionOperator("1^ 1 1^ 1 0^ 0 0^ 0"),
+            ),
+        )
+
+        self.assertEqual(
+            FermionOperator("1^ 1")
+            + FermionOperator("3^ 2 1^ 1 3^ 2")
+            + FermionOperator("1^ 1 0^ 0"),
+            collapse_to_number_operator(
+                FermionOperator("1^ 1")
+                + FermionOperator("3^ 2 1^ 1 3^ 2")
+                + FermionOperator("1^ 1 1^ 1 0^ 0 0^ 0"),
+            ),
         )
 
     # === Projection Operator ===
