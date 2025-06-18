@@ -28,7 +28,9 @@ def frob_norm(tensor) -> float:
     return np.sqrt(np.sum(np.abs(tensor * tensor)))
 
 
-def make_x_matrix(thetas: np.ndarray, n: int, imag: bool = False) -> np.ndarray:
+def make_x_matrix(
+    thetas: np.ndarray, n: int, diags: Optional[np.ndarray], imag: bool = False
+) -> np.ndarray:
     """Makes the X matrix required to define a unitary orbital rotation, where
 
     U = e^X
@@ -50,6 +52,11 @@ def make_x_matrix(thetas: np.ndarray, n: int, imag: bool = False) -> np.ndarray:
         raise UserWarning(
             f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}."
         )
+    if imag:
+        if not isinstance(diags, np.ndarray):
+            raise UserWarning(
+                "Since the X matrix might be imaginary, there might be diagonal elements."
+            )
     X = np.zeros((n, n), dtype=np.complex128 if imag else np.float64)
     t = 0
     for x in range(n):
@@ -69,6 +76,10 @@ def make_x_matrix(thetas: np.ndarray, n: int, imag: bool = False) -> np.ndarray:
             else:
                 pass
             t += 1
+    if imag:
+        for i, d in enumerate(diags):
+            if not isclose(d, 0):
+                X[i, i] = d
     return X
 
 

@@ -170,36 +170,25 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     Returns:
         `FluidFermionicFragment` object of the one-body tensor
     """
-    V, U = eigen_jl(obt)
+    V, U = np.linalg.eigh(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
     thetas, diags = extract_thetas(U)
-    n = V.size
-    d = n
-    i = 0
-    j = 0
-    lambdas = np.zeros(((n * (n + 1)) // 2,))
-    while d != 0:
-        lambdas[i] = V[j]
-        i += d
-        d -= 1
-        j += 1
-
     return OneBodyFragment(
         thetas=thetas,
         diag_thetas=diags,
-        lambdas=lambdas,
+        lambdas=V,
         fluid_lambdas=[],
         operators=obt2op(obt),
     )
 
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
-    n = solve_quad(1, 1, -2 * self.lambdas.size)
+    n = self.lambdas.size
     orig_U = make_unitary_im(thetas=self.thetas, diags=self.diag_thetas, n=n)
     h_pq = contract(
-        "lm,lp,mq->pq",
-        make_lambda_matrix(self.lambdas, n),
+        "r,rp,rq->pq",
+        self.lambdas,
         orig_U,
         orig_U,
     )

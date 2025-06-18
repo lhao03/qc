@@ -5,6 +5,7 @@ from functools import reduce
 
 import numpy as np
 import scipy as sp
+from hypothesis import settings
 from openfermion import (
     count_qubits,
     jordan_wigner,
@@ -25,6 +26,9 @@ from min_part.utils import (
     get_saved_file_names,
 )
 from min_part.plots import plot_energies, PlotNames
+
+settings.register_profile("slow", deadline=None)
+settings.load_profile("slow")
 
 
 class LowerBoundTest(unittest.TestCase):

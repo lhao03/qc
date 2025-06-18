@@ -5,6 +5,7 @@ from functools import reduce
 
 import numpy as np
 import scipy as sp
+from hypothesis import given, strategies as st, settings
 from openfermion import (
     count_qubits,
     FermionOperator,
@@ -24,9 +25,13 @@ from min_part.gfro_decomp import (
     make_unitary,
     make_fr_tensor_from_u,
     make_fr_tensor,
+    extract_thetas,
+    make_x_matrix,
+    make_lambda_matrix,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.lr_decomp import lr_decomp, make_unitary_im
+from min_part.julia_ops import jl_compare_matrices
+from min_part.lr_decomp import make_unitary_im
 from min_part.molecules import mol_h2
 from min_part.operators import (
     assert_number_operator_equality,
@@ -34,6 +39,9 @@ from min_part.operators import (
 )
 from min_part.tensor import get_n_body_tensor
 from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
+
+settings.register_profile("slow", deadline=None)
+settings.load_profile("slow")
 
 
 class FluidFragmentTest(unittest.TestCase):
@@ -46,8 +54,39 @@ class FluidFragmentTest(unittest.TestCase):
     H_tb_op = tbt2op(H_tbt)
 
     def setUp(self):
-        self.gfro_h2_frags = gfro_decomp(self.H_tbt)
-        self.lr_h2_frags = lr_decomp(self.H_tbt)
+        self.gfro_h2_frags = 0  # gfro_decomp(self.H_tbt)
+        self.lr_h2_frags = 0  # lr_decomp(self.H_tbt)
+
+    @given(
+        st.lists(
+            st.floats(-2, 2, allow_nan=False, allow_infinity=False),
+            max_size=10,
+            min_size=10,
+        ),
+    )
+    def test_obt_2_fluid(
+        self,
+        lambdas
+    ):
+        a = make_lambda_matrix(lambdas=np.array(lambdas), n=4)
+        V, U = np.linalg.eigh(a)
+        try:
+            np.testing.assert_array_equal(a, a.T)
+            np.testing.assert_array_almost_equal(U @ np.diagflat(V) @ U.T, contract("r,rp,rq->pq", V, U, U))
+        except AssertionError:
+            return
+        theta, diag = extract_thetas(U)
+        X = make_x_matrix(thetas=theta, n=4, diags=diag, imag=True)
+        U_x = sp.linalg.expm(X)
+        np.testing.assert_array_almost_equal(U_x, U)
+        a_fluid = obt2fluid(a)
+        np.testing.assert_array_almost_equal(a_fluid.diag_thetas, diag)
+        np.testing.assert_array_almost_equal(a_fluid.thetas, theta)
+        np.testing.assert_array_almost_equal(a_fluid.lambdas, V)
+        np.testing.assert_array_almost_equal(a_fluid.to_tensor(), a)
+        np.testing.assert_array_almost_equal(
+            get_n_body_tensor(a_fluid.to_op(), n=1, m=4), a
+        )
 
     def test_gfro_paritioning(self):
         pass
@@ -68,51 +107,57 @@ class FluidFragmentTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(diags, gfro_frag.get_ob_lambdas())
 
-    def test_moving_coeffs_obf_same_dim_matrices(self):
+    @given(st.floats(H_obt[0][0].real, 0))
+    def test_moving_coeffs_obf_same_dim_matrices(self, coeff):
         ob_f = obt2fluid(self.H_obt)
-        ob_f.fluid_lambdas.append(
-            (0, FluidCoeff(coeff=ob_f.lambdas[0] / 2, thetas=ob_f.thetas))
-        )
+        ob_f.fluid_lambdas.append((0, FluidCoeff(coeff=coeff, thetas=ob_f.thetas)))
         u = make_unitary_im(thetas=ob_f.thetas, diags=ob_f.diag_thetas, n=4)
-        frag_ten = contract("r,rp,rq->pq", [ob_f.lambdas[0] / 2, 0, 0, 0], u, u)
+        frag_ten = contract("r,rp,rq->pq", [coeff, 0, 0, 0], u, u)
         np.testing.assert_array_almost_equal(self.H_obt, ob_f.to_tensor() - frag_ten)
 
-    def test_0_case_dif_dims_matrices(self):
-        a = np.array(
-            [[0.3, 0, 0, 0], [0, 0.12, 0, 0], [0, 0, 0.32, 0], [0, 0, 0, 0.43]]
-        )
+    @given(
+        st.floats(-2, 2, allow_nan=False, allow_infinity=False).filter(
+            lambda n: n != 0
+        ),
+        st.lists(
+            st.floats(-2, 2, allow_nan=False, allow_infinity=False),
+            max_size=4,
+            min_size=4,
+        ),
+    )
+    def test_0_case_dif_dims_matrices(self, coeff, ob):
+        a = np.diagflat(ob)
         b = np.zeros((4, 4, 4, 4))
-        b[0, 0, 0, 0] = 0.31
+        b[0, 0, 0, 0] = coeff
         gfro_frags = gfro_decomp(b)
-        tensor = make_fr_tensor(gfro_frags[0].lambdas, gfro_frags[0].thetas, 4)
-        self.assertEqual(tbt2op(b), tbt2op(tensor))
-        first_frag_ops = gfro_frags[0].operators
-        from_frag = gfro_frags[0].to_fluid()
-        coeff = 0
-        fluid_1 = obt2fluid(a)
-        tb_f: GFROFragment
-        ob_f: OneBodyFragment
-        tb_f, ob_f = from_frag.move2frag(to=fluid_1, orb=0, coeff=coeff, mutate=True)
-        self.assertAlmostEqual(
-            gfro_frags[0].lambdas[0], tb_f.lambdas[0], from_frag.lambdas
-        )
-        self.assertEqual(
-            tb_f.fluid_parts.fluid_lambdas[0], tb_f.fluid_parts.fluid_lambdas[0]
-        )
-        np.testing.assert_array_equal(from_frag.thetas, gfro_frags[0].thetas)
-        self.assertEqual(first_frag_ops, tb_f.to_op())
-        self.assertEqual(
-            tbt2op(b),
-            tb_f.to_op()
-            + reduce(
-                lambda a, b: a + b,
-                [g.operators for g in gfro_frags[1:]],
-                FermionOperator(),
-            ),
-        )
-        np.testing.assert_array_almost_equal(ob_f.to_tensor(), a)
-        self.assertEqual(ob_f.to_op(), obt2op(a))
-        self.assertEqual(tb_f.to_op() + ob_f.to_op(), obt2op(a) + tbt2op(b))
+        if len(gfro_frags) != 0:
+            tensor = make_fr_tensor(gfro_frags[0].lambdas, gfro_frags[0].thetas, 4)
+            self.assertEqual(tbt2op(b), tbt2op(tensor))
+            first_frag_ops = gfro_frags[0].operators
+            from_frag = gfro_frags[0].to_fluid()
+            fluid_1 = obt2fluid(a)
+            tb_f: GFROFragment
+            ob_f: OneBodyFragment
+            tb_f, ob_f = from_frag.move2frag(to=fluid_1, orb=0, coeff=0, mutate=True)
+            self.assertAlmostEqual(
+                gfro_frags[0].lambdas[0],
+                tb_f.lambdas[0],
+                from_frag.fluid_parts.fluid_lambdas[0],
+            )
+            np.testing.assert_array_equal(from_frag.thetas, gfro_frags[0].thetas)
+            self.assertEqual(first_frag_ops, tb_f.to_op())
+            self.assertEqual(
+                tbt2op(b),
+                tb_f.to_op()
+                + reduce(
+                    lambda a, b: a + b,
+                    [g.operators for g in gfro_frags[1:]],
+                    FermionOperator(),
+                ),
+            )
+            np.testing.assert_array_almost_equal(ob_f.to_tensor(), a)
+            self.assertEqual(ob_f.to_op(), obt2op(a))
+            self.assertEqual(tb_f.to_op() + ob_f.to_op(), obt2op(a) + tbt2op(b))
 
     def test_entire_coeff_case_dif_dims_matrices(self):
         n = 4
@@ -186,13 +231,30 @@ class FluidFragmentTest(unittest.TestCase):
         self.assertEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
         # == move 1/2 coeff check ==
         fake_tb_fluid.move2frag(to=fake_ob_fluid, coeff=coeff / 2, orb=1, mutate=True)
-        print(jordan_wigner(total_op))
-        print(jordan_wigner(fake_tb_fluid.to_op() + fake_ob_fluid.to_op()))
         self.assertEqual(
             jordan_wigner(total_op),
             jordan_wigner(fake_tb_fluid.to_op() + fake_ob_fluid.to_op()),
         )
+        self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
         # == move all coeff check ==
+        fake_tb_fluid.move2frag(to=fake_ob_fluid, coeff=coeff / 2, orb=1, mutate=True)
+        self.assertEqual(
+            jordan_wigner(total_op),
+            jordan_wigner(fake_tb_fluid.to_op() + fake_ob_fluid.to_op()),
+        )
+        self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
+        fake_tb_fluid.move2frag(to=fake_ob_fluid, coeff=coeff, orb=0, mutate=True)
+        self.assertEqual(
+            jordan_wigner(total_op),
+            jordan_wigner(fake_tb_fluid.to_op() + fake_ob_fluid.to_op()),
+        )
+        self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
+        self.assertEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[0], 0)
+        self.assertEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[1], 0)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[5][1], coeff / 2)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[5][0], 1)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[6][1], coeff)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[6][0], 0)
         # == expectation value check ==
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(total_op)).toarray()

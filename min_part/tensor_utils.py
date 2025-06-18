@@ -173,7 +173,7 @@ def obt2op(obt):
         for q in range(N):
             term = ((p, 1), (q, 0))
             coef = obt[p, q]
-            op += FermionOperator(term, coef)
+            op += FermionOperator(term, float(coef))
     return op
 
 

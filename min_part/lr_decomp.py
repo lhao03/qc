@@ -93,10 +93,7 @@ def get_lr_fragment_tensor_from_parts(
 
 
 def make_unitary_im(thetas, diags, n):
-    X = make_x_matrix(np.array(thetas), n, imag=True)
-    for i, d in enumerate(diags):
-        if not isclose(d, 0):
-            X[i, i] = d
+    X = make_x_matrix(np.array(thetas), n, diags=diags, imag=True)
     return sp.linalg.expm(X)
 
 
