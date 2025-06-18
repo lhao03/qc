@@ -217,11 +217,11 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
         orig_U,
     )
     for orb, fluid_part in self.fluid_lambdas:
-        fluid_l = np.zeros((n, n))
-        fluid_l[orb, orb] = fluid_part.coeff
+        fluid_l = np.zeros((n, ))
+        fluid_l[orb] = fluid_part.coeff
         unitary = make_unitary(fluid_part.thetas, n)
         fluid_h = contract(
-            "lm,lp,mq->pq",
+            "r,rp,rq->pq",
             fluid_l,
             unitary,
             unitary,
