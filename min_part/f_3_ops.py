@@ -1,4 +1,3 @@
-from copy import copy, deepcopy
 from typing import Tuple, Optional
 
 import numpy as np
@@ -53,17 +52,6 @@ def remove_obt_gfro(self: GFROFragment) -> Nums:
     return static_frags
 
 
-def put_lambdas_together(self: GFROFragment):
-    n = solve_quad(1, 1, -2 * self.lambdas.size)
-    curr_i = 0
-    curr_orb = 0
-    for j in reversed(range(n)):
-        self.lambdas[curr_i] = self.fluid_parts.fluid_lambdas[curr_orb]
-        curr_i += j + 1
-        curr_orb += 1
-    return self.lambdas
-
-
 def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
     if not self.fluid_parts:
         raise UserWarning(
@@ -77,7 +65,6 @@ def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
 
 
 def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
-    # self.lambdas = put_lambdas_together(self)
     obt = obp_of_tbp_2t(self.fluid_parts.fluid_lambdas, self.thetas)
     self.operators = tbt2op(obt + tbt_ob_2ten_gfro(self))
     return self.operators
@@ -217,7 +204,7 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
         orig_U,
     )
     for orb, fluid_part in self.fluid_lambdas:
-        fluid_l = np.zeros((n, ))
+        fluid_l = np.zeros((n,))
         fluid_l[orb] = fluid_part.coeff
         unitary = make_unitary(fluid_part.thetas, n)
         fluid_h = contract(
