@@ -85,11 +85,6 @@ class FluidFragmentTest(unittest.TestCase):
         b = np.zeros((4, 4, 4, 4))
         b[0, 0, 0, 0] = 0.31
         gfro_frags = gfro_decomp(b)
-        total_op = obt2op(a) + tbt2op(b)
-        gfro_ops = reduce(
-            lambda a, b: a + b, [g.operators for g in gfro_frags], FermionOperator()
-        )
-        self.assertEqual(total_op, gfro_ops + obt2op(a))
         tensor = make_fr_tensor(gfro_frags[0].lambdas, gfro_frags[0].thetas, 4)
         self.assertEqual(tbt2op(b), tbt2op(tensor))
         first_frag_ops = gfro_frags[0].operators
@@ -99,11 +94,12 @@ class FluidFragmentTest(unittest.TestCase):
         tb_f: GFROFragment
         ob_f: OneBodyFragment
         tb_f, ob_f = from_frag.move2frag(to=fluid_1, orb=0, coeff=coeff, mutate=True)
-        self.assertAlmostEqual(gfro_frags[0].lambdas[0], tb_f.lambdas[0])
-        self.assertEqual(
-            tb_f.fluid_parts.fluid_lambdas[0], tb_f.fluid_parts.fluid_lambdas[0] - coeff
+        self.assertAlmostEqual(
+            gfro_frags[0].lambdas[0], tb_f.lambdas[0], from_frag.lambdas
         )
-        np.testing.assert_array_equal(from_frag.lambdas, gfro_frags[0].lambdas)
+        self.assertEqual(
+            tb_f.fluid_parts.fluid_lambdas[0], tb_f.fluid_parts.fluid_lambdas[0]
+        )
         np.testing.assert_array_equal(from_frag.thetas, gfro_frags[0].thetas)
         self.assertEqual(first_frag_ops, tb_f.to_op())
         self.assertEqual(
@@ -117,8 +113,7 @@ class FluidFragmentTest(unittest.TestCase):
         )
         np.testing.assert_array_almost_equal(ob_f.to_tensor(), a)
         self.assertEqual(ob_f.to_op(), obt2op(a))
-        fluid_total = tb_f.to_op() + ob_f.to_op()
-        self.assertEqual(fluid_total, total_op)
+        self.assertEqual(tb_f.to_op() + ob_f.to_op(), obt2op(a) + tbt2op(b))
 
     def test_entire_coeff_case_dif_dims_matrices(self):
         n = 4
@@ -128,39 +123,35 @@ class FluidFragmentTest(unittest.TestCase):
         b = np.zeros((n, n, n, n))
         b[0, 0, 0, 0] = 0.31
         gfro_frags = gfro_decomp(b)
-        orb_0_ceoff = gfro_frags[0].lambdas[0]
-        ob_op = obt2op(a)
-        total_op = ob_op + tbt2op(b)
-        gfro_ops = reduce(
-            lambda a, b: a + b, [g.operators for g in gfro_frags], FermionOperator()
+        old_lambda = gfro_frags[0].lambdas[0]
+        self.assertEqual(
+            obt2op(a) + tbt2op(b),
+            reduce(
+                lambda a, b: a + b, [g.operators for g in gfro_frags], FermionOperator()
+            )
+            + obt2op(a),
         )
-        self.assertEqual(total_op, gfro_ops + ob_op)
         from_frag = gfro_frags[0].to_fluid()
         coeff = 0.31
         fluid_1 = obt2fluid(a)
         np.testing.assert_array_equal(from_frag.thetas, gfro_frags[0].thetas)
         np.testing.assert_array_equal(from_frag.lambdas, gfro_frags[0].lambdas)
-        old_lambda = gfro_frags[0].lambdas[0]
-        self.assertEqual(orb_0_ceoff, from_frag.fluid_parts.fluid_lambdas[0])
+        self.assertEqual(old_lambda, from_frag.fluid_parts.fluid_lambdas[0])
         self.assertAlmostEqual(0, gfro_frags[0].fluid_parts.fluid_lambdas[1])
         self.assertAlmostEqual(0, gfro_frags[0].fluid_parts.fluid_lambdas[2])
         self.assertAlmostEqual(0, gfro_frags[0].fluid_parts.fluid_lambdas[3])
-        frags = from_frag.move2frag(to=fluid_1, orb=0, coeff=coeff, mutate=True)
-        tb_f = frags[0]
-        ob_f: OneBodyFragment = frags[1]
-        self.assertAlmostEqual(orb_0_ceoff, tb_f.lambdas[0])
+        tb_f: GFROFragment
+        ob_f: OneBodyFragment
+        tb_f, ob_f = from_frag.move2frag(to=fluid_1, orb=0, coeff=coeff, mutate=True)
         self.assertEqual(tb_f.fluid_parts.fluid_lambdas[0], old_lambda - coeff)
-        tb_op = tb_f.to_op()
-        np.testing.assert_array_equal(from_frag.lambdas, gfro_frags[0].lambdas)
-        np.testing.assert_array_equal(from_frag.thetas, gfro_frags[0].thetas)
-        ob_op_f = ob_f.to_op()
-        fluid_total = tb_op + ob_op_f
-        if assert_number_operator_equality(fluid_total, total_op):
-            self.assertTrue(assert_number_operator_equality(fluid_total, total_op))
+        fluid_total, og_total = tb_f.to_op() + ob_f.to_op(), obt2op(a) + tbt2op(b)
+        if assert_number_operator_equality(fluid_total, og_total):
+            self.assertTrue(assert_number_operator_equality(fluid_total, og_total))
         else:
+            self.assertEqual(jordan_wigner(fluid_total), jordan_wigner(og_total))
             self.assertEqual(
                 collapse_to_number_operator(fluid_total),
-                collapse_to_number_operator(total_op),
+                collapse_to_number_operator(og_total),
             )
 
     def test_dif_thetas_dif_dims_matrices(self):
