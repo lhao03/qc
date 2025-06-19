@@ -6,8 +6,12 @@ A = [0 0 0 0;
      0 0 0 1;
      0 0 1 0]
 val, vec = eigen(A)
-display(val)
-display(vec)
 
-@einsum D[p, q] := val[r] * vec[p, r] * vec[r, q]
-display(D)
+B = zeros(4,4)
+for i in 1:4
+    B .+= val[i] .* vec[:,i] * transpose(vec[:,i])
+end
+display(B)
+
+@einsum C[p,q] := val[i] * vec[i, p] * vec[i, q]
+display(C)

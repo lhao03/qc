@@ -7,7 +7,7 @@ from opt_einsum import contract
 from scipy.optimize import minimize
 
 from .julia_ops import jl_print, eigen_jl
-from .tensor_utils import spac2spin, tbt2op, obt2tbt
+from .tensor import spac2spin, obt2tbt, tbt2op
 
 
 def FRO_frags_generator(tbt, N_frags, ret_ops=True, ret_params=False):

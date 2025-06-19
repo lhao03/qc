@@ -30,15 +30,13 @@ from min_part.gfro_decomp import (
     make_lambda_matrix,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.julia_ops import jl_compare_matrices
 from min_part.lr_decomp import make_unitary_im
 from min_part.molecules import mol_h2
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
 )
-from min_part.tensor import get_n_body_tensor
-from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
+from min_part.tensor import get_n_body_tensor, obt2op, tbt2op, get_chem_tensors
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")
@@ -64,17 +62,10 @@ class FluidFragmentTest(unittest.TestCase):
             min_size=10,
         ),
     )
-    def test_obt_2_fluid(
-        self,
-        lambdas
-    ):
-        a = make_lambda_matrix(lambdas=np.array(lambdas), n=4)
+    def test_obt_2_fluid(self, lambdas):
+        a = make_lambda_matrix(np.array(lambdas), n=4)
         V, U = np.linalg.eigh(a)
-        try:
-            np.testing.assert_array_equal(a, a.T)
-            np.testing.assert_array_almost_equal(U @ np.diagflat(V) @ U.T, contract("r,rp,rq->pq", V, U, U))
-        except AssertionError:
-            return
+        np.testing.assert_array_equal(a, a.T)
         theta, diag = extract_thetas(U)
         X = make_x_matrix(thetas=theta, n=4, diags=diag, imag=True)
         U_x = sp.linalg.expm(X)
@@ -97,7 +88,7 @@ class FluidFragmentTest(unittest.TestCase):
     def test_fluid_gfro_tensor_to_op(self):
         pass
 
-    def test_get_one_body_parts(self):
+    def test_get_one_body_parts(self):  # TODO: ask help to fix
         n = 5
         m = (n * (n + 1)) // 2
         fake_h2 = np.random.rand(m)
@@ -198,8 +189,17 @@ class FluidFragmentTest(unittest.TestCase):
                 collapse_to_number_operator(og_total),
             )
 
-    def test_dif_thetas_dif_dims_matrices(self):
-        coeff = 0.3316650744318082
+    @given(
+        st.floats(-2, 2, allow_nan=False, allow_infinity=False).filter(
+            lambda n: n != 0
+        ),
+        st.lists(
+            st.floats(-2, 2, allow_nan=False, allow_infinity=False),
+            max_size=4,
+            min_size=4,
+        ).filter(lambda n: 0 not in n),
+    )
+    def test_dif_thetas_dif_dims_matrices(self, coeff, coeffs):
         tbt_op = (
             FermionOperator(coefficient=coeff, term=((0, 1), (0, 0), (0, 1), (0, 0)))
             + FermionOperator(coefficient=coeff, term=((0, 1), (0, 0), (1, 1), (1, 0)))
@@ -216,9 +216,7 @@ class FluidFragmentTest(unittest.TestCase):
         f_2 = make_fr_tensor(lambdas=copy_lam, thetas=gfro_frag.thetas, n=4)
         np.testing.assert_array_almost_equal(copy_lam + one_lam, gfro_frag.lambdas)
         np.testing.assert_array_almost_equal(f_1 + f_2, tbt_ten)
-        fake_obt = np.array(
-            [[0.3, 0, 0, 0], [0, 0.12, 0, 0], [0, 0, 0.32, 0], [0, 0, 0, 0.43]]
-        )
+        fake_obt = np.diagflat(coeffs)
         total_op = obt2op(fake_obt) + gfro_frag.operators
         # == fluid begins ==
         fake_ob_fluid = obt2fluid(fake_obt)
@@ -249,11 +247,11 @@ class FluidFragmentTest(unittest.TestCase):
             jordan_wigner(fake_tb_fluid.to_op() + fake_ob_fluid.to_op()),
         )
         self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
-        self.assertEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[0], 0)
-        self.assertEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[1], 0)
-        self.assertEqual(fake_ob_fluid.fluid_lambdas[5][1], coeff / 2)
+        self.assertAlmostEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[0], 0)
+        self.assertAlmostEqual(fake_tb_fluid.fluid_parts.fluid_lambdas[1], 0)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[5][1].coeff, coeff / 2)
         self.assertEqual(fake_ob_fluid.fluid_lambdas[5][0], 1)
-        self.assertEqual(fake_ob_fluid.fluid_lambdas[6][1], coeff)
+        self.assertEqual(fake_ob_fluid.fluid_lambdas[6][1].coeff, coeff)
         self.assertEqual(fake_ob_fluid.fluid_lambdas[6][0], 0)
         # == expectation value check ==
         eigenvalues, eigenvectors = sp.linalg.eigh(

@@ -22,7 +22,7 @@ from min_part.ffrag_utils import LR_frags_generator
 from min_part.gfro_decomp import gfro_fragment_occ
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
 from min_part.plots import PlotNames
-from min_part.tensor_utils import get_chem_tensors, obt2op
+from min_part.tensor import obt2op, get_chem_tensors
 
 
 def choose_lowest_energy(

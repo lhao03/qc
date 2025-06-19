@@ -11,7 +11,7 @@ from scipy.optimize import OptimizeResult, minimize
 
 from d_types.fragment_types import GFROFragment, Nums
 from min_part.julia_ops import jl_print
-from min_part.tensor_utils import tbt2op
+from min_part.tensor import tbt2op
 
 
 def frob_norm(tensor) -> float:
@@ -29,7 +29,7 @@ def frob_norm(tensor) -> float:
 
 
 def make_x_matrix(
-    thetas: np.ndarray, n: int, diags: Optional[np.ndarray], imag: bool = False
+    thetas: np.ndarray, n: int, diags: Optional[np.ndarray] = None, imag: bool = False
 ) -> np.ndarray:
     """Makes the X matrix required to define a unitary orbital rotation, where
 

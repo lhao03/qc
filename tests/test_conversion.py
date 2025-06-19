@@ -5,8 +5,14 @@ from openfermion import count_qubits, FermionOperator
 
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
-from min_part.tensor import get_n_body_tensor, get_n_body_fo, is_chemist_ordered
-from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
+from min_part.tensor import (
+    get_n_body_tensor,
+    get_n_body_fo,
+    is_chemist_ordered,
+    obt2op,
+    tbt2op,
+    get_chem_tensors,
+)
 
 
 class ConversionTest(unittest.TestCase):

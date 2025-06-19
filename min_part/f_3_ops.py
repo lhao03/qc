@@ -19,7 +19,8 @@ from min_part.gfro_decomp import (
 )
 from min_part.julia_ops import solve_quad, eigen_jl
 from min_part.lr_decomp import make_unitary_im
-from min_part.tensor_utils import tbt2op, obt2op
+from min_part.tensor import obt2op, tbt2op
+
 
 # == GFRO Helpers
 

@@ -19,8 +19,6 @@ from min_part.julia_ops import (
     reshape_eigs,
     eigen_jl,
     check_lr_decomp,
-    jl_compare_matrices,
-    jl_print,
 )
 from min_part.lr_decomp import (
     make_supermatrix,
@@ -31,22 +29,19 @@ from min_part.lr_decomp import (
     make_unitary_im,
 )
 from min_part.molecules import mol_h2
-from min_part.tensor import get_n_body_tensor, symmetricND, artifical_h2_tbt
-from min_part.tensor_utils import get_chem_tensors, obt2op, tbt2op
+from min_part.tensor import (
+    get_n_body_tensor,
+    symmetricND,
+    artifical_h2_tbt,
+    obt2op,
+    tbt2op,
+    get_chem_tensors,
+)
 from min_part.utils import do_lr_fo
 
 torch.set_default_tensor_type(torch.DoubleTensor)
-
-
 settings.register_profile("fast", deadline=None)
-
-# any tests executed before loading this profile will still use the
-# default active profile of 100 examples.
-
 settings.load_profile("fast")
-
-# any tests executed after this point will use the active fast
-# profile of 10 examples.
 
 
 class DecompTest(unittest.TestCase):
