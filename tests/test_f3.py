@@ -1,92 +1,146 @@
-import random
 import unittest
 from copy import copy
 from functools import reduce
+from typing import List
 
 import numpy as np
 import scipy as sp
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 from openfermion import (
-    count_qubits,
     FermionOperator,
     jordan_wigner,
-    qubit_operator_sparse,
 )
 from opt_einsum import contract
 
-from d_types.fragment_types import GFROFragment, OneBodyFragment, FluidCoeff
+from d_types.fragment_types import GFROFragment, FluidCoeff
 from min_part.f_3_ops import (
     obt2fluid,
-    gfro2fluid,
-    fluid_ob2op,
+    fluid_2tensor,
+    static_2tensor,
 )
 from min_part.gfro_decomp import (
     gfro_decomp,
-    make_unitary,
-    make_fr_tensor_from_u,
-    make_fr_tensor,
     extract_thetas,
     make_x_matrix,
     make_lambda_matrix,
 )
-from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import make_unitary_im
-from min_part.molecules import mol_h2
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
 )
-from min_part.tensor import get_n_body_tensor, obt2op, tbt2op, get_chem_tensors
+from min_part.tensor import (
+    get_n_body_tensor_chemist_ordering,
+    obt2op,
+    tbt2op,
+)
+from min_part.testing_utils.sim_tensor import (
+    generate_symm_unitary_matrices,
+)
+from min_part.testing_utils.sim_molecules import H_2_GFRO
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")
 
 
-class FluidFragmentTest(unittest.TestCase):
-    bond_length = 0.80
-    mol = mol_h2(bond_length)
-    H, num_elecs = obtain_OF_hamiltonian(mol)
-    n_qubits = count_qubits(H)
-    H_const, H_obt, H_tbt = get_chem_tensors(H=H, N=n_qubits)
-    H_ob_op = obt2op(H_obt)
-    H_tb_op = tbt2op(H_tbt)
-
-    def setUp(self):
-        self.gfro_h2_frags = 0  # gfro_decomp(self.H_tbt)
-        self.lr_h2_frags = 0  # lr_decomp(self.H_tbt)
-
-    @given(
-        st.lists(
-            st.floats(-2, 2, allow_nan=False, allow_infinity=False),
-            max_size=10,
-            min_size=10,
+def tensors_equal(H_tbt: np.ndarray, gfro_h2_frags: List[GFROFragment], n: int):
+    np.testing.assert_array_almost_equal(
+        H_tbt,
+        reduce(
+            lambda a, b: a + b,
+            [g.to_tensor() for g in gfro_h2_frags],
+            np.zeros((n, n)),
         ),
     )
-    def test_obt_2_fluid(self, lambdas):
-        a = make_lambda_matrix(np.array(lambdas), n=4)
-        V, U = np.linalg.eigh(a)
-        np.testing.assert_array_equal(a, a.T)
+
+
+class FluidFragmentTest(unittest.TestCase):
+    def operators_equal(self, H_tbt: np.ndarray, gfro_h2_frags: List[GFROFragment]):
+        self.assertEqual(
+            tbt2op(H_tbt),
+            reduce(
+                lambda a, b: a + b,
+                [g.operators for g in gfro_h2_frags],
+                FermionOperator(),
+            ),
+        )
+
+    # == GFRO Tests ==
+    # PASS
+    # TODO: Do we need to filter out det(matrices) != 1
+    @given(generate_symm_unitary_matrices(n=4))
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.data_too_large])
+    def test_obt_2_fluid(self, vals_vecs_mat):
+        vals, vecs, obt = vals_vecs_mat
+        V, U = np.linalg.eigh(obt)
+        np.testing.assert_array_almost_equal(obt, obt.T)
         theta, diag = extract_thetas(U)
         X = make_x_matrix(thetas=theta, n=4, diags=diag, imag=True)
         U_x = sp.linalg.expm(X)
         np.testing.assert_array_almost_equal(U_x, U)
-        a_fluid = obt2fluid(a)
+        a_fluid = obt2fluid(obt)
         np.testing.assert_array_almost_equal(a_fluid.diag_thetas, diag)
         np.testing.assert_array_almost_equal(a_fluid.thetas, theta)
         np.testing.assert_array_almost_equal(a_fluid.lambdas, V)
-        np.testing.assert_array_almost_equal(a_fluid.to_tensor(), a)
+        np.testing.assert_array_almost_equal(a_fluid.to_tensor(), obt)
         np.testing.assert_array_almost_equal(
-            get_n_body_tensor(a_fluid.to_op(), n=1, m=4), a
+            get_n_body_tensor_chemist_ordering(a_fluid.to_op(), n=1, m=4), obt
         )
 
-    def test_gfro_paritioning(self):
-        pass
+    # PASS
+    @given(H_2_GFRO())
+    @settings(max_examples=30)
+    def test_fluid_gfro_tensor_to_op(self, obt_tbt_gfrofrag_bondlength):
+        gfro_h2_frags: List[GFROFragment]
+        H_obt, H_tbt, gfro_h2_frags, bond_legnth = obt_tbt_gfrofrag_bondlength
+        for gfro_frag in gfro_h2_frags:
+            prev_operators = copy(gfro_frag.operators)
+            gfro_frag.to_fluid()
+            self.assertEqual(prev_operators, gfro_frag.to_op())
+        self.operators_equal(H_tbt, gfro_h2_frags)
 
-    def test_gfro_fluid_to_tensor(self):
-        pass
+    # PASS
+    @given(H_2_GFRO())
+    @settings(max_examples=5)
+    def test_gfro_fluid_to_tensor(self, obt_tbt_gfrofrags_bl):
+        gfro_h2_frags: List[GFROFragment]
+        H_obt, H_tbt, gfro_h2_frags, bond_length = obt_tbt_gfrofrags_bl
+        for gfro_frag in gfro_h2_frags:
+            og_ten = get_n_body_tensor_chemist_ordering(gfro_frag.operators, n=2, m=4)
+            gfro_frag.to_fluid()
+            fluid_ten = fluid_2tensor(
+                gfro_frag.fluid_parts.fluid_lambdas, gfro_frag.thetas
+            ) + static_2tensor(gfro_frag)
+            np.testing.assert_array_almost_equal(og_ten, fluid_ten)
+        tensors_equal(H_tbt, gfro_h2_frags, H_tbt.shape[0])
 
-    def test_fluid_gfro_tensor_to_op(self):
-        pass
+    # PASS
+    @given(H_2_GFRO())
+    @settings(max_examples=5)
+    def test_gfro_paritioning(self, obt_tbt_gfrofrags_bl):
+        gfro_h2_frags: List[GFROFragment]
+        H_obt, H_tbt, gfro_h2_frags, bond_length = obt_tbt_gfrofrags_bl
+        self.operators_equal(H_tbt, gfro_h2_frags)
+        for gfro_frag in gfro_h2_frags:
+            og_tensor = get_n_body_tensor_chemist_ordering(
+                gfro_frag.operators, n=2, m=4
+            )
+            gfro_frag.to_fluid()
+            fluid_static_sum = (
+                fluid_2tensor(gfro_frag.fluid_parts.fluid_lambdas / 4, gfro_frag.thetas)
+                + fluid_2tensor(
+                    gfro_frag.fluid_parts.fluid_lambdas / 4, gfro_frag.thetas
+                )
+                + fluid_2tensor(
+                    gfro_frag.fluid_parts.fluid_lambdas / 2, gfro_frag.thetas
+                )
+                + static_2tensor(gfro_frag)
+            )
+            np.testing.assert_array_almost_equal(
+                og_tensor,
+                fluid_static_sum,
+            )
+        tensors_equal(H_tbt, gfro_h2_frags, H_tbt.shape[0])
 
     def test_get_one_body_parts(self):  # TODO: ask help to fix
         n = 5

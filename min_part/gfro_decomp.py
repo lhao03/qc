@@ -10,7 +10,6 @@ from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
 from d_types.fragment_types import GFROFragment, Nums
-from min_part.julia_ops import jl_print
 from min_part.tensor import tbt2op
 
 
@@ -161,7 +160,7 @@ def gfro_decomp(
     threshold=1e-6,
     max_iter: int = 10000,
     only_proceed_if_success: bool = False,
-    debug: bool = True,
+    debug: bool = False,
     previous_lambdas: Optional[List[np.ndarray]] = None,
     previous_thetas: Optional[List[np.ndarray]] = None,
 ) -> list[GFROFragment]:

@@ -3,6 +3,7 @@ from typing import Tuple, Optional
 import numpy as np
 from openfermion import FermionOperator
 from opt_einsum import contract
+
 from d_types.fragment_types import (
     FermionicFragment,
     LRFragment,
@@ -13,13 +14,13 @@ from d_types.fragment_types import (
     OneBodyFragment,
 )
 from min_part.gfro_decomp import (
-    make_lambda_matrix,
     make_unitary,
     extract_thetas,
+    make_fr_tensor_from_u,
 )
-from min_part.julia_ops import solve_quad, eigen_jl
+from min_part.julia_ops import solve_quad
 from min_part.lr_decomp import make_unitary_im
-from min_part.tensor import obt2op, tbt2op
+from min_part.tensor import obt2op
 
 
 # == GFRO Helpers
@@ -53,22 +54,19 @@ def remove_obt_gfro(self: GFROFragment) -> Nums:
     return static_frags
 
 
-def tbt_ob_2ten_gfro(self: GFROFragment) -> np.ndarray:
+def static_2tensor(self: GFROFragment) -> np.ndarray:
     if not self.fluid_parts:
         raise UserWarning(
             "Call `to_fluid` method to partition into fluid and static parts!"
         )
-    lambdas = np.array(self.fluid_parts.static_lambdas)
-    n = solve_quad(1, 1, -2 * lambdas.size)
-    l_mat = make_lambda_matrix(lambdas, n)
+    n = solve_quad(1, 1, -2 * self.fluid_parts.static_lambdas.size)
     unitary = make_unitary(self.thetas, n)
-    return contract("lm,lp,lq,mr,ms->pqrs", l_mat, unitary, unitary, unitary, unitary)
+    return make_fr_tensor_from_u(self.fluid_parts.static_lambdas, unitary, n=n)
 
 
-def tbt_ob_2op_gfro(self: GFROFragment) -> FermionOperator:
-    obt = obp_of_tbp_2t(self.fluid_parts.fluid_lambdas, self.thetas)
-    self.operators = tbt2op(obt + tbt_ob_2ten_gfro(self))
-    return self.operators
+def fluid_gfro_2tensor(self: GFROFragment) -> np.ndarray:
+    obt = fluid_2tensor(self.fluid_parts.fluid_lambdas, self.thetas)
+    return obt + static_2tensor(self)
 
 
 def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
@@ -148,7 +146,7 @@ def move_onebody_coeff_lr(
 
 
 # == Two body helpers
-def obp_of_tbp_2t(lambdas, thetas) -> np.ndarray:
+def fluid_2tensor(lambdas, thetas) -> np.ndarray:
     """Makes tensor using one-body parts that used to below in a two-electron fragment.
 
     Returns:
@@ -188,7 +186,7 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = self.lambdas.size
     orig_U = make_unitary_im(thetas=self.thetas, diags=self.diag_thetas, n=n)
     h_pq = contract(
-        "r,rp,rq->pq",
+        "r,pr,qr->pq",
         self.lambdas,
         orig_U,
         orig_U,

@@ -17,7 +17,8 @@ from min_part.gfro_decomp import make_unitary, gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import lr_decomp
 from min_part.molecules import h2_settings
-from min_part.tensor import obt2op, tbt2op, get_chem_tensors
+from min_part.tensor import obt2op, tbt2op
+from min_part.testing_utils.sim_tensor import get_chem_tensors
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,

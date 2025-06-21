@@ -20,7 +20,8 @@ from min_part.operators import (
     make_total_spin_operator,
     collapse_to_number_operator,
 )
-from min_part.tensor import obt2op, tbt2op, get_chem_tensors
+from min_part.tensor import obt2op, tbt2op
+from min_part.testing_utils.sim_tensor import get_chem_tensors
 
 
 class OperatorTest(unittest.TestCase):

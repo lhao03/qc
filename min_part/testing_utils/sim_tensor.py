@@ -9,7 +9,7 @@ from hypothesis import strategies as st
 from openfermion import count_qubits
 
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.molecules import mol_h2
+from min_part.molecules import mol_h2, mol_n2
 
 
 @st.composite
@@ -256,8 +256,14 @@ def generate_symm_unitary_matrices(draw, n):
     return diags, maybe_u, maybe_symm
 
 
-def make_tensors(bond_length):
+def make_tensors_h2(bond_length):
     mol = mol_h2(bond_length)
+    H, num_elecs = obtain_OF_hamiltonian(mol)
+    n_qubits = count_qubits(H)
+    return get_chem_tensors(H=H, N=n_qubits)
+
+def make_tensors_n2(bond_length):
+    mol = mol_n2(bond_length)
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
     return get_chem_tensors(H=H, N=n_qubits)

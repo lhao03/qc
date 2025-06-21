@@ -1,13 +1,12 @@
-from typing import Any, List, Tuple
+from typing import Any, List
 
 import numpy as np
 import scipy as sp
-from numpy import isclose
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
 from min_part.gfro_decomp import make_x_matrix, extract_thetas
-from min_part.julia_ops import lr_decomp_params, jl_print
+from min_part.julia_ops import lr_decomp_params
 from min_part.tensor import tbt2op
 
 

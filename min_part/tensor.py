@@ -3,13 +3,7 @@ from typing import Tuple
 import numpy as np
 import scipy as sp
 from openfermion import FermionOperator, count_qubits
-from hypothesis import strategies as st
 
-import functools
-import itertools
-import operator
-
-import torch
 from opt_einsum import contract
 
 
@@ -24,7 +18,9 @@ def is_chemist_ordered(term: Tuple) -> bool:
     return True
 
 
-def get_n_body_tensor(fo: FermionOperator, n: int, m: int) -> np.ndarray:
+def get_n_body_tensor_chemist_ordering(
+    fo: FermionOperator, n: int, m: int
+) -> np.ndarray:
     """Gets the rank 2^n tensor for FermionOperator, where the output tensor will be rank 2^n with dimension m,
      where m is the number of spin orbitals. Assumes the chemist ordering of operators.
 
@@ -82,140 +78,6 @@ def get_no_from_tensor(lambda_m: np.ndarray) -> FermionOperator:
                 term=f"{n_l} {n_m}", coefficient=lambda_m[l][m]
             )
     return gfro_operator
-
-
-@st.composite
-def symmetricND(draw, size: int) -> torch.Tensor:
-    data = torch.zeros(*[size] * 4)
-    for i in range(size):
-        for j in range(size):
-            for k in range(size):
-                for l in range(size):
-                    data[i, j, k, l] = draw(st.integers(0, 1))
-    return functools.reduce(
-        operator.add,
-        (
-            torch.permute(data, permutation)
-            for permutation in itertools.permutations(range(4))
-        ),
-    )
-
-
-@st.composite
-def artifical_h2_tbt(draw) -> np.ndarray:
-    lmao0 = draw(st.floats(-1, 1))
-    lmao1 = draw(st.floats(-1, 1))
-    lmao2 = draw(st.floats(-1, 1))
-    lmao3 = draw(st.floats(-1, 1))
-
-    return np.array(
-        [
-            [
-                [
-                    [lmao0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao1 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao1 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j],
-                    [lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-            ],
-            [
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [lmao0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao1 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao1 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j],
-                    [lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-            ],
-            [
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j],
-                    [lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [lmao1 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao1 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao3 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao3 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-            ],
-            [
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao2 + 0.0j],
-                    [lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao2 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                ],
-                [
-                    [lmao1 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, lmao1 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, lmao3 + 0.0j, 0.0 + 0.0j],
-                    [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, lmao3 + 0.0j],
-                ],
-            ],
-        ]
-    )
 
 
 def spin2spac(tensor):
@@ -491,95 +353,3 @@ def get_chem_tensors_hubbard(H_chem, N=None):  # Does not work in general.
             const += value
 
     return const, chem_obt, chem_tbt
-
-
-def get_chem_tensors(H, N=None):
-    """
-    Obtain constant, one-body tensor and two body tensor in chemist ordering from a FermionOperator in physicist or chemist ordering. Assumes the existance of 8 fold symmetry of molecular Hamiltonians.
-
-    Args:
-        H (FermionOperator): FermionOperator
-        N (int, optional): Number of qubits. Defaults to None.
-
-    Returns:
-        float: Constant term in the Hamiltonian
-        ndarray: One body tensor
-        ndarray: Two body tensor in Chemist notation with all the appropriate (8) symmetries.
-    """
-
-    if N is None:
-        N = count_qubits(H)
-
-    for key, value in H.terms.items():
-        if len(key) == 4:
-            if key[1][1] == 1:  # Checking if the given term is physics ordered.
-                obt = np.zeros((N, N), dtype="complex128")
-                phy_tbt = np.zeros((N, N, N, N), dtype="complex128")
-                const = 0
-                obt_correction = np.zeros((N, N), dtype="complex128")
-
-                for key, value in H.terms.items():
-                    if len(key) == 4:
-                        phy_tbt[key[0][0], key[1][0], key[2][0], key[3][0]] += value
-                        if key[3][0] == key[1][0]:  # c0'c2'c1c2 = -c0'c2 + c0'c2c2'c1
-                            obt_correction[key[0][0], key[2][0]] -= value
-                    elif len(key) == 2:
-                        obt[key[0][0], key[1][0]] += value
-                    else:
-                        const += value
-
-                chem_tbt = np.transpose(phy_tbt, [0, 3, 1, 2])
-                chem_obt = obt + obt_correction
-                return const, chem_obt, chem_tbt
-
-            else:  # Assuming H is chemist ordered
-                chem_obt = np.zeros((N, N), dtype="complex128")
-                chem_tbt = np.zeros((N, N, N, N), dtype="complex128")
-                const = 0
-                for key, value in H.terms.items():
-                    if len(key) == 4:
-                        chem_tbt[key[0][0], key[1][0], key[2][0], key[3][0]] += (
-                            value / 2
-                        )
-                        chem_tbt[key[2][0], key[3][0], key[0][0], key[1][0]] += (
-                            value / 2
-                        )
-                    elif len(key) == 2:
-                        chem_obt[key[0][0], key[1][0]] += value
-                    else:
-                        const += value
-                return const, chem_obt, chem_tbt
-
-
-@st.composite
-def generate_symm_unitary_matrices(draw, n):
-    def is_unitary(m):
-        return np.linalg.det(m) == 1 and np.array_equal(m @ m.T, np.identity(n))
-
-    def is_symmetric(m):
-        return np.array_equal(m, m.T)
-
-    def is_commute(q, l):
-        assert l.shape == (n,n)
-        return np.array_equal(q @ l, l @ q)
-
-    while True:
-        maybe_u, _ = np.linalg.qr(
-            np.array(
-                [
-                    draw(st.lists(st.floats(-2, 2), min_size=n, max_size=n)),
-                    draw(st.lists(st.floats(-2, 2), min_size=n, max_size=n)),
-                    draw(st.lists(st.floats(-2, 2), min_size=n, max_size=n)),
-                    draw(st.lists(st.floats(-2, 2), min_size=n, max_size=n)),
-                ]
-            )
-        )
-        diags = np.array(draw(st.lists(st.floats(-2, 2), min_size=n, max_size=n)))
-        maybe_symm = maybe_u @ np.diagflat(diags) @ maybe_u.T
-        if (
-            is_unitary(maybe_u)
-            and is_symmetric(maybe_symm)
-            and is_commute(maybe_u, np.diagflat(diags))
-        ):
-            break
-    return diags, maybe_u, maybe_symm

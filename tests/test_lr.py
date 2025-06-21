@@ -30,11 +30,13 @@ from min_part.lr_decomp import (
 )
 from min_part.molecules import mol_h2
 from min_part.tensor import (
-    get_n_body_tensor,
-    symmetricND,
-    artifical_h2_tbt,
+    get_n_body_tensor_chemist_ordering,
     obt2op,
     tbt2op,
+)
+from min_part.testing_utils.sim_tensor import (
+    symmetricND,
+    artifical_h2_tbt,
     get_chem_tensors,
 )
 from min_part.utils import do_lr_fo
@@ -143,7 +145,10 @@ class DecompTest(unittest.TestCase):
         lr_frags_details_jl = lr_decomp(sym_ten)
         jl_ten = reduce(
             lambda a, b: a + b,
-            [get_n_body_tensor(l.operators, 2, 4) for l in lr_frags_details_jl],
+            [
+                get_n_body_tensor_chemist_ordering(l.operators, 2, 4)
+                for l in lr_frags_details_jl
+            ],
             empty,
         )
         np.testing.assert_allclose(jl_ten, sym_ten, atol=tol, rtol=tol)
@@ -166,7 +171,10 @@ class DecompTest(unittest.TestCase):
         lr_frags_details_jl = lr_decomp(sym_ten)
         jl_ten = reduce(
             lambda a, b: a + b,
-            [get_n_body_tensor(l.operators, 2, 4) for l in lr_frags_details_jl],
+            [
+                get_n_body_tensor_chemist_ordering(l.operators, 2, 4)
+                for l in lr_frags_details_jl
+            ],
             empty,
         )
         np.testing.assert_allclose(jl_ten, sym_ten, atol=tol, rtol=tol)
@@ -191,7 +199,7 @@ class DecompTest(unittest.TestCase):
         for i, lr_frag in enumerate(lr_frags_details):
             pt_t = lr_params[i][2]
             np.testing.assert_array_almost_equal(
-                get_n_body_tensor(lr_frag.operators, 2, 4), pt_t
+                get_n_body_tensor_chemist_ordering(lr_frag.operators, 2, 4), pt_t
             )
         lr_operators = reduce(
             lambda a, b: a + b, [f.operators for f in lr_frags_details]
@@ -209,7 +217,10 @@ class DecompTest(unittest.TestCase):
         lr_frags_details_jl = lr_decomp(sym_ten)
         jl_ten = reduce(
             lambda a, b: a + b,
-            [get_n_body_tensor(l.operators, 2, 4) for l in lr_frags_details_jl],
+            [
+                get_n_body_tensor_chemist_ordering(l.operators, 2, 4)
+                for l in lr_frags_details_jl
+            ],
         )
         np.testing.assert_array_almost_equal(jl_ten, sym_ten)
 
@@ -233,5 +244,6 @@ class DecompTest(unittest.TestCase):
             )
         for l in lr_frags_details_jl:
             np.testing.assert_array_almost_equal(
-                get_lr_fragment_tensor(l), get_n_body_tensor(l.operators, 2, 4)
+                get_lr_fragment_tensor(l),
+                get_n_body_tensor_chemist_ordering(l.operators, 2, 4),
             )

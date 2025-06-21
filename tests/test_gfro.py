@@ -25,7 +25,8 @@ from min_part.gfro_decomp import (
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
-from min_part.tensor import get_no_from_tensor, obt2op, tbt2op, get_chem_tensors
+from min_part.tensor import get_no_from_tensor, obt2op, tbt2op
+from min_part.testing_utils.sim_tensor import get_chem_tensors
 
 
 class DecompTest(unittest.TestCase):

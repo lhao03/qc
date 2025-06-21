@@ -6,13 +6,13 @@ from openfermion import count_qubits, FermionOperator
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import (
-    get_n_body_tensor,
+    get_n_body_tensor_chemist_ordering,
     get_n_body_fo,
     is_chemist_ordered,
     obt2op,
     tbt2op,
-    get_chem_tensors,
 )
+from min_part.testing_utils.sim_tensor import get_chem_tensors
 
 
 class ConversionTest(unittest.TestCase):
@@ -45,17 +45,17 @@ class ConversionTest(unittest.TestCase):
     def test_fake_1b_fo_2_tensor(self):
         coeff = -1.7
         fake_2b_fo = FermionOperator("3^ 1 2^ 0", coeff)
-        tensor = get_n_body_tensor(fake_2b_fo, 2, 4)
+        tensor = get_n_body_tensor_chemist_ordering(fake_2b_fo, 2, 4)
         fo = tbt2op(tensor)
         self.assertEqual(tensor[3][1][2][0], coeff)
         self.assertEqual(fake_2b_fo, fo)
 
     def test_1b_fo_2_tensor(self):
-        tensor = get_n_body_tensor(self.H_ob_op, 1, 4)
+        tensor = get_n_body_tensor_chemist_ordering(self.H_ob_op, 1, 4)
         self.assertTrue(np.array_equal(tensor, self.H_obt))
 
     def test_2b_fo_2_tensor(self):
-        tensor = get_n_body_tensor(self.H_tb_op, 2, 4)
+        tensor = get_n_body_tensor_chemist_ordering(self.H_tb_op, 2, 4)
         self.assertTrue(np.array_equal(self.H_tbt, tensor))
 
     def test_3b_fo_2_tensor(self):

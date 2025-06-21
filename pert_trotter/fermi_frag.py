@@ -12,7 +12,8 @@ from min_part.ffrag_utils import (
     get_u_from_angles,
     sdgfro_frags_generator,
 )
-from min_part.tensor import spac2spin, obt2tbt, obt2op, tbt2op, get_chem_tensors
+from min_part.tensor import spac2spin, obt2tbt, obt2op, tbt2op
+from min_part.testing_utils.sim_tensor import get_chem_tensors
 from . import config
 import pickle
 import numpy as np

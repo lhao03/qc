@@ -4,7 +4,11 @@ import numpy as np
 from hypothesis import given
 from opt_einsum import contract
 
-from min_part.testing_utils.sim_tensor import generate_symm_unitary_matrices
+from min_part.testing_utils.sim_tensor import (
+    generate_symm_unitary_matrices,
+    make_tensors_n2,
+    make_tensors_h2,
+)
 
 
 class TensorTest(unittest.TestCase):
@@ -45,3 +49,7 @@ class TensorTest(unittest.TestCase):
             contract("r,pr,qr->pq", diags, u, u),
             contract("r,pr,qr->pq", vals, vecs, vecs),
         )
+
+    def test_molecules(self):
+        H_const, H_obt, H_tbt = make_tensors_n2(1)
+        H_const, H_obt, H_tbt = make_tensors_h2(1)
