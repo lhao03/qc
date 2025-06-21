@@ -1,4 +1,0 @@
-# file: /Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/min_part/gfro_decomp.py
-# hypothesis_version: 6.135.7
-
-[-0.001, 0.0, 1e-06, 0.001, 100, 10000, 'L-BFGS-B', 'disp', 'lm,lp,lq,mr,ms->pqrs', 'maxiter']

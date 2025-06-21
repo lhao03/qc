@@ -1,4 +1,0 @@
-# file: /Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/min_part/tensor_utils.py
-# hypothesis_version: 6.135.7
-
-[0.5, 'complex128', 'i,pi,qi,ri,si->pqrs', 'ij,pi,qj -> pq']
