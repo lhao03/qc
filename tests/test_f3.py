@@ -142,6 +142,7 @@ class FluidFragmentTest(unittest.TestCase):
             )
         tensors_equal(H_tbt, gfro_h2_frags, H_tbt.shape[0])
 
+    # PASS
     @given(
         st.lists(
             st.floats(-2, 2, allow_nan=False, allow_infinity=False),
