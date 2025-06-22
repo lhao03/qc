@@ -14,6 +14,7 @@ Nums = List[int] | List[float] | np.ndarray
 class FluidCoeff:
     coeff: float
     thetas: Nums
+    diag_thetas: Optional[Nums] = None
 
 
 @dataclass

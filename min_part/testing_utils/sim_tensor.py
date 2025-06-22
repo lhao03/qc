@@ -204,23 +204,26 @@ def get_chem_tensors(H, N=None):
                 return const, chem_obt, chem_tbt
 
 
+def is_special_unitary(m):
+    return (
+        isclose(np.linalg.det(m), 1)
+        and np.allclose(m @ m.T, np.identity(m.shape[0]))
+        and np.allclose(m, m.T)
+        and np.allclose(m, np.linalg.inv(m))
+    )
+
+
+def is_symmetric(m):
+    return np.allclose(m, m.T)
+
+
+def is_commute(q, l):
+    assert l.shape == q.shape
+    return np.allclose(q @ l, l @ q)
+
+
 @st.composite
 def generate_symm_unitary_matrices(draw, n):
-    def is_special_unitary(m):
-        return (
-            isclose(np.linalg.det(m), 1)
-            and np.allclose(m @ m.T, np.identity(n))
-            and np.allclose(m, m.T)
-            and np.allclose(m, np.linalg.inv(m))
-        )
-
-    def is_symmetric(m):
-        return np.allclose(m, m.T)
-
-    def is_commute(q, l):
-        assert l.shape == (n, n)
-        return np.allclose(q @ l, l @ q)
-
     i = 0
     while True:
         i += 1
@@ -256,11 +259,33 @@ def generate_symm_unitary_matrices(draw, n):
     return diags, maybe_u, maybe_symm
 
 
+def rand_symm_matr(n):
+    i = 0
+    while True:
+        i += 1
+        A = np.random.uniform(-2, 2, (n, n))
+        A = (A + A.T) / 2
+        eigenvals, eigenvecs = np.linalg.eigh(A)
+        new_eigenvals = np.random.choice([-1, 1], size=n)
+        maybe_u = eigenvecs @ np.diag(new_eigenvals) @ eigenvecs.T
+        assert np.allclose(maybe_u, maybe_u.T)
+        diags = np.random.uniform(-1, 1, 4)
+        maybe_symm = maybe_u @ np.diagflat(diags) @ maybe_u.T
+        if (
+            is_special_unitary(maybe_u)
+            and is_symmetric(maybe_symm)
+            and is_commute(maybe_u, np.diagflat(diags))
+        ):
+            break
+    return diags, maybe_u, maybe_symm
+
+
 def make_tensors_h2(bond_length):
     mol = mol_h2(bond_length)
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
     return get_chem_tensors(H=H, N=n_qubits)
+
 
 def make_tensors_n2(bond_length):
     mol = mol_n2(bond_length)

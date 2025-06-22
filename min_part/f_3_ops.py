@@ -194,7 +194,11 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     for orb, fluid_part in self.fluid_lambdas:
         fluid_l = np.zeros((n,))
         fluid_l[orb] = fluid_part.coeff
-        unitary = make_unitary(fluid_part.thetas, n)
+        unitary = (
+            make_unitary_im(fluid_part.thetas, fluid_part.diag_thetas, n)
+            if isinstance(fluid_part.diag_thetas, np.ndarray)
+            else make_unitary(fluid_part.thetas, n)
+        )
         fluid_h = contract(
             "r,rp,rq->pq",
             fluid_l,

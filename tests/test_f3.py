@@ -37,7 +37,7 @@ from min_part.tensor import (
 from min_part.testing_utils.sim_tensor import (
     generate_symm_unitary_matrices,
 )
-from min_part.testing_utils.sim_molecules import H_2_GFRO, specfic_gfro_decomp
+from min_part.testing_utils.sim_molecules import H_2_GFRO
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")
@@ -157,24 +157,28 @@ class FluidFragmentTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(diags, gfro_frag.get_ob_lambdas())
 
-    # @given(H_2_GFRO(), generate_symm_unitary_matrices(n=4), st.integers(0, 3))
+    @given(H_2_GFRO(), generate_symm_unitary_matrices(n=4), st.integers(0, 3))
+    @settings(max_examples=10)
     def test_moving_coeffs_obf_same_dim_matrices(
         self,
-        obt_plusextra=specfic_gfro_decomp(1),
-        vals_vecs_symm=generate_symm_unitary_matrices(n=4),
-        orb=0,
+        obt_plusextra,  # =specfic_gfro_decomp(1)
+        vals_vecs_symm,  # =rand_symm_matr(4)
+        orb,  # =0
     ):
         H_obt, _, _, _ = obt_plusextra
         eigs, U, symm_mat = vals_vecs_symm
         coeff = eigs[orb] / 2
         ob_f = obt2fluid(H_obt)
         thetas, diags = extract_thetas(U)
-        ob_f.fluid_lambdas.append((orb, FluidCoeff(coeff=coeff, thetas=thetas)))
+        ob_f.fluid_lambdas.append(
+            (orb, FluidCoeff(coeff=coeff, thetas=thetas, diag_thetas=diags))
+        )
         tensor_total = H_obt + symm_mat
         operator_total = obt2op(tensor_total)
         eigs[orb] -= coeff
         u = make_unitary_im(thetas, diags, 4)
-        frag_ten = contract("r,rp,rq->pq", eigs, u)
+        np.testing.assert_array_almost_equal(u, U)
+        frag_ten = contract("r,rp,rq->pq", eigs, u, u)
         fluid_tensor = ob_f.to_tensor() + frag_ten
         fluid_operator = obt2op(fluid_tensor)
         np.testing.assert_array_almost_equal(tensor_total, fluid_tensor)
