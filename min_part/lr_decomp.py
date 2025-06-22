@@ -1,13 +1,11 @@
 from typing import Any, List
 
 import numpy as np
-import scipy as sp
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
-from min_part.gfro_decomp import make_x_matrix, extract_thetas
 from min_part.julia_ops import lr_decomp_params
-from min_part.tensor import tbt2op
+from min_part.tensor import tbt2op, extract_thetas, make_unitary_im
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -89,11 +87,6 @@ def get_lr_fragment_tensor_from_parts(
     coeffs = np.array(coeffs)
     u = make_unitary_im(thetas=thetas, diags=diags, n=diags.size)
     return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
-
-
-def make_unitary_im(thetas, diags, n):
-    X = make_x_matrix(np.array(thetas), n, diags=diags, imag=True)
-    return sp.linalg.expm(X)
 
 
 def lr_fragment_occ(

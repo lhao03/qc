@@ -14,13 +14,10 @@ from d_types.fragment_types import (
     OneBodyFragment,
 )
 from min_part.gfro_decomp import (
-    make_unitary,
-    extract_thetas,
     make_fr_tensor_from_u,
 )
 from min_part.julia_ops import solve_quad
-from min_part.lr_decomp import make_unitary_im
-from min_part.tensor import obt2op
+from min_part.tensor import obt2op, make_unitary, make_unitary_im
 
 
 # == GFRO Helpers
@@ -172,10 +169,8 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     V, U = np.linalg.eigh(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
-    thetas, diags = extract_thetas(U)
     return OneBodyFragment(
-        thetas=thetas,
-        diag_thetas=diags,
+        unitary=U,
         lambdas=V,
         fluid_lambdas=[],
         operators=obt2op(obt),
@@ -184,12 +179,11 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = self.lambdas.size
-    orig_U = make_unitary_im(thetas=self.thetas, diags=self.diag_thetas, n=n)
     h_pq = contract(
         "r,pr,qr->pq",
         self.lambdas,
-        orig_U,
-        orig_U,
+        self.unitary,
+        self.unitary,
     )
     for orb, fluid_part in self.fluid_lambdas:
         fluid_l = np.zeros((n,))

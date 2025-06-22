@@ -13,12 +13,11 @@ from openfermion import (
 )
 from openfermion.linalg import qubit_operator_sparse
 
-from min_part.gfro_decomp import make_unitary, gfro_decomp
+from min_part.gfro_decomp import gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import lr_decomp
 from min_part.molecules import h2_settings
-from min_part.tensor import obt2op, tbt2op
-from min_part.testing_utils.sim_tensor import get_chem_tensors
+from min_part.tensor import obt2op, tbt2op, make_unitary
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,
@@ -27,6 +26,7 @@ from min_part.utils import (
     get_saved_file_names,
 )
 from min_part.plots import plot_energies, PlotNames
+from testing_utils.sim_tensor import get_chem_tensors
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")

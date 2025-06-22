@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import List
 
+import numpy as np
+
+Nums = List[int] | List[float] | np.ndarray
+
 
 @dataclass
 class LowerBoundConfig:

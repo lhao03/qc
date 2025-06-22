@@ -1,10 +1,13 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 import scipy as sp
+from numpy import isclose
 from openfermion import FermionOperator, count_qubits
 
 from opt_einsum import contract
+
+from d_types.config_types import Nums
 
 
 def is_chemist_ordered(term: Tuple) -> bool:
@@ -353,3 +356,109 @@ def get_chem_tensors_hubbard(H_chem, N=None):  # Does not work in general.
             const += value
 
     return const, chem_obt, chem_tbt
+
+
+def make_x_matrix(
+    thetas: np.ndarray, n: int, diags: Optional[np.ndarray] = None, imag: bool = False
+) -> np.ndarray:
+    """Makes the X matrix required to define a unitary orbital rotation, where
+
+    U = e^X
+
+    Elements are filled into X starting at a diagonal element at (i, i) and then filling the ith column and ith row.
+
+    So given an N by N matrix, we use n elements in theta for the 1st row and column, then (n-1) elements for the 2nd
+    row and column, etc...
+
+    Args:
+        thetas: angles required to make the X matrix, need N(N+1)/2 angles
+        n: used for the dimension of the X matrix
+
+    Returns:
+        an N by N matrix
+    """
+    expected_num_angles = (n * (n + 1) // 2) - n
+    if thetas.size != expected_num_angles:
+        raise UserWarning(
+            f"Expected {expected_num_angles} angles for a {n} by {n} X matrix, got {thetas.size}."
+        )
+    if imag:
+        if not isinstance(diags, np.ndarray):
+            raise UserWarning(
+                "Since the X matrix might be imaginary, there might be diagonal elements."
+            )
+    X = np.zeros((n, n), dtype=np.complex128 if imag else np.float64)
+    t = 0
+    for x in range(n):
+        for y in range(x + 1, n):
+            val = thetas[t]
+            v_real = val.real
+            v_imag = val.imag
+            if not isclose(0, v_real) and not isclose(0, v_imag):
+                X[x][y] = complex(real=-v_real, imag=v_imag)
+                X[y][x] = complex(real=v_real, imag=v_imag)
+            elif not isclose(0, v_real) and isclose(0, v_imag):
+                X[x][y] = -v_real
+                X[y][x] = v_real
+            elif isclose(0, v_real) and not isclose(0, v_imag):
+                X[x][y] = complex(real=0, imag=v_imag)
+                X[y][x] = complex(real=0, imag=v_imag)
+            else:
+                pass
+            t += 1
+    if imag:
+        for i, d in enumerate(diags):
+            if not isclose(d, 0):
+                X[i, i] = d
+    return X
+
+
+def make_unitary(thetas: Nums, n: int, imag: bool = False) -> np.ndarray:
+    X = make_x_matrix(np.array(thetas), n, imag=imag)
+    u = sp.linalg.expm(X)
+    u.setflags(write=True)
+    num_err = np.finfo(u.dtype).eps
+    tol = num_err * 10
+    u.real[abs(u.real) < tol] = 0.0
+    return u
+
+
+def make_lambda_matrix(lambdas: np.ndarray, n: int) -> np.ndarray:
+    expected_size = n * (n + 1) // 2
+    if lambdas.size != expected_size:
+        raise UserWarning(
+            f"Expected {expected_size} angles for a {n} by {n} lambda matrix, got {lambdas.size}."
+        )
+    l = np.random.rand(n, n)
+    t = 0
+    for x in range(n):
+        for y in range(x, n):
+            l[y][x] = lambdas[t]
+            l[x][y] = lambdas[t]
+            t += 1
+    return l
+
+
+def extract_thetas(U) -> Tuple[Nums, Nums]:
+    """Extracts theta values from a unitary matrix paramertized by real amplitudes.
+    Args:
+        U: the unitary
+
+    Returns:
+        theta values
+    """
+    X: np.ndarray = sp.linalg.logm(U)
+    m = ((U.shape[0] * (U.shape[0] + 1)) // 2) - U.shape[0]
+    thetas = np.zeros((m,), dtype=np.complex128)
+    u = U.shape[0]
+    counter = 0
+    for i in range(u - 1):
+        for j in range(i + 1, u):
+            thetas[counter] = X[j, i]
+            counter += 1
+    return thetas, X.diagonal()
+
+
+def make_unitary_im(thetas, diags, n):
+    X = make_x_matrix(np.array(thetas), n, diags=diags, imag=True)
+    return sp.linalg.expm(X)

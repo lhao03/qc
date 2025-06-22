@@ -2,7 +2,7 @@ from hypothesis import strategies as st
 
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
-from min_part.testing_utils.sim_tensor import make_tensors_h2
+from testing_utils.sim_tensor import make_tensors_h2
 
 
 def specfic_gfro_decomp(bond_length):

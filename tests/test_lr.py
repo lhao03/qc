@@ -11,7 +11,7 @@ from openfermion import (
     count_qubits,
 )
 
-from min_part.gfro_decomp import make_fr_tensor_from_u, make_x_matrix, extract_thetas
+from min_part.gfro_decomp import make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.julia_ops import (
     rowwise_reshape,
@@ -26,20 +26,19 @@ from min_part.lr_decomp import (
     lr_decomp,
     get_lr_fragment_tensor_from_parts,
     get_lr_fragment_tensor,
-    make_unitary_im,
 )
 from min_part.molecules import mol_h2
 from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
     obt2op,
     tbt2op,
+    make_x_matrix,
+    extract_thetas,
+    make_unitary_im,
 )
-from min_part.testing_utils.sim_tensor import (
-    symmetricND,
-    artifical_h2_tbt,
-    get_chem_tensors,
-)
+
 from min_part.utils import do_lr_fo
+from testing_utils.sim_tensor import get_chem_tensors, symmetricND, artifical_h2_tbt
 
 torch.set_default_tensor_type(torch.DoubleTensor)
 settings.register_profile("fast", deadline=None)

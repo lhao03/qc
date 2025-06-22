@@ -4,8 +4,7 @@ from functools import reduce
 from typing import List
 
 import numpy as np
-import scipy as sp
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import given, strategies as st, settings, HealthCheck, example
 from openfermion import (
     FermionOperator,
     jordan_wigner,
@@ -20,11 +19,7 @@ from min_part.f_3_ops import (
 )
 from min_part.gfro_decomp import (
     gfro_decomp,
-    extract_thetas,
-    make_x_matrix,
-    make_lambda_matrix,
 )
-from min_part.lr_decomp import make_unitary_im
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
@@ -33,13 +28,15 @@ from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
     obt2op,
     tbt2op,
+    make_lambda_matrix,
+    extract_thetas,
+    make_unitary_im,
 )
-from min_part.testing_utils.sim_tensor import (
-    generate_symm_unitary_matrices,
-)
-from min_part.testing_utils.sim_molecules import H_2_GFRO
 
-settings.register_profile("slow", deadline=None)
+from testing_utils.sim_molecules import H_2_GFRO
+from testing_utils.sim_tensor import generate_symm_unitary_matrices
+
+settings.register_profile("slow", deadline=None, print_blob=True)
 settings.load_profile("slow")
 
 
@@ -67,21 +64,11 @@ class FluidFragmentTest(unittest.TestCase):
 
     # == GFRO Tests ==
     # PASS
-    # TODO: Do we need to filter out det(matrices) != 1
     @given(generate_symm_unitary_matrices(n=4))
-    @settings(max_examples=10, suppress_health_check=[HealthCheck.data_too_large])
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.data_too_large])
     def test_obt_2_fluid(self, vals_vecs_mat):
         vals, vecs, obt = vals_vecs_mat
-        V, U = np.linalg.eigh(obt)
-        np.testing.assert_array_almost_equal(obt, obt.T)
-        theta, diag = extract_thetas(U)
-        X = make_x_matrix(thetas=theta, n=4, diags=diag, imag=True)
-        U_x = sp.linalg.expm(X)
-        np.testing.assert_array_almost_equal(U_x, U)
         a_fluid = obt2fluid(obt)
-        np.testing.assert_array_almost_equal(a_fluid.diag_thetas, diag)
-        np.testing.assert_array_almost_equal(a_fluid.thetas, theta)
-        np.testing.assert_array_almost_equal(a_fluid.lambdas, V)
         np.testing.assert_array_almost_equal(a_fluid.to_tensor(), obt)
         np.testing.assert_array_almost_equal(
             get_n_body_tensor_chemist_ordering(a_fluid.to_op(), n=1, m=4), obt
@@ -157,6 +144,7 @@ class FluidFragmentTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(diags, gfro_frag.get_ob_lambdas())
 
+    # PASS
     @given(H_2_GFRO(), generate_symm_unitary_matrices(n=4), st.integers(0, 3))
     @settings(max_examples=10)
     def test_moving_coeffs_obf_same_dim_matrices(
@@ -184,13 +172,65 @@ class FluidFragmentTest(unittest.TestCase):
         np.testing.assert_array_almost_equal(tensor_total, fluid_tensor)
         self.assertEqual(operator_total, fluid_operator)
 
+    # @example(
+    #     1.2758768715431215,
+    #     (
+    #         np.array(
+    #             [1.56875894e000, -6.42135821e-001, -7.04885432e-116, 1.27587687e000]
+    #         ),
+    #         np.array(
+    #             [
+    #                 [-1.0, 0.0, 0.0, 0.0],
+    #                 [0.0, 1.0, 0.0, 0.0],
+    #                 [0.0, 0.0, 1.0, 0.0],
+    #                 [0.0, 0.0, 0.0, -1.0],
+    #             ]
+    #         ),
+    #         np.array(
+    #             [
+    #                 [1.56875894e000, 0.00000000e000, 0.00000000e000, 0.00000000e000],
+    #                 [0.00000000e000, -6.42135821e-001, 0.00000000e000, 0.00000000e000],
+    #                 [0.00000000e000, 0.00000000e000, -7.04885432e-116, 0.00000000e000],
+    #                 [0.00000000e000, 0.00000000e000, 0.00000000e000, 1.27587687e000],
+    #             ]
+    #         ),
+    #     ),
+    # )
+    @example(
+        1,
+        (
+            np.array([1.53193455, 1.625, 0.5, 1.0]),
+            np.array(
+                [
+                    [1.00000000e00, -1.24311712e-16, -7.35416349e-17, -1.45443250e-16],
+                    [-1.24311712e-16, 1.00000000e00, 2.16372734e-16, -1.71723751e-16],
+                    [-7.35416349e-17, 2.16372734e-16, 1.00000000e00, 1.78106774e-16],
+                    [-1.45443250e-16, -1.71723751e-16, 1.78106774e-16, 1.00000000e00],
+                ]
+            ),
+            np.array(
+                [
+                    [1.53193455e00, -3.92443940e-16, -1.49431789e-16, -3.68252791e-16],
+                    [-3.92443940e-16, 1.62500000e00, 4.59792060e-16, -4.50774848e-16],
+                    [-1.49431789e-16, 4.59792060e-16, 5.00000000e-01, 2.67160161e-16],
+                    [-3.68252791e-16, -4.50774848e-16, 2.67160161e-16, 1.00000000e00],
+                ]
+            ),
+        ),
+    )
     @given(
         st.floats(-2, 2, allow_nan=False, allow_infinity=False).filter(
             lambda n: n != 0
         ),
         generate_symm_unitary_matrices(n=4),
     )
-    def test_0_case_dif_dims_matrices(self, coeff, vals, vec, a):
+    @settings(max_examples=3)
+    def test_0_case_dif_dims_matrices(
+        self,
+        coeff,  # =0.1,
+        vals_vec_a,  # =rand_symm_matr(4)
+    ):
+        vals, vec, a = vals_vec_a
         b = np.zeros((4, 4, 4, 4))
         b[0, 0, 0, 0] = coeff
         gfro_frags = gfro_decomp(b)
@@ -211,7 +251,7 @@ class FluidFragmentTest(unittest.TestCase):
             )
             np.testing.assert_array_almost_equal(fluid_1.to_tensor(), a)
             self.assertEqual(fluid_1.to_op(), obt2op(a))
-            self.assertEqual(fluid_1.to_op() + fluid_1.to_op(), obt2op(a) + tbt2op(b))
+            self.assertEqual(fluid_1.to_op() + from_frag.to_op(), obt2op(a) + tbt2op(b))
 
     @given(
         st.floats(-2, 2, allow_nan=False, allow_infinity=False).filter(

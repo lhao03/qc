@@ -11,8 +11,8 @@ from min_part.gfro_decomp import gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2, h2_settings
 from min_part.tensor import obt2op, tbt2op
-from min_part.testing_utils.sim_tensor import get_chem_tensors
 from min_part.utils import open_frags, save_frags, get_saved_file_names
+from testing_utils.sim_tensor import get_chem_tensors
 
 
 class SavingTest(unittest.TestCase):

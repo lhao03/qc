@@ -3,11 +3,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from openfermion import FermionOperator
-import numpy as np
 
-from min_part.tensor import tbt2op
-
-Nums = List[int] | List[float] | np.ndarray
+from d_types.config_types import Nums
 
 
 @dataclass
@@ -26,8 +23,7 @@ class FluidParts:
 @dataclass
 class OneBodyFragment:
     fluid_lambdas: List[Tuple[int, FluidCoeff]]
-    thetas: Nums
-    diag_thetas: Nums
+    unitary: Nums
     lambdas: Nums
     operators: FermionOperator
 
@@ -178,3 +174,5 @@ from min_part.f_3_ops import (  # noqa: E402
     fluid_ob2op,
     fluid_ob2ten,
 )
+
+from min_part.tensor import tbt2op

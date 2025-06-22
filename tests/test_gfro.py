@@ -11,22 +11,26 @@ from openfermion import (
 )
 
 from min_part.gfro_decomp import (
-    make_x_matrix,
-    make_unitary,
     gfro_cost,
     frob_norm,
     gfro_decomp,
-    make_lambda_matrix,
     generate_occupied_spin_orb_permutations,
     gfro_fragment_occ,
     make_fr_tensor,
     make_fr_tensor_from_u,
-    extract_thetas,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
-from min_part.tensor import get_no_from_tensor, obt2op, tbt2op
-from min_part.testing_utils.sim_tensor import get_chem_tensors
+from min_part.tensor import (
+    get_no_from_tensor,
+    obt2op,
+    tbt2op,
+    make_x_matrix,
+    make_unitary,
+    make_lambda_matrix,
+    extract_thetas,
+)
+from testing_utils.sim_tensor import get_chem_tensors
 
 
 class DecompTest(unittest.TestCase):
