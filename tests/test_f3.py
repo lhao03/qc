@@ -37,7 +37,7 @@ from min_part.tensor import (
 from min_part.testing_utils.sim_tensor import (
     generate_symm_unitary_matrices,
 )
-from min_part.testing_utils.sim_molecules import H_2_GFRO
+from min_part.testing_utils.sim_molecules import H_2_GFRO, specfic_gfro_decomp
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")
@@ -157,21 +157,28 @@ class FluidFragmentTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(diags, gfro_frag.get_ob_lambdas())
 
-    @given(H_2_GFRO())
+    # @given(H_2_GFRO(), generate_symm_unitary_matrices(n=4), st.integers(0, 3))
     def test_moving_coeffs_obf_same_dim_matrices(
-        self, H_obt_H_tbt_gfro_h2_frags_lr_h2_frags
+        self,
+        obt_plusextra=specfic_gfro_decomp(1),
+        vals_vecs_symm=generate_symm_unitary_matrices(n=4),
+        orb=0,
     ):
-        H_obt, H_tbt, gfro_h2_frags, lr_h2_frags = H_obt_H_tbt_gfro_h2_frags_lr_h2_frags
-        coeff = (
-            np.random.uniform(low=H_obt[0][0], high=0, size=1)
-            if H_obt[0][0] < 0
-            else np.random.uniform(low=0, high=H_obt[0][0], size=1)
-        )
+        H_obt, _, _, _ = obt_plusextra
+        eigs, U, symm_mat = vals_vecs_symm
+        coeff = eigs[orb] / 2
         ob_f = obt2fluid(H_obt)
-        ob_f.fluid_lambdas.append((0, FluidCoeff(coeff=coeff, thetas=ob_f.thetas)))
-        u = make_unitary_im(thetas=ob_f.thetas, diags=ob_f.diag_thetas, n=4)
-        frag_ten = contract("r,rp,rq->pq", [coeff, 0, 0, 0], u, u)
-        np.testing.assert_array_almost_equal(H_obt, ob_f.to_tensor() - frag_ten)
+        thetas, diags = extract_thetas(U)
+        ob_f.fluid_lambdas.append((orb, FluidCoeff(coeff=coeff, thetas=thetas)))
+        tensor_total = H_obt + symm_mat
+        operator_total = obt2op(tensor_total)
+        eigs[orb] -= coeff
+        u = make_unitary_im(thetas, diags, 4)
+        frag_ten = contract("r,rp,rq->pq", eigs, u)
+        fluid_tensor = ob_f.to_tensor() + frag_ten
+        fluid_operator = obt2op(fluid_tensor)
+        np.testing.assert_array_almost_equal(tensor_total, fluid_tensor)
+        self.assertEqual(operator_total, fluid_operator)
 
     @given(
         st.floats(-2, 2, allow_nan=False, allow_infinity=False).filter(
