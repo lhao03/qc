@@ -287,10 +287,26 @@ class FluidFragmentTest(unittest.TestCase):
             )
             self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
 
-    @given(H_2_GFRO())
-    def test_mutate_each_frag_gfro(self, H_obt_H_tbt_gfro_h2_frags_lr_h2_frags):
-        gfro_h2_frags: List[GFROFragment]
-        H_obt, H_tbt, gfro_h2_frags, bond_legnth = H_obt_H_tbt_gfro_h2_frags_lr_h2_frags
+    @given(H_2_GFRO(), st.integers(1, 20))
+    @settings(max_examples=5)
+    def test_mutate_each_frag_gfro(self, obt_tbt_frags_bl, partition):
+        frags: List[GFROFragment]
+        H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
+        obt_f = obt2fluid(H_obt)
+        for f in frags:
+            f.to_fluid()
+        for _ in partition:
+            for f in frags:
+                for i in range(4):
+                    to_move = f.fluid_parts.fluid_lambdas[i] / 20
+                    f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
+        self.assertEqual(
+            jordan_wigner(obt2op(H_obt) + tbt2op(H_tbt)),
+            jordan_wigner(obt_f.to_op() + [f.to_op() for f in frags]),
+        )
+
+    def test_rediag_1b(self):
+        pass
 
     # == LR Tests Begin ==
     def test_convert_lr_2b_to_f3(self):
@@ -300,16 +316,4 @@ class FluidFragmentTest(unittest.TestCase):
         pass
 
     def test_move_from_2b_2_1b_multiple(self):
-        pass
-
-    def test_rediag_1b(self):
-        pass
-
-    def test_add_b_eq_a_coeff_lr(self):
-        pass
-
-    def test_add_b_less_a_coeff_lr(self):
-        pass
-
-    def test_add_b_more_a_coeff_lr(self):
         pass
