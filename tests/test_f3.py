@@ -287,7 +287,7 @@ class FluidFragmentTest(unittest.TestCase):
             )
             self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
 
-    # @given(specfic_gfro_decomp(1), st.integers(1, 20))
+    # @given(st.integers(1, 20))
     # @settings(max_examples=2)
     def test_mutate_each_frag_gfro(
         self,
@@ -295,7 +295,7 @@ class FluidFragmentTest(unittest.TestCase):
         # obt_tbt_frags_bl
     ):
         frags: List[GFROFragment]
-        H_obt, H_tbt, frags, bl = specfic_gfro_decomp(1)  # obt_tbt_frags_bl
+        H_obt, H_tbt, frags, bl = specfic_gfro_decomp(0.8)  # obt_tbt_frags_bl
         obt_f = obt2fluid(H_obt)
         prev_og_op = []
         prev_fluid = []
@@ -306,23 +306,24 @@ class FluidFragmentTest(unittest.TestCase):
                 lambda a, b: a + b, prev_og_op, FermionOperator()
             )
             for i in range(4):
-                to_move = f.fluid_parts.fluid_lambdas[i] / partition
-                f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
-                fluid_op_sum = (
-                    obt_f.to_op()
-                    + f.to_op()
-                    + reduce(lambda a, b: a + b, prev_fluid, FermionOperator())
-                )
-                og_jw = jordan_wigner(og_op_sum)
-                fl_jw = jordan_wigner(fluid_op_sum)
-                print(
-                    f"Checking: moving {to_move} from {i}th spin orbital for frag {n}."
-                )
-                print(f"fluid: {f.fluid_parts.fluid_lambdas}")
-                self.assertEqual(
-                    og_jw,
-                    fl_jw,
-                )
+                for p in reversed(range(1, partition)):
+                    to_move = f.fluid_parts.fluid_lambdas[i] / p
+                    f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
+                    fluid_op_sum = (
+                        obt_f.to_op()
+                        + f.to_op()
+                        + reduce(lambda a, b: a + b, prev_fluid, FermionOperator())
+                    )
+                    og_jw = jordan_wigner(og_op_sum)
+                    fl_jw = jordan_wigner(fluid_op_sum)
+                    print(
+                        f"Checking: moving {to_move} from {i}th spin orbital for frag {n}."
+                    )
+                    print(f"fluid: {f.fluid_parts.fluid_lambdas}")
+                    self.assertEqual(
+                        og_jw,
+                        fl_jw,
+                    )
             prev_fluid.append(f.operators)
         self.assertEqual(
             jordan_wigner(obt2op(H_obt) + tbt2op(H_tbt)),

@@ -125,6 +125,7 @@ class GFROFragment(FermionicFragment):
         Returns:
             the mutated/new GFROFragment and OneBodyFragment(no
         """
+        assert isinstance(coeff, float) or isinstance(coeff, int)
         return move_onebody_coeff_gfro(self, to, coeff, orb, mutate)
 
 
