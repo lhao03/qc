@@ -364,7 +364,7 @@ class FluidFragmentTest(unittest.TestCase):
 
     # PASS
     @given(H_2_LR())
-    @settings(max_examples=5)
+    @settings(max_examples=30)
     def test_lr_fluid_to_tensor(self, obt_tbt_lr_bl):
         lr_frags: List[LRFragment]
         H_obt, H_tbt, lr_frags, bl = obt_tbt_lr_bl

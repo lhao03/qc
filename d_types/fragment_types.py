@@ -63,6 +63,10 @@ class FermionicFragment:
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):
         raise NotImplementedError
 
+    @abstractmethod
+    def to_tensor(self):
+        raise NotImplementedError
+
 
 @dataclass
 class GFROFragment(FermionicFragment):
@@ -133,6 +137,9 @@ class GFROFragment(FermionicFragment):
 
 @dataclass
 class LRFragment(FermionicFragment):
+    def to_tensor(self):
+        return fluid_lr_2tensor(self)
+
     coeffs: Nums
     diag_thetas: Nums
     outer_coeff: float
