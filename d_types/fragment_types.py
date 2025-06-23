@@ -23,9 +23,11 @@ class FluidParts:
 @dataclass
 class OneBodyFragment:
     fluid_lambdas: List[Tuple[int, FluidCoeff]]
-    unitary: Nums
     lambdas: Nums
+    thetas: Nums
     operators: FermionOperator
+    diag_thetas: Optional[Nums] = None
+    unitary: Optional[Nums] = None
 
     def to_op(self):
         return fluid_ob2op(self)

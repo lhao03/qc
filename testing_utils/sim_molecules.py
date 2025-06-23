@@ -20,9 +20,9 @@ def H_2_LR(draw):
 
 
 @st.composite
-def H_2_GFRO(draw):
+def H_2_GFRO(draw, tol=1e-6):
     bond_length = draw(st.floats(0.2, 3))
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    gfro_h2_frags = gfro_decomp(H_tbt)
+    gfro_h2_frags = gfro_decomp(H_tbt, tol)
     print(f"bond length: {bond_length}")
     return H_obt, H_tbt, gfro_h2_frags, bond_length

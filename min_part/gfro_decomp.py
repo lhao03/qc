@@ -74,7 +74,7 @@ def gfro_cost(lambdas, thetas, g_pqrs, n):
 
 def gfro_decomp(
     tbt: np.ndarray,
-    threshold=1e-6,
+    threshold=1e-10,
     max_iter: int = 10000,
     only_proceed_if_success: bool = False,
     debug: bool = False,

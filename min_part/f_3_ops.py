@@ -16,8 +16,8 @@ from d_types.fragment_types import (
 from min_part.gfro_decomp import (
     make_fr_tensor_from_u,
 )
-from min_part.julia_ops import solve_quad
-from min_part.tensor import obt2op, make_unitary, make_unitary_im
+from min_part.julia_ops import solve_quad, jl_make_u_im, jl_make_u, jl_extract_thetas
+from min_part.tensor import obt2op, make_unitary
 
 
 # == GFRO Helpers
@@ -169,29 +169,56 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     V, U = np.linalg.eigh(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
-    return OneBodyFragment(
-        unitary=U,
-        lambdas=V,
-        fluid_lambdas=[],
-        operators=obt2op(obt),
-    )
+    try:
+        if np.isclose(np.linalg.det(U), -1):
+            U[:, [0, 1]] = U[:, [1, 0]]
+            prev_0 = V[0]
+            prev_1 = V[1]
+            V[0] = prev_1
+            V[1] = prev_0
+        thetas, diags = jl_extract_thetas(U)
+        return OneBodyFragment(
+            thetas=thetas,
+            diag_thetas=None if np.allclose(diags, np.zeros((obt.shape[0]))) else diags,
+            lambdas=V,
+            fluid_lambdas=[],
+            operators=obt2op(obt),
+        )
+    except RuntimeError:
+        U[:, [0, 1]] = U[:, [1, 0]]
+        prev_0 = V[0]
+        prev_1 = V[1]
+        V[0] = prev_1
+        V[1] = prev_0
+        return OneBodyFragment(
+            unitary=U, lambdas=V, fluid_lambdas=[], operators=obt2op(obt), thetas=None
+        )
 
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = self.lambdas.size
+    unitary = (
+        self.unitary
+        if isinstance(self.unitary, np.ndarray)
+        else (
+            jl_make_u_im(self.thetas, self.diag_thetas, n)
+            if isinstance(self.diag_thetas, np.ndarray)
+            else jl_make_u(self.thetas, n)
+        )
+    )
     h_pq = contract(
         "r,pr,qr->pq",
         self.lambdas,
-        self.unitary,
-        self.unitary,
+        unitary,
+        unitary,
     )
     for orb, fluid_part in self.fluid_lambdas:
         fluid_l = np.zeros((n,))
         fluid_l[orb] = fluid_part.coeff
         unitary = (
-            make_unitary_im(fluid_part.thetas, fluid_part.diag_thetas, n)
+            jl_make_u_im(fluid_part.thetas, fluid_part.diag_thetas, n)
             if isinstance(fluid_part.diag_thetas, np.ndarray)
-            else make_unitary(fluid_part.thetas, n)
+            else jl_make_u(fluid_part.thetas, n)
         )
         fluid_h = contract(
             "r,rp,rq->pq",
