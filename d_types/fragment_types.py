@@ -6,6 +6,8 @@ from openfermion import FermionOperator
 
 from d_types.config_types import Nums
 
+from min_part.tensor import tbt2op
+
 
 @dataclass
 class FluidCoeff:
@@ -68,7 +70,7 @@ class GFROFragment(FermionicFragment):
     fluid_parts: Optional[FluidParts] = None
 
     def get_ob_lambdas(self):
-        """Returns the one-body part from a lambda matrix formed after LR or GFRO decomposition.
+        """Returns the one-body part from a lambda matrix formed after GFRO decomposition.
         Args:
             self: a GFRO fragment
 
@@ -82,19 +84,19 @@ class GFROFragment(FermionicFragment):
         This procedure assumes a GFRO fragment works
 
         """
-        return remove_obt_gfro(self)
+        return remove_obp_gfro(self)
 
-    def to_fluid(self):
+    def to_fluid(self, performant: bool = True):
         """Converts GFRO fragment to Fluid
 
         Args:
             performant: whether or not to perform extra checks. Setting this to True performs operator and equality checks.
-            frag: A fragment generated from GFRO or LR procedure.
+            self: A fragment generated from GFRO procedure.
 
         Returns:
             A fragment type ready for optimization as a fluid fermionic fragment.
         """
-        return gfro2fluid(self)
+        return gfro2fluid(self, performant=performant)
 
     def to_tensor(self):
         return fluid_gfro_2tensor(self)
@@ -129,28 +131,42 @@ class GFROFragment(FermionicFragment):
         return move_onebody_coeff_gfro(self, to, coeff, orb, mutate)
 
 
-def remove_obt_lr(self):
-    pass
-
-
 @dataclass
 class LRFragment(FermionicFragment):
     coeffs: Nums
-    diag_coeffs: Nums
+    diag_thetas: Nums
     outer_coeff: float
     fluid_parts: Optional[FluidParts] = None
 
     def get_ob_lambdas(self):
+        """Returns the one-body part from a lambda matrix formed after LR decomposition.
+        Args:
+            self: an LR fragment
+
+        Returns:
+            the one body coefficients in ascending spin orbital order, 1, 2, 3...n
+        """
         return get_obp_from_frag_lr(self)
 
     def remove_obp(self):
-        return remove_obt_lr(self)
+        return remove_obp_lr(self)
 
-    def to_fluid(self):
+    def to_fluid(self, performant: bool = True):
+        """Converts an LRFragment into fluid form, by separating out the one-body part from the two-body part,
+        if possible.
+
+        Args:
+            performant: whether or not to perform extra checks. Setting this to True performs operator and equality checks.
+            self: A fragment generated from LR procedure.
+
+        Returns:
+            A fragment type ready for optimization as a fluid fermionic fragment.
+        """
         return lr2fluid(self)
 
     def to_op(self):
-        return tbtop_lr(self)
+        self.operators = tbt2op(fluid_lr_2tensor(self))
+        return self.operators
 
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):
         return move_onebody_coeff_lr(self, to, coeff, orb, mutate)
@@ -166,16 +182,15 @@ class FragmentedHamiltonian:
 # == For importing functions and avoiding circular import error ==
 from min_part.f_3_ops import (  # noqa: E402
     get_obp_from_frag_gfro,
-    remove_obt_gfro,
+    remove_obp_gfro,
     gfro2fluid,
     fluid_gfro_2tensor,
     move_onebody_coeff_gfro,
     get_obp_from_frag_lr,
     lr2fluid,
-    tbtop_lr,
     move_onebody_coeff_lr,
     fluid_ob2op,
     fluid_ob2ten,
+    fluid_lr_2tensor,
+    remove_obp_lr,
 )
-
-from min_part.tensor import tbt2op

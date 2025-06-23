@@ -7,7 +7,12 @@ from testing_utils.sim_tensor import make_tensors_h2
 
 def specfic_gfro_decomp(bond_length):
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    return H_obt, H_tbt, gfro_decomp(H_tbt, threshold=1e-8, debug=True), None
+    return H_obt, H_tbt, gfro_decomp(H_tbt, threshold=1e-8, debug=True), bond_length
+
+
+def specfic_lr_decomp(bond_length):
+    H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
+    return H_obt, H_tbt, lr_decomp(H_tbt), bond_length
 
 
 @st.composite

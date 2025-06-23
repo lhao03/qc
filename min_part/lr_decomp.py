@@ -4,8 +4,8 @@ import numpy as np
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
-from min_part.julia_ops import lr_decomp_params
-from min_part.tensor import tbt2op, extract_thetas, make_unitary_im
+from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
+from min_part.tensor import tbt2op, make_unitary_im
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -56,7 +56,13 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     for i, lr_frag in enumerate(lr_frags):
         outer_coeff, coeffs = lr_frag[0]
         u = lr_frag[1]
-        thetas, diags = extract_thetas(u)
+        if np.isclose(np.linalg.det(u), -1):
+            u[:, [0, 1]] = u[:, [1, 0]]
+            prev_0 = coeffs[0]
+            prev_1 = coeffs[1]
+            coeffs[0] = prev_1
+            coeffs[1] = prev_0
+        thetas, diags_thetas = jl_extract_thetas(u)
         tensor = lr_frag[2]
         operators = tbt2op(tensor)
         if operators.induced_norm(2) > 1e-6:
@@ -66,7 +72,7 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
                     coeffs=coeffs,
                     operators=operators,
                     thetas=thetas,
-                    diag_coeffs=diags,
+                    diag_thetas=diags_thetas,
                 )
             )
     return lr_frag_details
@@ -77,15 +83,15 @@ def get_lr_fragment_tensor(lr_details: LRFragment):
         outer_coeff=lr_details.outer_coeff,
         coeffs=lr_details.coeffs,
         thetas=lr_details.thetas,
-        diags=lr_details.diag_coeffs,
+        diags_thetas=lr_details.diag_thetas,
     )
 
 
 def get_lr_fragment_tensor_from_parts(
-    outer_coeff: float, coeffs: Nums, thetas: Nums, diags: Nums
+    outer_coeff: float, coeffs: Nums, thetas: Nums, diags_thetas: Nums
 ):
     coeffs = np.array(coeffs)
-    u = make_unitary_im(thetas=thetas, diags=diags, n=diags.size)
+    u = make_unitary_im(thetas=thetas, diags=diags_thetas, n=diags_thetas.size)
     return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
 
 

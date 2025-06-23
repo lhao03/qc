@@ -462,3 +462,14 @@ def extract_thetas(U) -> Tuple[Nums, Nums]:
 def make_unitary_im(thetas, diags, n):
     X = make_x_matrix(np.array(thetas), n, diags=diags, imag=True)
     return sp.linalg.expm(X)
+
+
+def extract_lambdas(c_matrix, n):
+    m = (n * (n + 1)) // 2
+    lambdas = np.zeros((m,))
+    c = 0
+    for i in range(c_matrix.shape[0]):
+        for j in range(i, c_matrix.shape[0]):
+            lambdas[c] = c_matrix[i, j]
+            c += 1
+    return lambdas

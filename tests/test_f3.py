@@ -11,11 +11,17 @@ from openfermion import (
 )
 from opt_einsum import contract
 
-from d_types.fragment_types import GFROFragment, FluidCoeff
+from d_types.fragment_types import (
+    GFROFragment,
+    FluidCoeff,
+    LRFragment,
+    FermionicFragment,
+)
 from min_part.f_3_ops import (
     obt2fluid,
     fluid_2tensor,
     static_2tensor,
+    fluid_lr_2tensor,
 )
 from min_part.gfro_decomp import (
     gfro_decomp,
@@ -33,31 +39,35 @@ from min_part.tensor import (
     make_unitary_im,
 )
 
-from testing_utils.sim_molecules import H_2_GFRO, specfic_gfro_decomp
+from testing_utils.sim_molecules import (
+    H_2_GFRO,
+    specfic_gfro_decomp,
+    H_2_LR,
+)
 from testing_utils.sim_tensor import generate_symm_unitary_matrices
 
 settings.register_profile("slow", deadline=None, print_blob=True)
 settings.load_profile("slow")
 
 
-def tensors_equal(H_tbt: np.ndarray, gfro_h2_frags: List[GFROFragment], n: int):
+def tensors_equal(H_tbt: np.ndarray, frags: List[FermionicFragment], n: int):
     np.testing.assert_array_almost_equal(
         H_tbt,
         reduce(
             lambda a, b: a + b,
-            [g.to_tensor() for g in gfro_h2_frags],
+            [g.to_tensor() for g in frags],
             np.zeros((n, n)),
         ),
     )
 
 
 class FluidFragmentTest(unittest.TestCase):
-    def operators_equal(self, H_tbt: np.ndarray, gfro_h2_frags: List[GFROFragment]):
+    def operators_equal(self, H_tbt: np.ndarray, frags: List[FermionicFragment]):
         self.assertEqual(
             tbt2op(H_tbt),
             reduce(
                 lambda a, b: a + b,
-                [g.operators for g in gfro_h2_frags],
+                [g.operators for g in frags],
                 FermionOperator(),
             ),
         )
@@ -341,6 +351,30 @@ class FluidFragmentTest(unittest.TestCase):
         pass
 
     # == LR Tests Begin ==
+    @given(H_2_LR())
+    @settings(max_examples=30)
+    def test_fluid_lr_tensor_to_op(self, obt_tbt_lr_bl):
+        lr_fs: List[LRFragment]
+        H_obt, H_tbt, lr_fs, bl = obt_tbt_lr_bl
+        for f in lr_fs:
+            prev_operators = copy(f.operators)
+            f.to_fluid()
+            self.assertEqual(prev_operators, f.to_op())
+        self.operators_equal(H_tbt, lr_fs)
+
+    # PASS
+    @given(H_2_LR())
+    @settings(max_examples=5)
+    def test_lr_fluid_to_tensor(self, obt_tbt_lr_bl):
+        lr_frags: List[LRFragment]
+        H_obt, H_tbt, lr_frags, bl = obt_tbt_lr_bl
+        for f in lr_frags:
+            og_ten = get_n_body_tensor_chemist_ordering(f.operators, n=2, m=4)
+            f.to_fluid()
+            fluid_ten = fluid_lr_2tensor(f)
+            np.testing.assert_array_almost_equal(og_ten, fluid_ten)
+        tensors_equal(H_tbt, lr_frags, H_tbt.shape[0])
+
     def test_convert_lr_2b_to_f3(self):
         pass
 

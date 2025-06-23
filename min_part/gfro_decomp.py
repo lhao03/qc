@@ -57,7 +57,7 @@ def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """
     lm = make_lambda_matrix(lambdas, n)
     U = make_unitary(thetas, n)
-    return contract("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)
+    return contract("lm,lp,lq,mr,ms->pqrs", lm, U, U, U, U)  # TODO: check??
 
 
 def gfro_cost(lambdas, thetas, g_pqrs, n):
