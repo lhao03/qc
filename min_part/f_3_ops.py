@@ -40,7 +40,7 @@ def get_obp_from_frag_gfro(self: GFROFragment) -> np.ndarray:
 def remove_obt_gfro(self: GFROFragment) -> Nums:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
-    static_frags = np.zeros((self.lambdas.size,))
+    static_frags = np.zeros((self.lambdas.size,), dtype=np.float64)
     skip_indx = []
     for j in reversed(range(n)):
         skip_indx.append(curr_i)
@@ -73,9 +73,9 @@ def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
     tol = np.finfo(float).eps ** 0.5
-    f = np.vectorize(lambda x: x if abs(x) > tol else 0)
-    fluid_frags = f(fluid_frags)
+    f = np.vectorize(lambda x: x if abs(x) > tol else 0.0)
     static_frags = f(static_frags)
+    fluid_frags = f(fluid_frags)
     self.fluid_parts = FluidParts(
         static_lambdas=static_frags, fluid_lambdas=fluid_frags
     )
