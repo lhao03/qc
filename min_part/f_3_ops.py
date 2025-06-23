@@ -26,10 +26,11 @@ from min_part.tensor import obt2op, make_unitary
 def get_obp_from_frag_gfro(self: GFROFragment) -> np.ndarray:
     n = solve_quad(1, 1, -2 * self.lambdas.size)
     curr_i = 0
-    ob = np.ones((n,), dtype=np.float64)
+    ob = np.zeros((n,), dtype=np.float64)
     i = 0
     for j in reversed(range(n)):
-        ob[i] = self.lambdas[curr_i]
+        l = self.lambdas[curr_i]
+        ob[i] = l
         curr_i += j + 1
         i += 1
     assert len(ob) == n
@@ -71,6 +72,10 @@ def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     self.thetas.setflags(write=False)
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
+    tol = np.finfo(float).eps ** 0.5
+    f = np.vectorize(lambda x: x if abs(x) > tol else 0)
+    fluid_frags = f(fluid_frags)
+    static_frags = f(static_frags)
     self.fluid_parts = FluidParts(
         static_lambdas=static_frags, fluid_lambdas=fluid_frags
     )

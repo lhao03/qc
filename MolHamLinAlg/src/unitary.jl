@@ -5,7 +5,6 @@ export make_x_matrix
 export make_unitary
 
 function isantisymm(X)
-    display(-1 .* transpose(X))
     isapprox(X, -1 .* transpose(X))
 end
 

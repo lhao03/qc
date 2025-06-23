@@ -4,7 +4,6 @@ from openfermion import (
     jordan_wigner,
     FermionOperator,
 )
-from openfermion.hamiltonians.special_operators_test import NumberOperatorTest
 
 from min_part import julia_ops
 
@@ -178,26 +177,27 @@ def get_projected_spin(w, p: int) -> float:
     return extract_eigenvalue(s_z_operator, w, panic=False)
 
 
-def collapse_to_number_operator(fo: FermionOperator) -> FermionOperator:
+def collapse_to_number_operator(fo: FermionOperator, atol=1e-7) -> FermionOperator:
     no = FermionOperator()
     for op, c in fo.terms.items():
-        if len(op) == 2:
-            no += FermionOperator(coefficient=c, term=op)
-        else:
-            collapsed_terms = []
-            just_seen_no = [(), ()]
-            for i in range(0, len(op) - 1, 2):
-                first = op[i]
-                second = op[i + 1]
-                is_no = first[0] == second[0] and first[1] == 1 and second[1] == 0
-                if first == just_seen_no[0] and second == just_seen_no[1] and is_no:
-                    pass
-                else:
-                    collapsed_terms.append(first)
-                    collapsed_terms.append(second)
-                just_seen_no[0] = first
-                just_seen_no[1] = second
-            no += FermionOperator(coefficient=c, term=tuple(collapsed_terms))
+        if abs(c) > atol:
+            if len(op) == 2:
+                no += FermionOperator(coefficient=c, term=op)
+            else:
+                collapsed_terms = []
+                just_seen_no = [(), ()]
+                for i in range(0, len(op) - 1, 2):
+                    first = op[i]
+                    second = op[i + 1]
+                    is_no = first[0] == second[0] and first[1] == 1 and second[1] == 0
+                    if first == just_seen_no[0] and second == just_seen_no[1] and is_no:
+                        pass
+                    else:
+                        collapsed_terms.append(first)
+                        collapsed_terms.append(second)
+                    just_seen_no[0] = first
+                    just_seen_no[1] = second
+                no += FermionOperator(coefficient=c, term=tuple(collapsed_terms))
     return no
 
 
