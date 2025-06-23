@@ -174,6 +174,7 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     V, U = np.linalg.eigh(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
+    swapped = False
     try:
         if np.isclose(np.linalg.det(U), -1):
             U[:, [0, 1]] = U[:, [1, 0]]
@@ -181,6 +182,7 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             prev_1 = V[1]
             V[0] = prev_1
             V[1] = prev_0
+            swapped = True
         thetas, diags = jl_extract_thetas(U)
         return OneBodyFragment(
             thetas=thetas,
@@ -189,12 +191,14 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             fluid_lambdas=[],
             operators=obt2op(obt),
         )
-    except RuntimeError:
-        U[:, [0, 1]] = U[:, [1, 0]]
-        prev_0 = V[0]
-        prev_1 = V[1]
-        V[0] = prev_1
-        V[1] = prev_0
+    except RuntimeError as e:
+        print(e)
+        if swapped:
+            U[:, [0, 1]] = U[:, [1, 0]]
+            prev_0 = V[0]
+            prev_1 = V[1]
+            V[0] = prev_1
+            V[1] = prev_0
         return OneBodyFragment(
             unitary=U, lambdas=V, fluid_lambdas=[], operators=obt2op(obt), thetas=None
         )

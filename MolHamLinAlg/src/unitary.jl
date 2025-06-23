@@ -9,14 +9,14 @@ function isantisymm(X)
 end
 
 function extract_thetas(U)
-    U[abs.(U) .< eps(eltype(U))] .= zero(eltype(U))
+    U[abs.(U) .< eps(real(eltype(U)))] .= zero(eltype(U))
     isapprox(det(U), 1) || error("U must have determinant of 1, got: $(det(U))")
     if isapprox(U, U', rtol=1e-10)
         # || error("U should be Hermitian: $(repr("text/plain", U))")
         U = Hermitian(U)
     end
     X = log(U)
-    (isapprox(X, transpose(X)) || isantisymm(X)) || error("X is not symmetric or skew-symmetric, can't extract thetas.")
+    (isapprox(X, transpose(X)) || isantisymm(X)) || error("X is not symmetric or skew-symmetric, can't extract thetas: $(repr("text/plain", X))")
     n = size(U)[1]
     m = Integer(((n * (n + 1)) / 2) - n)
     thetas = Complex.(zeros(m))
