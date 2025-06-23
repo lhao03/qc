@@ -12,6 +12,7 @@ from d_types.fragment_types import (
     FluidCoeff,
     FluidParts,
     OneBodyFragment,
+    ContractPattern,
 )
 from min_part.gfro_decomp import (
     make_fr_tensor_from_u,
@@ -24,6 +25,13 @@ from min_part.tensor import (
     make_unitary_im,
     make_lambda_matrix,
 )
+
+
+f = np.vectorize(lambda x: x if abs(x) > (np.finfo(float).eps ** 0.5) else 0.0)
+
+
+def cast_to_real(m):
+    return np.real_if_close(m)
 
 
 # == GFRO Helpers
@@ -77,8 +85,6 @@ def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     self.thetas.setflags(write=False)
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
-    tol = np.finfo(float).eps ** 0.5
-    f = np.vectorize(lambda x: x if abs(x) > tol else 0.0)
     static_frags = f(static_frags)
     fluid_frags = f(fluid_frags)
     self.fluid_parts = FluidParts(
@@ -106,7 +112,14 @@ def move_onebody_coeff_gfro(
     assert orb <= self.fluid_parts.fluid_lambdas.size
     assert coeff.imag == 0
     self.fluid_parts.fluid_lambdas[orb] -= coeff
-    to.fluid_lambdas.append((orb, FluidCoeff(coeff=coeff, thetas=self.thetas)))
+    to.fluid_lambdas.append(
+        (
+            orb,
+            FluidCoeff(
+                coeff=coeff, thetas=self.thetas, contract_pattern=ContractPattern.GFRO
+            ),
+        )
+    )
     return self, to
 
 
@@ -268,11 +281,12 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
             else jl_make_u(fluid_part.thetas, n)
         )
         fluid_h = contract(
-            "r,rp,rq->pq",
+            fluid_part.contract_pattern.value,
             fluid_l,
             unitary,
             unitary,
         )
+        fluid_h = cast_to_real(fluid_h)
         h_pq += fluid_h
     return h_pq
 

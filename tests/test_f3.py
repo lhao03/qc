@@ -43,6 +43,7 @@ from testing_utils.sim_molecules import (
     H_2_GFRO,
     specfic_gfro_decomp,
     H_2_LR,
+    specfic_lr_decomp,
 )
 from testing_utils.sim_tensor import generate_symm_unitary_matrices
 
@@ -176,7 +177,7 @@ class FluidFragmentTest(unittest.TestCase):
         eigs[orb] -= coeff
         u = make_unitary_im(thetas, diags, 4)
         np.testing.assert_array_almost_equal(u, U)
-        frag_ten = contract("r,rp,rq->pq", eigs, u, u)
+        frag_ten = contract("r,rp,rq->pq", eigs, u, u)  # TODO: prev contract pattern
         fluid_tensor = ob_f.to_tensor() + frag_ten
         fluid_operator = obt2op(fluid_tensor)
         np.testing.assert_array_almost_equal(tensor_total, fluid_tensor)
@@ -375,11 +376,52 @@ class FluidFragmentTest(unittest.TestCase):
             np.testing.assert_array_almost_equal(og_ten, fluid_ten)
         tensors_equal(H_tbt, lr_frags, H_tbt.shape[0])
 
-    def test_convert_lr_2b_to_f3(self):
-        pass
-
-    def test_move_from_2b_2_1b(self):
-        pass
-
-    def test_move_from_2b_2_1b_multiple(self):
-        pass
+    # @given(st.integers(1, 20))
+    # @settings(max_examples=2)
+    def test_mutate_each_frag_lr(
+        self,
+        partition=5,
+        # obt_tbt_frags_bl
+    ):
+        frags: List[LRFragment]
+        H_obt, H_tbt, frags, bl = specfic_lr_decomp(0.8)  # obt_tbt_frags_bl
+        obt_f = obt2fluid(H_obt)
+        prev_og_op = []
+        prev_fluid = []
+        for n, f in enumerate(reversed(frags)):
+            f.to_fluid()
+            prev_og_op.append(f.operators)
+            og_op_sum = obt2op(H_obt) + reduce(
+                lambda a, b: a + b, prev_og_op, FermionOperator()
+            )
+            for i in range(4):
+                for p in reversed(range(1, partition)):
+                    to_move = f.fluid_parts.fluid_lambdas[i] / p
+                    f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
+                    fluid_op_sum = (
+                        obt_f.to_op()
+                        + f.to_op()
+                        + reduce(lambda a, b: a + b, prev_fluid, FermionOperator())
+                    )
+                    og_jw = jordan_wigner(og_op_sum)
+                    fl_jw = jordan_wigner(fluid_op_sum)
+                    print(
+                        f"Checking: moving {to_move} from {i}th spin orbital for frag {n}."
+                    )
+                    print(f"fluid: {f.fluid_parts.fluid_lambdas}")
+                    self.assertEqual(
+                        og_jw,
+                        fl_jw,
+                    )
+            prev_fluid.append(f.operators)
+        self.assertEqual(
+            jordan_wigner(obt2op(H_obt) + tbt2op(H_tbt)),
+            jordan_wigner(
+                obt_f.to_op()
+                + reduce(
+                    lambda a, b: a + b,
+                    [f.to_op() for f in frags],
+                    FermionOperator(),
+                )
+            ),
+        )

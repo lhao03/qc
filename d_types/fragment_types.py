@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Optional, Tuple
 
 from openfermion import FermionOperator
@@ -9,10 +10,16 @@ from d_types.config_types import Nums
 from min_part.tensor import tbt2op
 
 
+class ContractPattern(Enum):
+    GFRO = "r,rp,rq->pq"
+    LR = "r,pr,qr->pq"
+
+
 @dataclass
 class FluidCoeff:
     coeff: float
     thetas: Nums
+    contract_pattern: ContractPattern
     diag_thetas: Optional[Nums] = None
 
 
@@ -137,13 +144,13 @@ class GFROFragment(FermionicFragment):
 
 @dataclass
 class LRFragment(FermionicFragment):
-    def to_tensor(self):
-        return fluid_lr_2tensor(self)
-
     coeffs: Nums
     diag_thetas: Nums
     outer_coeff: float
     fluid_parts: Optional[FluidParts] = None
+
+    def to_tensor(self):
+        return fluid_lr_2tensor(self)
 
     def get_ob_lambdas(self):
         """Returns the one-body part from a lambda matrix formed after LR decomposition.
