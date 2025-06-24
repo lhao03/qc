@@ -214,7 +214,7 @@ def move_onebody_coeff_lr(
     mutate: bool = True,
 ) -> Optional[Tuple[LRFragment, FermionicFragment]]:
     """Moves any real float amount of the one-body coeffcient from a two-electron fragment to a one-body fragment"""
-    pass
+    raise NotImplementedError
 
 
 # === One Body Helpers

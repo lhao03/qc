@@ -15,6 +15,9 @@ export jl_compare_matrices
 function lr_decomposition(tbt)
     n = size(tbt)[1]
     flattened_tbt = rowwise_reshape(tbt, n^2)
+    if isapprox(flattened_tbt, zeros((n^2, n^2)), atol=1e-8)
+        return []
+    end
     diags, Ls = eigen(Hermitian(flattened_tbt))
     Vs = vecs2mat_reshape(Ls, n)
     lr_fragments = []

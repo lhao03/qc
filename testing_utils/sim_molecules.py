@@ -23,18 +23,33 @@ def specific_gfro_decomp(bond_length, tol=1e-6):
     return H_obt, H_tbt, gfro_h2_frags, bond_length
 
 
-def specfic_lr_decomp(bond_length):
+def specific_lr_decomp(bond_length):
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    return H_obt, H_tbt, lr_decomp(H_tbt), bond_length
+    frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/lr"
+    frag_path = os.path.join(frag_folder, str(bond_length))
+    if os.path.exists(f"{frag_path}.pkl"):
+        lr_frags = open_frags(frag_path)
+        print("used saved frags")
+    else:
+        lr_frags = lr_decomp(H_tbt)
+        save_frags(lr_frags, file_name=frag_path)
+    return H_obt, H_tbt, lr_frags, bond_length
 
 
 @st.composite
 def H_2_LR(draw):
     bond_length = draw(st.floats(0.2, 3))
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    lr_h2_frags = lr_decomp(H_tbt)
+    frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/lr"
+    frag_path = os.path.join(frag_folder, str(bond_length))
+    if os.path.exists(f"{frag_path}.pkl"):
+        lr_frags = open_frags(frag_path)
+        print("used saved frags")
+    else:
+        lr_frags = lr_decomp(H_tbt)
+        save_frags(lr_frags, file_name=frag_path)
     print(f"bond length: {bond_length}")
-    return H_obt, H_tbt, lr_h2_frags, bond_length
+    return H_obt, H_tbt, lr_frags, bond_length
 
 
 @st.composite
