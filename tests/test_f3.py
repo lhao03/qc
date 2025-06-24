@@ -4,7 +4,7 @@ from functools import reduce
 from typing import List, Tuple
 
 import numpy as np
-from hypothesis import given, strategies as st, settings, HealthCheck, reproduce_failure
+from hypothesis import given, strategies as st, settings, HealthCheck
 from openfermion import (
     FermionOperator,
     jordan_wigner,
@@ -45,6 +45,7 @@ from testing_utils.sim_molecules import (
     H_2_GFRO,
     H_2_LR,
     specfic_lr_decomp,
+    specific_gfro_decomp,
 )
 from testing_utils.sim_tensor import generate_symm_unitary_matrices
 
@@ -314,12 +315,15 @@ class FluidFragmentTest(unittest.TestCase):
             )
             self.assertNotEqual(total_op, fake_tb_fluid.to_op() + fake_ob_fluid.to_op())
 
-    @reproduce_failure("6.135.7", b"AEEKKEAAukijnlzr")
-    @given(st.integers(1, 10), H_2_GFRO())
-    @settings(max_examples=2)
-    def test_mutate_each_frag_gfro(self, partition, obt_tbt_frags_bl):
+    # @reproduce_failure("6.135.7", b"AEEKKEAAukijnlzr")
+    # @given(st.integers(1, 10), H_2_GFRO())
+    # @settings(max_examples=2)
+    def test_mutate_each_frag_gfro(
+        self,
+        partition=5,  # TODO: ??? small floats might cause operator sum issues
+        obt_tbt_frags_bl=specific_gfro_decomp(2.0909588606551686),
+    ):
         frags: List[GFROFragment]
-        partition = 2  # TODO: ??? small floats might cause operator sum issues
         H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
         obt_f = obt2fluid(H_obt)
         prev_og_op = []

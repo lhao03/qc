@@ -8,9 +8,19 @@ from min_part.utils import save_frags, open_frags
 from testing_utils.sim_tensor import make_tensors_h2
 
 
-def specfic_gfro_decomp(bond_length):
+def specific_gfro_decomp(bond_length, tol=1e-6):
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    return H_obt, H_tbt, gfro_decomp(H_tbt, threshold=1e-8, debug=True), bond_length
+    frag_folder = (
+        "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/gfro"
+    )
+    frag_path = os.path.join(frag_folder, str(bond_length))
+    if os.path.exists(f"{frag_path}.pkl"):
+        gfro_h2_frags = open_frags(frag_path)
+        print("used saved frags")
+    else:
+        gfro_h2_frags = gfro_decomp(H_tbt, tol)
+        save_frags(gfro_h2_frags, file_name=frag_path)
+    return H_obt, H_tbt, gfro_h2_frags, bond_length
 
 
 def specfic_lr_decomp(bond_length):
