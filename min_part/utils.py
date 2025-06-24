@@ -124,7 +124,7 @@ def save_frags(frags, file_name):
 
 
 def open_frags(file_name):
-    with open(f"{file_name}", "rb") as pkl_file:
+    with open(f"{file_name}.pkl", "rb") as pkl_file:
         frags = pickle.load(pkl_file)
     return frags
 

@@ -4,7 +4,7 @@ import numpy as np
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
-from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
+from min_part.julia_ops import lr_decomp_params, jl_extract_thetas, jl_print
 from min_part.tensor import tbt2op, make_unitary_im
 
 
@@ -56,6 +56,7 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     for i, lr_frag in enumerate(lr_frags):
         outer_coeff, coeffs = lr_frag[0]
         u = lr_frag[1]
+        jl_print(u)
         if np.isclose(np.linalg.det(u), -1):
             u[:, [0, 1]] = u[:, [1, 0]]
             prev_0 = coeffs[0]

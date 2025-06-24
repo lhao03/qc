@@ -17,7 +17,12 @@ from d_types.fragment_types import (
 from min_part.gfro_decomp import (
     make_fr_tensor_from_u,
 )
-from min_part.julia_ops import solve_quad, jl_make_u_im, jl_make_u, jl_extract_thetas
+from min_part.julia_ops import (
+    solve_quad,
+    jl_make_u_im,
+    jl_make_u,
+    jl_extract_thetas,
+)
 from min_part.tensor import (
     obt2op,
     make_unitary,
@@ -273,22 +278,27 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
         unitary,
     )
     for orb, fluid_part in self.fluid_lambdas:
-        fluid_l = np.zeros((n,))
-        fluid_l[orb] = fluid_part.coeff
-        unitary = (
-            jl_make_u_im(fluid_part.thetas, fluid_part.diag_thetas, n)
-            if isinstance(fluid_part.diag_thetas, np.ndarray)
-            else jl_make_u(fluid_part.thetas, n)
-        )
-        fluid_h = contract(
-            fluid_part.contract_pattern.value,
-            fluid_l,
-            unitary,
-            unitary,
-        )
-        fluid_h = cast_to_real(fluid_h)
+        fluid_h = make_obp_tensor(fluid_part, n, orb)
         h_pq += fluid_h
     return h_pq
+
+
+def make_obp_tensor(fluid_part: FluidCoeff, n: int, orb: int):
+    fluid_l = np.zeros((n,))
+    fluid_l[orb] = fluid_part.coeff
+    unitary = (
+        jl_make_u_im(fluid_part.thetas, fluid_part.diag_thetas, n)
+        if isinstance(fluid_part.diag_thetas, np.ndarray)
+        else make_unitary(fluid_part.thetas, n)
+    )
+    fluid_h = contract(
+        fluid_part.contract_pattern.value,
+        fluid_l,
+        unitary,
+        unitary,
+    )
+    fluid_h = cast_to_real(fluid_h)
+    return fluid_h
 
 
 def fluid_ob2op(self: OneBodyFragment) -> FermionOperator:
