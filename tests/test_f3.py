@@ -23,12 +23,18 @@ from min_part.f_3_ops import (
     static_2tensor,
     fluid_lr_2tensor,
     make_obp_tensor,
+    get_diag_idx,
+    make_lambdas,
 )
 from min_part.gfro_decomp import (
     gfro_decomp,
     make_fr_tensor,
 )
-from min_part.lr_decomp import get_lr_fragment_tensor_from_parts, lr_decomp
+from min_part.lr_decomp import (
+    get_lr_fragment_tensor_from_parts,
+    lr_decomp,
+    get_lr_fragment_tensor_from_lambda,
+)
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
@@ -66,9 +72,17 @@ def tensors_equal(H_tbt: np.ndarray, frags: List[FermionicFragment], n: int):
     )
 
 
-def get_diag_idx(orb, n) -> int:
-    m = (n * (n + 1)) // 2
-    return m - reduce(lambda a, b: a + b, range((n - orb) + 1))
+def add_fluid_diags_to_static(f, curr_fluid_lambdas: List[Tuple[int, FluidCoeff]]):
+    n = f.fluid_parts.fluid_lambdas.size
+    copy_lambda = copy(f.fluid_parts.static_lambdas)
+    copy_lambda.setflags(write=True)
+    for i in range(n):
+        idx = get_diag_idx(i, n)
+        copy_lambda[idx] = f.fluid_parts.fluid_lambdas[i]
+        for o, c in curr_fluid_lambdas:
+            if o == i:
+                copy_lambda[idx] += c.coeff
+    return copy_lambda
 
 
 class FluidFragmentTest(unittest.TestCase):
@@ -529,7 +543,7 @@ class FluidFragmentTest(unittest.TestCase):
     # @given(st.integers(1, 20), H_2_LR())
     # @settings(max_examples=1)
     def test_mutate_each_frag_lr(
-        self, partition=5, obt_tbt_frags_bl=specific_lr_decomp(2.0909588606551686)
+        self, partition=10, obt_tbt_frags_bl=specific_lr_decomp(2.0909588606551686)
     ):
         frags: List[LRFragment]
         H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
@@ -558,7 +572,8 @@ class FluidFragmentTest(unittest.TestCase):
                     fake_moved[get_diag_idx(i, 4)] = to_move * p
                     fake_remaining = f_lambdas - fake_moved
                     np.testing.assert_array_almost_equal(
-                        fake_moved + fake_remaining, f_lambdas
+                        fake_moved + fake_remaining,
+                        add_fluid_diags_to_static(f, curr_fluid_lambdas),
                     )
                     f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
                     print(
@@ -569,12 +584,25 @@ class FluidFragmentTest(unittest.TestCase):
                     # check current partition of fluid and static lambdas maintains frag operator sum
                     np.testing.assert_array_almost_equal(
                         get_n_body_tensor_chemist_ordering(prev_og_op[-1], 2, 4),
-                        make_fr_tensor(fake_moved, f.thetas, 4)
-                        + make_fr_tensor(fake_remaining, f.thetas, 4),
+                        get_lr_fragment_tensor_from_lambda(
+                            fake_moved, f.thetas, f.diag_thetas, n=4
+                        )
+                        + get_lr_fragment_tensor_from_lambda(
+                            fake_remaining, f.thetas, f.diag_thetas, n=4
+                        ),
+                    )
+                    np.testing.assert_array_almost_equal(
+                        make_lambdas(curr_fluid_lambdas, 4), fake_moved
                     )
                     # check moved fluid portion is equal for current frag
                     t, o = (
-                        jordan_wigner(tbt2op(make_fr_tensor(fake_moved, f.thetas, 4))),
+                        jordan_wigner(
+                            tbt2op(
+                                get_lr_fragment_tensor_from_lambda(
+                                    fake_moved, f.thetas, f.diag_thetas, 4
+                                )
+                            )
+                        ),
                         jordan_wigner(
                             obt2op(
                                 reduce(
@@ -592,6 +620,7 @@ class FluidFragmentTest(unittest.TestCase):
                         self.assertEqual(
                             t, o
                         )  # TODO: ??? small floats might cause operator sum issues
+                        print("Passed the check at JW stage")
                     except:
                         print("Failed the check at JW stage")
                     try:
@@ -599,7 +628,11 @@ class FluidFragmentTest(unittest.TestCase):
                         self.assertTrue(
                             jordan_wigner(
                                 obt2op(h_pq)
-                                + tbt2op(make_fr_tensor(fake_moved, f.thetas, 4))
+                                + tbt2op(
+                                    get_lr_fragment_tensor_from_lambda(
+                                        fake_moved, f.thetas, f.diag_thetas, 4
+                                    )
+                                )
                             ),
                             jordan_wigner(obt_f.to_op()),
                         )
@@ -610,7 +643,11 @@ class FluidFragmentTest(unittest.TestCase):
                         # check remaining tbt is equal to current static amount
                         self.assertTrue(
                             f.to_op(),
-                            tbt2op(make_fr_tensor(fake_remaining, f.thetas, 4)),
+                            tbt2op(
+                                get_lr_fragment_tensor_from_lambda(
+                                    fake_remaining, f.thetas, f.diag_thetas, 4
+                                )
+                            ),
                         )
                         print("Passed remaining tbt is equal to tbt to op!")
                     except:

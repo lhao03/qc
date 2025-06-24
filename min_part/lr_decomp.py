@@ -5,7 +5,7 @@ from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
 from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
-from min_part.tensor import tbt2op, make_unitary_im
+from min_part.tensor import tbt2op, make_unitary_im, make_lambda_matrix
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -93,6 +93,13 @@ def get_lr_fragment_tensor_from_parts(
     coeffs = np.array(coeffs)
     u = make_unitary_im(thetas=thetas, diags=diags_thetas, n=diags_thetas.size)
     return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
+
+
+def get_lr_fragment_tensor_from_lambda(
+    lambdas: Nums, thetas: Nums, diags_thetas: Nums, n: int
+):
+    u = make_unitary_im(thetas=thetas, diags=diags_thetas, n=diags_thetas.size)
+    return contract("ij,pi,qi,rj,sj->pqrs", make_lambda_matrix(lambdas, n), u, u, u, u)
 
 
 def lr_fragment_occ(

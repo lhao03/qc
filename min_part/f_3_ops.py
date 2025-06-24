@@ -1,4 +1,6 @@
-from typing import Tuple, Optional
+from functools import reduce
+from itertools import groupby
+from typing import Tuple, Optional, List
 
 import numpy as np
 from openfermion import FermionOperator
@@ -101,13 +103,13 @@ def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     return self
 
 
-def move_onebody_coeff_gfro(
-    self: GFROFragment,
+def move_onebody_coeff(
+    self: FermionicFragment,
     to: OneBodyFragment,
     coeff: float,
     orb: int,
     mutate: bool = True,
-) -> Optional[Tuple[GFROFragment, OneBodyFragment]]:
+) -> Optional[Tuple[FermionicFragment, OneBodyFragment]]:
     if not mutate:
         raise NotImplementedError
     if not self.fluid_parts:
@@ -121,7 +123,12 @@ def move_onebody_coeff_gfro(
         (
             orb,
             FluidCoeff(
-                coeff=coeff, thetas=self.thetas, contract_pattern=ContractPattern.GFRO
+                coeff=coeff,
+                thetas=self.thetas,
+                diag_thetas=self.diag_thetas if isinstance(self, LRFragment) else None,
+                contract_pattern=ContractPattern.GFRO
+                if isinstance(self, GFROFragment)
+                else ContractPattern.LR,
             ),
         )
     )
@@ -206,17 +213,6 @@ def lr2fluid(self: LRFragment, performant: bool = False) -> LRFragment:
     return self
 
 
-def move_onebody_coeff_lr(
-    self: LRFragment,
-    to: OneBodyFragment,
-    coeff: float,
-    orb: int,
-    mutate: bool = True,
-) -> Optional[Tuple[LRFragment, FermionicFragment]]:
-    """Moves any real float amount of the one-body coeffcient from a two-electron fragment to a one-body fragment"""
-    raise NotImplementedError
-
-
 # === One Body Helpers
 def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     """
@@ -287,7 +283,7 @@ def make_obp_tensor(fluid_part: FluidCoeff, n: int, orb: int):
     fluid_l = np.zeros((n,), dtype=np.float64)
     fluid_l[orb] = fluid_part.coeff
     unitary = (
-        jl_make_u_im(fluid_part.thetas, fluid_part.diag_thetas, n)
+        make_unitary_im(fluid_part.thetas, fluid_part.diag_thetas, n)
         if isinstance(fluid_part.diag_thetas, np.ndarray)
         else make_unitary(fluid_part.thetas, n)
     )
@@ -314,3 +310,21 @@ def fluid_ob2op(self: OneBodyFragment) -> FermionOperator:
     """
     self.operators = obt2op(fluid_ob2ten(self))
     return self.operators
+
+
+def get_diag_idx(orb, n) -> int:
+    m = (n * (n + 1)) // 2
+    return m - reduce(lambda a, b: a + b, range((n - orb) + 1))
+
+
+def make_lambdas(fluid_coeffs: List[Tuple[int, FluidCoeff]], n):
+    m = (n * (n + 1)) // 2
+    lambdas = np.zeros((m,))
+    grouped_lambdas = groupby(fluid_coeffs, lambda x: x[0])
+    for orb, group in grouped_lambdas:
+        c = 0
+        for g in group:
+            c += g[1].coeff
+        idx = get_diag_idx(orb, n)
+        lambdas[idx] = c
+    return lambdas

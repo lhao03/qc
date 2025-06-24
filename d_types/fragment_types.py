@@ -45,10 +45,11 @@ class OneBodyFragment:
         return fluid_ob2ten(self)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class FermionicFragment:
     thetas: Nums
     operators: FermionOperator
+    fluid_parts: Optional[FluidParts] = None
 
     @abstractmethod
     def get_ob_lambdas(self):
@@ -75,10 +76,9 @@ class FermionicFragment:
         raise NotImplementedError
 
 
-@dataclass
+@dataclass(kw_only=True)
 class GFROFragment(FermionicFragment):
     lambdas: Nums
-    fluid_parts: Optional[FluidParts] = None
 
     def get_ob_lambdas(self):
         """Returns the one-body part from a lambda matrix formed after GFRO decomposition.
@@ -139,15 +139,14 @@ class GFROFragment(FermionicFragment):
             the mutated/new GFROFragment and OneBodyFragment(no
         """
         assert isinstance(coeff, float) or isinstance(coeff, int)
-        return move_onebody_coeff_gfro(self, to, coeff, orb, mutate)
+        return move_onebody_coeff(self, to, coeff, orb, mutate)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class LRFragment(FermionicFragment):
     coeffs: Nums
     diag_thetas: Nums
     outer_coeff: float
-    fluid_parts: Optional[FluidParts] = None
 
     def to_tensor(self):
         return fluid_lr_2tensor(self)
@@ -183,7 +182,7 @@ class LRFragment(FermionicFragment):
         return self.operators
 
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):
-        return move_onebody_coeff_lr(self, to, coeff, orb, mutate)
+        return move_onebody_coeff(self, to, coeff, orb, mutate)
 
 
 @dataclass
@@ -199,10 +198,9 @@ from min_part.f_3_ops import (  # noqa: E402
     remove_obp_gfro,
     gfro2fluid,
     fluid_gfro_2tensor,
-    move_onebody_coeff_gfro,
+    move_onebody_coeff,
     get_obp_from_frag_lr,
     lr2fluid,
-    move_onebody_coeff_lr,
     fluid_ob2op,
     fluid_ob2ten,
     fluid_lr_2tensor,
