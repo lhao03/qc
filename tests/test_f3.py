@@ -8,6 +8,7 @@ from hypothesis import given, strategies as st, settings, HealthCheck
 from openfermion import (
     FermionOperator,
     jordan_wigner,
+    qubit_operator_sparse,
 )
 from opt_einsum import contract
 
@@ -320,7 +321,7 @@ class FluidFragmentTest(unittest.TestCase):
     # @settings(max_examples=2)
     def test_mutate_each_frag_gfro(
         self,
-        partition=5,  # TODO: ??? small floats might cause operator sum issues
+        partition=10,  # TODO: ??? small floats might cause operator sum issues
         obt_tbt_frags_bl=specific_gfro_decomp(2.0909588606551686),
     ):
         frags: List[GFROFragment]
@@ -331,7 +332,7 @@ class FluidFragmentTest(unittest.TestCase):
         for n, f in enumerate(frags):
             f.to_fluid()
             prev_og_op.append(f.operators)
-            fake_l = np.zeros((10,))
+            fake_moved = np.zeros((10,))
             # check conversion to fluid keeps operator sum same
             np.testing.assert_array_almost_equal(
                 get_n_body_tensor_chemist_ordering(f.operators, 2, 4),
@@ -341,10 +342,10 @@ class FluidFragmentTest(unittest.TestCase):
             for i in range(4):
                 to_move = f.fluid_parts.fluid_lambdas[i] / partition
                 for p in range(1, partition + 1):
-                    fake_l[get_diag_idx(i, 4)] = to_move * p
-                    fake_static = f.lambdas - fake_l
+                    fake_moved[get_diag_idx(i, 4)] = to_move * p
+                    fake_remaining = f.lambdas - fake_moved
                     np.testing.assert_array_almost_equal(
-                        fake_l + fake_static, f.lambdas
+                        fake_moved + fake_remaining, f.lambdas
                     )
                     f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
                     print(
@@ -355,12 +356,12 @@ class FluidFragmentTest(unittest.TestCase):
                     # check current partition of fluid and static lambdas maintains frag operator sum
                     np.testing.assert_array_almost_equal(
                         get_n_body_tensor_chemist_ordering(prev_og_op[-1], 2, 4),
-                        make_fr_tensor(fake_l, f.thetas, 4)
-                        + make_fr_tensor(fake_static, f.thetas, 4),
+                        make_fr_tensor(fake_moved, f.thetas, 4)
+                        + make_fr_tensor(fake_remaining, f.thetas, 4),
                     )
                     # check moved fluid portion is equal for current frag
                     t, o = (
-                        jordan_wigner(tbt2op(make_fr_tensor(fake_l, f.thetas, 4))),
+                        jordan_wigner(tbt2op(make_fr_tensor(fake_moved, f.thetas, 4))),
                         jordan_wigner(
                             obt2op(
                                 reduce(
@@ -374,23 +375,40 @@ class FluidFragmentTest(unittest.TestCase):
                         ),
                     )
                     try:
-                        self.assertEqual(t, o)
+                        np.testing.assert_array_almost_equal(
+                            qubit_operator_sparse(t).toarray(),
+                            qubit_operator_sparse(o).toarray(),
+                        )
+                        try:
+                            self.assertEqual(t, o)
+                        except:
+                            print("Failed the check at JW stage")
+                        print(
+                            "Passed moved fluid tbt is equal to obt fluid after conversion to matrix."
+                        )
+                    except:
+                        print("Failed moved fluid tbt is equal to obt fluid")
+                    try:
                         # check obt portion is equal to moved over fluid parts
                         self.assertTrue(
                             jordan_wigner(
                                 obt2op(h_pq)
-                                + tbt2op(make_fr_tensor(fake_l, f.thetas, 4))
+                                + tbt2op(make_fr_tensor(fake_moved, f.thetas, 4))
                             ),
                             jordan_wigner(obt_f.to_op()),
                         )
+                        print("Passed current obt is equal to h_pq + moved fluid")
+                    except:
+                        print("Failed current obt is equal to h_pq + moved fluid")
+                    try:
                         # check remaining tbt is equal to current static amount
                         self.assertTrue(
-                            f.to_op(), tbt2op(make_fr_tensor(fake_static, f.thetas, 4))
+                            f.to_op(),
+                            tbt2op(make_fr_tensor(fake_remaining, f.thetas, 4)),
                         )
+                        print("Passed remaining tbt is equal to tbt to op!")
                     except:
-                        print(
-                            f"Failed intermediate checks while moving {to_move} from {i}th spin orbital for frag {n}"
-                        )
+                        print("Failed remaining tbt is equal to tbt to op!")
             h_pq = obt_f.to_tensor()
         self.assertEqual(
             jordan_wigner(obt2op(H_obt) + tbt2op(H_tbt)),

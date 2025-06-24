@@ -284,7 +284,7 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
 
 
 def make_obp_tensor(fluid_part: FluidCoeff, n: int, orb: int):
-    fluid_l = np.zeros((n,))
+    fluid_l = np.zeros((n,), dtype=np.float64)
     fluid_l[orb] = fluid_part.coeff
     unitary = (
         jl_make_u_im(fluid_part.thetas, fluid_part.diag_thetas, n)
