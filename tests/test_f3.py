@@ -8,7 +8,6 @@ from hypothesis import given, strategies as st, settings, HealthCheck
 from openfermion import (
     FermionOperator,
     jordan_wigner,
-    qubit_operator_sparse,
 )
 from opt_einsum import contract
 
@@ -321,7 +320,7 @@ class FluidFragmentTest(unittest.TestCase):
     # @settings(max_examples=2)
     def test_mutate_each_frag_gfro(
         self,
-        partition=10,  # TODO: ??? small floats might cause operator sum issues
+        partition=10,
         obt_tbt_frags_bl=specific_gfro_decomp(2.0909588606551686),
     ):
         frags: List[GFROFragment]
@@ -374,20 +373,13 @@ class FluidFragmentTest(unittest.TestCase):
                             )
                         ),
                     )
+
                     try:
-                        np.testing.assert_array_almost_equal(
-                            qubit_operator_sparse(t).toarray(),
-                            qubit_operator_sparse(o).toarray(),
-                        )
-                        try:
-                            self.assertEqual(t, o)
-                        except:
-                            print("Failed the check at JW stage")
-                        print(
-                            "Passed moved fluid tbt is equal to obt fluid after conversion to matrix."
-                        )
+                        self.assertEqual(
+                            t, o
+                        )  # TODO: ??? small floats might cause operator sum issues
                     except:
-                        print("Failed moved fluid tbt is equal to obt fluid")
+                        print("Failed the check at JW stage")
                     try:
                         # check obt portion is equal to moved over fluid parts
                         self.assertTrue(
