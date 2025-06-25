@@ -55,8 +55,8 @@ def jl_make_x_im(t, d, n) -> np.ndarray:
     return MolHamLinAlg.make_x_matrix(t, d, n)
 
 
-def jl_make_x(t, d) -> np.ndarray:
-    return MolHamLinAlg.make_x_matrix(t, d)
+def jl_make_x(t, n) -> np.ndarray:
+    return MolHamLinAlg.make_x_matrix(t, n)
 
 
 def jl_make_u_im(t, d, n) -> np.ndarray:

@@ -1,12 +1,30 @@
 import unittest
+from typing import List
 
 import numpy as np
 import scipy as sp
 from hypothesis import given, example, settings
 from opt_einsum import contract
 
-from min_part.julia_ops import jl_extract_thetas, jl_make_u_im
-from min_part.tensor import extract_thetas, make_unitary_im, make_x_matrix
+from d_types.fragment_types import LRFragment, GFROFragment
+from min_part.gfro_decomp import make_fr_tensor
+from min_part.julia_ops import (
+    jl_extract_thetas,
+    jl_make_u_im,
+    jl_make_x_im,
+    jl_make_x,
+    jl_make_u,
+    jl_compare_matrices,
+)
+from min_part.lr_decomp import get_lr_fragment_tensor
+from min_part.tensor import (
+    extract_thetas,
+    make_unitary_im,
+    make_x_matrix,
+    make_unitary,
+    tbt2op,
+)
+from testing_utils.sim_molecules import H_2_LR, H_2_GFRO
 from testing_utils.sim_tensor import (
     generate_symm_unitary_matrices,
 )
@@ -74,3 +92,83 @@ class UnitaryTest(unittest.TestCase):
         thetas, diag_thetas = jl_extract_thetas(u)
         jl_u = jl_make_u_im(thetas, diag_thetas, 4)
         np.testing.assert_array_almost_equal(jl_u, u)
+
+    @given(H_2_LR())
+    def test_unitary_lr(self, obt_tbt_frags_bl):
+        frags: List[LRFragment]
+        H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
+        for f in frags:
+            x_matrix = make_x_matrix(
+                thetas=f.thetas,
+                diags=f.diag_thetas,
+                n=4,
+                imag=isinstance(f.diag_thetas, np.ndarray),
+            )
+            x_matrix_jl = (
+                jl_make_x_im(t=f.thetas, d=f.diag_thetas, n=4)
+                if isinstance(f.diag_thetas, np.ndarray)
+                else jl_make_x(f.thetas, 4)
+            )
+            try:
+                np.testing.assert_array_almost_equal(
+                    x_matrix,
+                    x_matrix_jl,
+                )
+            except:
+                jl_compare_matrices(x_matrix, x_matrix_jl)
+                self.fail()
+            unitary = (
+                make_unitary_im(f.thetas, f.diag_thetas, 4)
+                if isinstance(f.diag_thetas, np.ndarray)
+                else make_unitary(f.thetas, n=4, imag=False)
+            )
+            unitary_jl = (
+                jl_make_u_im(f.thetas, f.diag_thetas, 4)
+                if isinstance(f.diag_thetas, np.ndarray)
+                else jl_make_u(f.thetas, 4)
+            )
+            try:
+                np.testing.assert_array_almost_equal(
+                    unitary,
+                    unitary_jl,
+                )
+            except:
+                jl_compare_matrices(unitary, unitary_jl)
+                self.fail()
+            self.assertEqual(
+                f.operators,
+                tbt2op(get_lr_fragment_tensor(f)),
+            )
+
+    @given(H_2_GFRO())
+    def test_unitary_gfro(self, obt_tbt_frags_bl):
+        frags: List[GFROFragment]
+        H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
+        for f in frags:
+            x_matrix = make_x_matrix(
+                thetas=f.thetas,
+                n=4,
+            )
+            x_matrix_jl = jl_make_x(f.thetas, 4)
+            try:
+                np.testing.assert_array_almost_equal(
+                    x_matrix,
+                    x_matrix_jl,
+                )
+            except:
+                jl_compare_matrices(x_matrix, x_matrix_jl)
+                self.fail()
+            unitary = make_unitary(f.thetas, n=4, imag=False)
+            unitary_jl = jl_make_u(f.thetas, 4)
+            try:
+                np.testing.assert_array_almost_equal(
+                    unitary,
+                    unitary_jl,
+                )
+            except:
+                jl_compare_matrices(unitary, unitary_jl)
+                self.fail()
+            self.assertEqual(
+                f.operators,
+                tbt2op(make_fr_tensor(f.lambdas, f.thetas, 4)),
+            )

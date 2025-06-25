@@ -12,7 +12,6 @@ function extract_thetas(U)
     U[abs.(U) .< eps(real(eltype(U)))] .= zero(eltype(U))
     isapprox(det(U), 1) || error("U must have determinant of 1, got: $(det(U))")
     if isapprox(U, U', rtol=1e-10)
-        # || error("U should be Hermitian: $(repr("text/plain", U))")
         U = Hermitian(U)
     end
     X = log(U)
@@ -30,27 +29,39 @@ function extract_thetas(U)
     thetas, diag(X)
 end
 
+function re_im_close(n, tol=1e-10)
+    n_real = real(n)
+    n_im = imag(n)
+    re_is_zero = isapprox(n_real, 0, atol=tol)
+    im_is_zero = isapprox(n_im, 0, atol=tol)
+    if re_is_zero && im_is_zero
+        0
+    elseif re_is_zero
+        n_im * im
+    elseif im_is_zero
+        n_real
+    else
+        n
+    end
+end
+
 function make_x_matrix(thetas, diags, n)
     X = Complex.(zeros((n, n)))
     t = 1
-    rtol = eps(real(float(thetas[1])))
     for x in 1:n
         for y in x+1:n
-            v_real = real(thetas[t])
-            v_imag = imag(thetas[t])
-            if isapprox(v_real, 0) || v_real <= rtol
-                X[x, y] = v_imag * im
-                X[y, x] = v_imag * im
-            else
-                X[x, y] = -v_real + (v_imag * im)
-                X[y, x] = v_real + (v_imag * im)
-            end
+            v = re_im_close(thetas[t])
+            X[x, y] = -real(v) + imag(v) * im
+            X[y, x] = v
             t += 1
         end
     end
     for i in 1:n
-        X[i, i] = diags[i]
+        X[i, i] = re_im_close(diags[i])
     end
+    all(x -> isapprox(real(x), 0), diag(X)) || error("Real values were found on the diagonal of X: $(repr("text/plain", X))")
+    m = (n * (n + 1)) / 2 - n
+    t >= m || error("X matrix did not use all the theta values: t, which was $(t), was expected to be $(m).")
     X
 end
 
@@ -59,11 +70,15 @@ function make_x_matrix(thetas, n)
     t = 1
     for x in 1:n
         for y in x+1:n
-            X[x, y] = -thetas[t]
-            X[y, x] = thetas[t]
+            v = re_im_close(thetas[t])
+            X[x, y] = -real(v) + imag(v) * im
+            X[y, x] = v
             t += 1
         end
     end
+    all(x -> isapprox(imag(x), 0), X) || error("Imaginary values were found in X, please use `make_x_matrix(t, d, n)`")
+    m = (n * (n + 1)) / 2 - n
+    t >= m || error("X matrix did not use all the theta values: t, which was $(t), was expected to be $(m).")
     X
 end
 

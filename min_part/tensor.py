@@ -408,7 +408,20 @@ def make_x_matrix(
             t += 1
     if imag:
         for i, d in enumerate(diags):
-            if not isclose(d, 0):
+            d_real = d
+            d_imag = 0
+            if isinstance(d, complex):
+                d_real = d.real
+                d_imag = d.imag
+            r_is_0 = isclose(d_real, 0)
+            im_is_0 = isclose(d_imag, 0)
+            if r_is_0 and im_is_0:
+                X[i, i] = 0
+            elif r_is_0:
+                X[i, i] = complex(0, d_imag)
+            elif im_is_0:
+                X[i, i] = d_real
+            else:
                 X[i, i] = d
     return X
 
