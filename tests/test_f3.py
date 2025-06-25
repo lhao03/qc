@@ -49,13 +49,13 @@ from min_part.tensor import (
     extract_lambdas,
 )
 
-from testing_utils.sim_molecules import (
+from tests.testing_utils.sim_molecules import (
     H_2_GFRO,
     H_2_LR,
     specific_gfro_decomp,
     specific_lr_decomp,
 )
-from testing_utils.sim_tensor import generate_symm_unitary_matrices
+from tests.testing_utils.sim_tensor import generate_symm_unitary_matrices
 
 settings.register_profile("slow", deadline=None, print_blob=True)
 settings.load_profile("slow")

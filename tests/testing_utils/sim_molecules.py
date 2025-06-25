@@ -5,7 +5,7 @@ from hypothesis import strategies as st
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
 from min_part.utils import save_frags, open_frags
-from testing_utils.sim_tensor import make_tensors_h2
+from tests.testing_utils.sim_tensor import make_tensors_h2
 
 
 def specific_gfro_decomp(bond_length, tol=1e-6):

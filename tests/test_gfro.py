@@ -30,7 +30,7 @@ from min_part.tensor import (
     make_lambda_matrix,
     extract_thetas,
 )
-from testing_utils.sim_tensor import get_chem_tensors
+from tests.testing_utils.sim_tensor import get_chem_tensors
 
 
 class DecompTest(unittest.TestCase):

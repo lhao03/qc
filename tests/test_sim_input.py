@@ -4,7 +4,7 @@ import numpy as np
 from hypothesis import given
 from opt_einsum import contract
 
-from testing_utils.sim_tensor import (
+from tests.testing_utils.sim_tensor import (
     generate_symm_unitary_matrices,
     make_tensors_n2,
     make_tensors_h2,
