@@ -26,7 +26,7 @@ from min_part.utils import (
     get_saved_file_names,
 )
 from min_part.plots import plot_energies, PlotNames
-from tests.testing_utils.sim_tensor import get_chem_tensors
+from tests.utils.sim_tensor import get_chem_tensors
 
 settings.register_profile("slow", deadline=None)
 settings.load_profile("slow")

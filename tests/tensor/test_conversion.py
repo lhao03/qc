@@ -12,7 +12,7 @@ from min_part.tensor import (
     obt2op,
     tbt2op,
 )
-from tests.testing_utils import get_chem_tensors
+from tests.utils.sim_tensor import get_chem_tensors
 
 
 class ConversionTest(unittest.TestCase):

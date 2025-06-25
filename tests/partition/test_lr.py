@@ -38,7 +38,7 @@ from min_part.tensor import (
 )
 
 from min_part.utils import do_lr_fo
-from tests.testing_utils.sim_tensor import (
+from tests.utils.sim_tensor import (
     get_chem_tensors,
     symmetricND,
     artifical_h2_tbt,

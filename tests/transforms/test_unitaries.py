@@ -24,8 +24,8 @@ from min_part.tensor import (
     make_unitary,
     tbt2op,
 )
-from tests.testing_utils.sim_molecules import H_2_LR, H_2_GFRO
-from tests.testing_utils.sim_tensor import (
+from tests.utils.sim_molecules import H_2_LR, H_2_GFRO
+from tests.utils.sim_tensor import (
     generate_symm_unitary_matrices,
 )
 
