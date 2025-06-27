@@ -14,11 +14,11 @@ from min_part.gfro_decomp import (
     gfro_cost,
     frob_norm,
     gfro_decomp,
-    generate_occupied_spin_orb_permutations,
     gfro_fragment_occ,
     make_fr_tensor,
     make_fr_tensor_from_u,
 )
+from min_part.operators import generate_occupied_spin_orb_permutations
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import (
@@ -82,7 +82,7 @@ class DecompTest(unittest.TestCase):
 
     def test_make_permutations(self):
         n = 3
-        combinations_s = generate_occupied_spin_orb_permutations(n)
+        combinations_s = generate_occupied_spin_orb_permutations(n, None)
         self.assertEqual(
             [
                 (),

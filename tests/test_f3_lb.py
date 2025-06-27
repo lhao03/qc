@@ -5,10 +5,12 @@ import numpy as np
 from openfermion import count_qubits
 
 from d_types.config_types import MConfig
-from d_types.fragment_types import FragmentedHamiltonian, Subspace
+from d_types.fragment_types import Subspace
+from d_types.frag_ham import FragmentedHamiltonian
 from min_part.f3_optimis import subspace_operators
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
+from min_part.utils import PartitionStrategy
 from tests.utils.sim_tensor import get_chem_tensors
 
 
@@ -31,7 +33,7 @@ class F3Test(unittest.TestCase):
 
     folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.f3"
 
-    def test_f3_simple_one_gfro(self, bond_length: float, m_config=h2_settings):
+    def test_partition(self, bond_length: float, m_config):
         m_config.folder = self.folder
         number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
@@ -62,6 +64,16 @@ class F3Test(unittest.TestCase):
             fluid=False,
             subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
         )
+        E = reference.get_expectation_value()
+        gfro_frags = gfro.partition(strategy=PartitionStrategy.GFRO)
+        lr_frags = lr.partition(strategy=PartitionStrategy.LR)
+        self.assertEqual(
+            sum([f.operators for f in gfro_frags]), sum([f.operators for f in lr_frags])
+        )
+        E_gfro = gfro.get_expectation_value()
+        E_lr = lr.get_expectation_value()
+        self.assertTrue(E >= E_gfro)
+        self.assertTrue(E >= E_lr)
 
     def test_ask_simple(self, bond_length: float = 1, m_config=h2_settings):
         m_config.folder = self.folder

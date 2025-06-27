@@ -1,5 +1,3 @@
-import os
-import pickle
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -7,12 +5,16 @@ from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
-import scipy as sp
-from openfermion import FermionOperator, jordan_wigner, qubit_operator_sparse
+from openfermion import FermionOperator
 
-from d_types.config_types import Nums, MConfig
+from d_types.config_types import Nums
 
-from min_part.tensor import tbt2op, obt2op
+from min_part.tensor import tbt2op
+
+
+class PartitionStrategy(Enum):
+    GFRO = "GFRO"
+    LR = "LR"
 
 
 class ContractPattern(Enum):
@@ -275,144 +277,6 @@ class Subspace:
             return False
 
 
-@dataclass
-class FragmentedHamiltonian:
-    m_config: MConfig
-    constant: float
-    one_body: FermionicFragment | np.ndarray
-    two_body: List[FermionicFragment] | np.ndarray
-    partitioned: bool
-    fluid: bool
-    subspace: Subspace
-
-    def __eq__(self, other):
-        if isinstance(other, FragmentedHamiltonian):
-            ob_eq = (
-                np.allclose(self.one_body, other.one_body)
-                if isinstance(self.one_body, np.ndarray)
-                else self.one_body == other.one_body
-            )
-            tb_eq = (
-                np.allclose(self.two_body, other.two_body)
-                if isinstance(self.two_body, np.ndarray)
-                else self.two_body == other.two_body
-            )
-            config_eq = self.m_config == self.m_config
-            constant_eq = self.constant == other.constant
-            partitioned_eq = self.partitioned == other.partitioned
-            fluid_eq = self.fluid == other.fluid
-            subspace_eq = self.subspace == other.subspace
-            return (
-                config_eq
-                and constant_eq
-                and ob_eq
-                and tb_eq
-                and partitioned_eq
-                and fluid_eq
-                and subspace_eq
-            )
-        else:
-            return False
-
-    def _diagonalize_operator(self, fo: FermionOperator):
-        eigenvalues, eigenvectors = sp.linalg.eigh(
-            qubit_operator_sparse(jordan_wigner(fo)).toarray()
-        )
-        subspace_w = filter(
-            lambda i_w: (
-                self.subspace.n(i_w[1]) == self.subspace.expected_e
-                and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
-                and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
-            ),
-            enumerate(eigenvectors.T),
-        )
-        subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
-        return min(subspace_e)
-
-    def get_expectation_value(self):
-        if self.partitioned and self.fluid:
-            pass
-        elif self.partitioned and not self.fluid:
-            const_obt = self._diagonalize_operator(
-                self.constant + obt2op(self.one_body)
-            )
-            tbt_e = 0
-            for frag in self.two_body:
-                if isinstance(frag, LRFragment):
-                    pass
-                elif isinstance(frag, GFROFragment):
-                    occs, energies = gfro_fragment_occ(
-                        frag, self.m_config.num_spin_orbs
-                    )
-                    subspace_energy = filter(lambda occ_ener: True, zip(occs, energies))
-                    tbt_e += min(subspace_energy, default=0)
-                else:
-                    raise UserWarning("Should not end up here.")
-            return const_obt + tbt_e
-        elif not self.partitioned and not self.fluid:
-            if not (
-                isinstance(self.one_body, np.ndarray)
-                and isinstance(self.two_body, np.ndarray)
-            ):
-                raise UserWarning(
-                    "Expected one-electron and two-electron parts to be tensors."
-                )
-            return self._diagonalize_operator(
-                self.constant + obt2op(self.one_body) + tbt2op(self.two_body)
-            )
-        else:
-            raise UserWarning("Shouldn't end up here.")
-
-    def save(self):
-        file_name = os.path.join(
-            self.m_config.folder, self.m_config.mol_name, self.m_config.date
-        )
-        if not os.path.exists(file_name):
-            os.makedirs(file_name)
-        if self.partitioned and self.fluid:
-            file_name = os.path.join(
-                file_name,
-                (
-                    "fluid_gfro"
-                    if isinstance(self.two_body[0], GFROFragment)
-                    else "fluid_lr"
-                ),
-            )
-        elif self.partitioned and not self.fluid:
-            file_name = os.path.join(
-                file_name,
-                ("gfro" if isinstance(self.two_body[0], GFROFragment) else "lr"),
-            )
-        elif not self.partitioned and not self.fluid:
-            file_name = os.path.join(
-                file_name,
-                "unpartitioned",
-            )
-        else:
-            raise UserWarning("Shouldn't end up here.")
-        output = open(f"{file_name}.pkl", "wb")
-        pickle.dump(self, output)
-        output.close()
-        return file_name
-
-    @classmethod
-    def load(cls, file_name):
-        if (
-            "fluid_gfro" in file_name
-            or "fluid_lr" in file_name
-            or "gfro" in file_name
-            or "lr" in file_name
-            or "unpartitioned" in file_name
-        ):
-            with open(f"{file_name}.pkl", "rb") as pkl_file:
-                frags = pickle.load(pkl_file)
-            return frags
-        else:
-            raise UserWarning(
-                "Expected filename to contain 'fluid', 'gfro', 'lr', or 'unpartitioned'"
-            )
-
-
 # == For importing functions and avoiding circular import error ==
 from min_part.f3_opers import (  # noqa: E402
     get_obp_from_frag_gfro,
@@ -427,5 +291,3 @@ from min_part.f3_opers import (  # noqa: E402
     fluid_lr_2tensor,
     remove_obp_lr,
 )
-
-from min_part.gfro_decomp import gfro_fragment_occ  # noqa: E402

@@ -1,3 +1,6 @@
+from itertools import combinations
+from typing import Optional, List, Tuple
+
 from openfermion import (
     number_operator,
     qubit_operator_sparse,
@@ -205,3 +208,17 @@ def assert_number_operator_equality(a: FermionOperator, b: FermionOperator):
     a_no = collapse_to_number_operator(a)
     b_no = collapse_to_number_operator(b)
     return a_no == b_no
+
+
+def generate_occupied_spin_orb_permutations(
+    total_spin_orbs: int, occ: Optional[int] = None
+) -> List[Tuple[int]]:
+    possible_spin_orbs = list(range(total_spin_orbs))
+    possible_permutations = []
+    for i in possible_spin_orbs:
+        possible_permutations += list(combinations(possible_spin_orbs, i))
+    possible_permutations.append(tuple(possible_spin_orbs))
+    if occ is None:
+        return possible_permutations
+    else:
+        return list(filter(lambda t: len(t) == occ, possible_permutations))

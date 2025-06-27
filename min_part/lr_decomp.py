@@ -1,10 +1,11 @@
-from typing import Any, List
+from typing import Any, Optional, Tuple
 
 import numpy as np
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
 from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
+from min_part.operators import generate_occupied_spin_orb_permutations
 from min_part.tensor import tbt2op, make_unitary_im, make_lambda_matrix
 
 
@@ -103,6 +104,16 @@ def get_lr_fragment_tensor_from_lambda(
 
 
 def lr_fragment_occ(
-    fragment, num_spin_orbs: int, occupied_spin_orbs: List[int]
-) -> List[float]:
-    pass
+    fragment: LRFragment, num_spin_orbs: int, occ: Optional[int] = None
+) -> Tuple[list[Tuple[int]], np.ndarray[Any, np.dtype[Any]]]:
+    occupation_combinations = generate_occupied_spin_orb_permutations(
+        num_spin_orbs, occ
+    )
+    occ_energies = []
+    for occ_comb in occupation_combinations:
+        occ_energy = 0
+        for l in occ_comb:
+            for m in occ_comb:
+                occ_energy += float(fragment.coeffs[l]) * float(fragment.coeffs[m])
+        occ_energies.append(fragment.outer_coeff * occ_energy)
+    return occupation_combinations, np.array(occ_energies)

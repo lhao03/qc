@@ -9,9 +9,10 @@ from hypothesis import given, settings
 from numpy import isclose
 from openfermion import (
     count_qubits,
+    jordan_wigner,
+    qubit_operator_sparse,
 )
 
-from min_part.gfro_decomp import make_fr_tensor_from_u
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.julia_ops import (
     rowwise_reshape,
@@ -26,6 +27,7 @@ from min_part.lr_decomp import (
     lr_decomp,
     get_lr_fragment_tensor_from_parts,
     get_lr_fragment_tensor,
+    lr_fragment_occ,
 )
 from min_part.molecules import mol_h2
 from min_part.tensor import (
@@ -250,3 +252,20 @@ class DecompTest(unittest.TestCase):
                 get_lr_fragment_tensor(l),
                 get_n_body_tensor_chemist_ordering(l.operators, 2, 4),
             )
+
+    def test_lr_h2_occs(self):
+        f = lr_decomp(tbt=self.H_tbt)
+        n = self.H_tbt.shape[0]
+        for frag_details in f:
+            diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
+            )
+            occupations, eigenvalues = lr_fragment_occ(
+                fragment=frag_details, num_spin_orbs=n
+            )
+            self.assertTrue(
+                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
+            )
+
+
+from min_part.gfro_decomp import make_fr_tensor_from_u  # noqa: E402

@@ -2,7 +2,6 @@ import json
 import os
 import pickle
 import warnings
-from enum import Enum
 from functools import reduce
 
 import scipy as sp
@@ -183,11 +182,6 @@ def get_saved_file_names(parent_dir) -> Tuple[List[str], List[str]]:
         [os.path.join(parent_dir, "lr", c) for c in lr_child_dirs], key=os.path.getctime
     )
     return list(sorted_gfro), list(sorted_lr)
-
-
-class PartitionStrategy(Enum):
-    GFRO = "GFRO"
-    LR = "LR"
 
 
 def range_float(start, end, step):
