@@ -1,3 +1,5 @@
+import json
+import os
 import unittest
 from typing import Tuple
 
@@ -10,6 +12,7 @@ from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_optimis import subspace_operators
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
+from min_part.plots import PlotNames, plot_energies
 from tests.utils.sim_tensor import get_chem_tensors
 
 
@@ -72,9 +75,45 @@ class F3Test(unittest.TestCase):
         E_lr = lr.get_expectation_value()
         self.assertTrue(E >= E_gfro)
         self.assertTrue(E >= E_lr)
+        return E, E_gfro, E_lr
 
     def test_make_lb(self):
-        self.test_partition(bond_length=1, m_config=h2_settings)
+        child_dir = os.path.join(
+            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h2",
+            h2_settings.date,
+        )
+        no_partitioning = []
+        gfro = []
+        lr = []
+        for bond_length in h2_settings.xpoints:
+            print(f"Partitioning: {bond_length} A")
+            E, E_gfro, E_lr = self.test_partition(bond_length, m_config=h2_settings)
+            no_partitioning.append(E)
+            gfro.append(E_gfro)
+            lr.append(E_lr)
+        plot_energies(
+            xpoints=h2_settings.xpoints,
+            points=[no_partitioning, gfro, lr],
+            title=f"{h2_settings.mol_name} Lower Bounds",
+            labels=[
+                PlotNames.NO_PARTITIONING,
+                PlotNames.LR_N_S,
+                PlotNames.GFRO_N_S,
+            ],
+            dir=child_dir,
+        )
+        energies = {
+            PlotNames.NO_PARTITIONING.value: no_partitioning,
+            PlotNames.LR_N_S.value: lr,
+            PlotNames.GFRO_N_S.value: gfro,
+        }
+
+        energies_json = json.dumps(energies)
+        with open(
+            os.path.join(child_dir, f"{h2_settings.mol_name}.json"),
+            "w",
+        ) as f:
+            f.write(energies_json)
 
     def test_ask_simple(self, bond_length: float = 1, m_config=h2_settings):
         number_operator, sz, s2 = subspace_operators(m_config)

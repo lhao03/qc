@@ -2,8 +2,8 @@ import os.path
 from enum import Enum
 from typing import List
 
+import os
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 class PlotNames(Enum):
@@ -54,6 +54,9 @@ def plot_energies(
     title: str,
     dir: str,
 ):
+    if not os.path.exists(dir):
+        os.makedirs(dir, exist_ok=True)
+
     plt.clf()
     for label, set_of_points in zip(labels, points):
         plt.plot(
