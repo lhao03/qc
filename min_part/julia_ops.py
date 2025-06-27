@@ -3,7 +3,7 @@ from typing import Tuple, List
 import numpy as np
 from julia import Pkg
 
-Pkg.activate("../MolHamLinAlg")
+Pkg.activate("/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/MolHamLinAlg")
 from julia import MolHamLinAlg
 
 

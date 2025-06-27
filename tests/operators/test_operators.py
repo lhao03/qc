@@ -26,7 +26,7 @@ from tests.utils.sim_tensor import get_chem_tensors
 
 class OperatorTest(unittest.TestCase):
     def setUp(self):
-        bond_length = 0.8
+        bond_length = 1
         self.mol = mol_h2(bond_length)
         H, num_elecs = obtain_OF_hamiltonian(self.mol)
         self.n_qubits = count_qubits(H)

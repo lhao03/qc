@@ -1,6 +1,7 @@
 import functools
 import itertools
 import operator
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -146,7 +147,7 @@ def artifical_h2_tbt(draw) -> np.ndarray:
     )
 
 
-def get_chem_tensors(H, N=None):
+def get_chem_tensors(H, N=None) -> Tuple[float, np.ndarray, np.ndarray]:
     """
     Obtain constant, one-body tensor and two body tensor in chemist ordering from a FermionOperator in physicist or chemist ordering. Assumes the existance of 8 fold symmetry of molecular Hamiltonians.
 

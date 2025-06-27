@@ -2,7 +2,6 @@ import json
 import os
 import pickle
 import warnings
-from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
 
@@ -189,29 +188,6 @@ def get_saved_file_names(parent_dir) -> Tuple[List[str], List[str]]:
 class PartitionStrategy(Enum):
     GFRO = "GFRO"
     LR = "LR"
-
-
-@dataclass
-class PartitioningStats:
-    bond_length: float
-    num_frags: int
-    e_diff: float
-    partition_strategy: PartitionStrategy
-
-
-def partitioning_stats(
-    no_partitioning_energy: float,
-    partitioned_energy: float,
-    frags: list,
-    bond_length: float,
-    partition_strategy: PartitionStrategy,
-):
-    return PartitioningStats(
-        bond_length=bond_length,
-        num_frags=len(frags),
-        e_diff=no_partitioning_energy - partitioned_energy,
-        partition_strategy=partition_strategy,
-    )
 
 
 def range_float(start, end, step):

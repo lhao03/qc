@@ -10,7 +10,7 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     b = filter(!isnan, b)
     eig = b[1]
     if panic
-        all(isapprox.(b, eig; atol=1e-10)) || error("Expected all elements of eigenvalue vector to be the same, but got: $(b). Original vector was: $(ev)")
+        all(isapprox.(b, eig; atol=1e-10)) || error("Expected all elements of eigenvalue vector to be the same, but got: $(b). Original vector was: $(ev), after applying operator become $(bv)")
         isapprox(eig * ev, bv; atol=1e-8) || error("O v != b v, got: $(bv) and $(eig * ev).")
     end
     real_e = real(eig)

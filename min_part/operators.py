@@ -131,7 +131,7 @@ def make_spin_z_operator(p: int) -> FermionOperator:
 
 def get_particle_number(w, e: int) -> float:
     """Finds the number of occupied spin orbitals given an eigenvector that was calculated via diagonalization,
-    should be a Slater determinant, should be a Slater Determinant.
+    should be a Slater determinant.
 
     Args:
         w (np.array): eigenvector that corresponds to a Slater Determinant.

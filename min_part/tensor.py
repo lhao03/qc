@@ -236,7 +236,7 @@ def Bliss_K_tensors(
     return s0, s1, s2
 
 
-def obt2op(obt):
+def obt2op(obt: np.ndarray):
     """
     convert one-body-tensor to FermionOperator
 
