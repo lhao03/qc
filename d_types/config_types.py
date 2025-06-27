@@ -14,4 +14,5 @@ class MConfig:
     mol_of_interest: any
     stable_bond_length: float
     date: str
-    folder: Optional[str] = None
+    f3_folder: Optional[str] = None
+    frag_folder: Optional[str] = None

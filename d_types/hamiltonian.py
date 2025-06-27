@@ -16,8 +16,9 @@ from d_types.fragment_types import (
     LRFragment,
 )
 from min_part.gfro_decomp import gfro_decomp, gfro_fragment_occ
-from min_part.lr_decomp import lr_decomp
+from min_part.lr_decomp import lr_decomp, lr_fragment_occ
 from min_part.tensor import obt2op, tbt2op
+from min_part.utils import open_frags, save_frags
 
 
 def zero_total_spin(t: Tuple[int]):
@@ -85,12 +86,21 @@ class FragmentedHamiltonian:
         subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
         return min(subspace_e)
 
-    def partition(self, strategy: PartitionStrategy):
-        match strategy:
-            case PartitionStrategy.GFRO:
-                self.two_body = gfro_decomp(self.two_body)
-            case PartitionStrategy.LR:
-                self.two_body = lr_decomp(self.two_body)
+    def partition(self, strategy: PartitionStrategy, bond_length: float):
+        frag_path = os.path.join(
+            self.m_config.frag_folder,
+            ("gfro" if strategy is PartitionStrategy.GFRO else "lr"),
+            str(bond_length),
+        )
+        if os.path.exists(f"{frag_path}.pkl"):
+            self.two_body = open_frags(frag_path)
+        else:
+            match strategy:
+                case PartitionStrategy.GFRO:
+                    self.two_body = gfro_decomp(self.two_body, debug=True)
+                case PartitionStrategy.LR:
+                    self.two_body = lr_decomp(self.two_body)
+            save_frags(self.two_body, file_name=frag_path)
         self.partitioned = True
         return self.two_body
 
@@ -104,7 +114,16 @@ class FragmentedHamiltonian:
             tbt_e = 0
             for frag in self.two_body:
                 if isinstance(frag, LRFragment):
-                    pass
+                    occs, energies = lr_fragment_occ(
+                        fragment=frag,
+                        num_spin_orbs=self.m_config.num_spin_orbs,
+                        occ=self.subspace.expected_e,
+                    )
+                    subspace_energy = filter(
+                        lambda occ_ener: zero_total_spin(occ_ener[0]),
+                        zip(occs, energies),
+                    )
+                    tbt_e += min([o_e[1] for o_e in subspace_energy], default=0)
                 elif isinstance(frag, GFROFragment):
                     occs, energies = gfro_fragment_occ(
                         fragment=frag,
@@ -115,7 +134,7 @@ class FragmentedHamiltonian:
                         lambda occ_ener: zero_total_spin(occ_ener[0]),
                         zip(occs, energies),
                     )
-                    tbt_e += min(subspace_energy, default=0)
+                    tbt_e += min([o_e[1] for o_e in subspace_energy], default=0)
                 else:
                     raise UserWarning("Should not end up here.")
             return const_obt + tbt_e
