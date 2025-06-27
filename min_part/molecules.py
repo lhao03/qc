@@ -27,7 +27,7 @@ frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags"
 
 h2_settings = MConfig(
     xpoints=list(
-        np.linspace(0.2, 3, endpoint=False, num=5)
+        np.linspace(0.2, 3, endpoint=False, num=56)
     ),  # list(np.linspace(0.2, 3, endpoint=False, num=56)),
     num_spin_orbs=4,  # H2 is 4  # H4 is 4(1s) = 8
     mol_name="H2",

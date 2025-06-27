@@ -71,20 +71,23 @@ class FragmentedHamiltonian:
         else:
             return False
 
-    def _diagonalize_operator(self, fo: FermionOperator):
+    def _diagonalize_operator(self, fo: FermionOperator, return_first: bool = False):
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(fo)).toarray()
         )
-        subspace_w = filter(
-            lambda i_w: (
-                self.subspace.n(i_w[1]) == self.subspace.expected_e
-                and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
-                and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
-            ),
-            enumerate(eigenvectors.T),
-        )
-        subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
-        return min(subspace_e)
+        if return_first:
+            return eigenvalues[0]
+        else:
+            subspace_w = filter(
+                lambda i_w: (
+                    self.subspace.n(i_w[1]) == self.subspace.expected_e
+                    and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
+                    and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
+                ),
+                enumerate(eigenvectors.T),
+            )
+            subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
+            return min(subspace_e, default=0)
 
     def partition(self, strategy: PartitionStrategy, bond_length: float):
         frag_path = os.path.join(
@@ -147,7 +150,8 @@ class FragmentedHamiltonian:
                     "Expected one-electron and two-electron parts to be tensors."
                 )
             return self._diagonalize_operator(
-                self.constant + obt2op(self.one_body) + tbt2op(self.two_body)
+                self.constant + obt2op(self.one_body) + tbt2op(self.two_body),
+                return_first=True,
             )
         else:
             raise UserWarning("Shouldn't end up here.")
