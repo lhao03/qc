@@ -25,25 +25,6 @@ def frob_norm(tensor) -> float:
     return np.sqrt(np.sum(np.abs(tensor * tensor)))
 
 
-def make_fr_tensor_from_u(lambdas, u, n) -> np.ndarray:
-    """Makes a two-body tensor, defined as sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms]
-
-    Checks that the provided unitary matrix is
-    1. square
-    2. has determinant of 1
-
-    Args:
-        lambdas: coefficients for a FR fragment
-        u: a unitary matrix used for orbital rotation
-        n: shape of the original two-body tensor, where n x n x n x n
-
-    Returns:
-        tensor of the FR fragment
-    """
-    lm = make_lambda_matrix(lambdas, n)
-    return contract("lm,lp,lq,mr,ms->pqrs", lm, u, u, u, u)
-
-
 def make_fr_tensor(lambdas, thetas, n) -> np.ndarray:
     """Makes a two-body tensor, defined as sum_{pqrs} sum_{lm} [lambda_{lm} U_lp U_lq U_mr U_ms]
 
@@ -238,3 +219,13 @@ def gfro_fragment_occ(
                 occ_energy += lambda_matrix[l][m]
         occ_energies.append(occ_energy)
     return occupation_combinations, np.array(occ_energies)
+
+
+def get_expectation_vals_gfro_frags(
+    self: GFROFragment, num_spin_orbs: int, expected_e: int
+):
+    return gfro_fragment_occ(
+        fragment=self,
+        num_spin_orbs=num_spin_orbs,
+        occ=expected_e,
+    )

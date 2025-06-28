@@ -16,9 +16,6 @@ from d_types.fragment_types import (
     OneBodyFragment,
     ContractPattern,
 )
-from min_part.gfro_decomp import (
-    make_fr_tensor_from_u,
-)
 from min_part.julia_ops import (
     solve_quad,
     jl_make_u_im,
@@ -31,6 +28,7 @@ from min_part.tensor import (
     extract_lambdas,
     make_unitary_im,
     make_lambda_matrix,
+    make_fr_tensor_from_u,
 )
 
 

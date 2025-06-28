@@ -13,10 +13,9 @@ from d_types.fragment_types import (
     Subspace,
     PartitionStrategy,
     GFROFragment,
-    LRFragment,
 )
-from min_part.gfro_decomp import gfro_decomp, gfro_fragment_occ
-from min_part.lr_decomp import lr_decomp, lr_fragment_occ
+from min_part.gfro_decomp import gfro_decomp
+from min_part.lr_decomp import lr_decomp
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
 
@@ -71,23 +70,20 @@ class FragmentedHamiltonian:
         else:
             return False
 
-    def _diagonalize_operator(self, fo: FermionOperator, return_first: bool = False):
+    def _diagonalize_operator(self, fo: FermionOperator):
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(fo)).toarray()
         )
-        if return_first:
-            return eigenvalues[0]
-        else:
-            subspace_w = filter(
-                lambda i_w: (
-                    self.subspace.n(i_w[1]) == self.subspace.expected_e
-                    and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
-                    and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
-                ),
-                enumerate(eigenvectors.T),
-            )
-            subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
-            return min(subspace_e, default=0)
+        subspace_w = filter(
+            lambda i_w: (
+                self.subspace.n(i_w[1]) == self.subspace.expected_e
+                and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
+                and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
+            ),
+            enumerate(eigenvectors.T),
+        )
+        subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
+        return min(subspace_e, default=0)
 
     def partition(self, strategy: PartitionStrategy, bond_length: float):
         frag_path = os.path.join(
@@ -111,36 +107,24 @@ class FragmentedHamiltonian:
         if self.partitioned and self.fluid:
             pass
         elif self.partitioned and not self.fluid:
-            const_obt = self._diagonalize_operator(
-                self.constant + obt2op(self.one_body)
-            )
-            tbt_e = 0
-            for frag in self.two_body:
-                if isinstance(frag, LRFragment):
-                    occs, energies = lr_fragment_occ(
-                        fragment=frag,
+            if isinstance(self.two_body[0], FermionicFragment):
+                const_obt = self._diagonalize_operator(
+                    self.constant + obt2op(self.one_body)
+                )
+                tbt_e = 0
+                for frag in self.two_body:
+                    occs, energies = frag.get_expectation_value(
                         num_spin_orbs=self.m_config.num_spin_orbs,
-                        occ=self.subspace.expected_e,
+                        expected_e=self.subspace.expected_e,
                     )
                     subspace_energy = filter(
                         lambda occ_ener: zero_total_spin(occ_ener[0]),
                         zip(occs, energies),
                     )
                     tbt_e += min([o_e[1] for o_e in subspace_energy], default=0)
-                elif isinstance(frag, GFROFragment):
-                    occs, energies = gfro_fragment_occ(
-                        fragment=frag,
-                        num_spin_orbs=self.m_config.num_spin_orbs,
-                        occ=self.subspace.expected_e,
-                    )
-                    subspace_energy = filter(
-                        lambda occ_ener: zero_total_spin(occ_ener[0]),
-                        zip(occs, energies),
-                    )
-                    tbt_e += min([o_e[1] for o_e in subspace_energy], default=0)
-                else:
-                    raise UserWarning("Should not end up here.")
-            return const_obt + tbt_e
+                return const_obt + tbt_e
+            else:
+                raise UserWarning("Should not end up here")
         elif not self.partitioned and not self.fluid:
             if not (
                 isinstance(self.one_body, np.ndarray)
@@ -150,15 +134,14 @@ class FragmentedHamiltonian:
                     "Expected one-electron and two-electron parts to be tensors."
                 )
             return self._diagonalize_operator(
-                self.constant + obt2op(self.one_body) + tbt2op(self.two_body),
-                return_first=True,
+                self.constant + obt2op(self.one_body) + tbt2op(self.two_body)
             )
         else:
             raise UserWarning("Shouldn't end up here.")
 
     def save(self):
         file_name = os.path.join(
-            self.m_config.folder, self.m_config.mol_name, self.m_config.date
+            self.m_config.f3_folder, self.m_config.mol_name, self.m_config.date
         )
         if not os.path.exists(file_name):
             os.makedirs(file_name)

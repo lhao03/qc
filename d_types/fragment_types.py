@@ -9,6 +9,7 @@ from openfermion import FermionOperator
 
 from d_types.config_types import Nums
 
+
 from min_part.tensor import tbt2op
 
 
@@ -117,6 +118,10 @@ class FermionicFragment:
     def to_tensor(self):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
+        raise NotImplementedError
+
 
 @dataclass(kw_only=True)
 class GFROFragment(FermionicFragment):
@@ -132,6 +137,9 @@ class GFROFragment(FermionicFragment):
             )
         else:
             return False
+
+    def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
+        return get_expectation_vals_gfro_frags(self, num_spin_orbs, expected_e)
 
     def get_ob_lambdas(self):
         """Returns the one-body part from a lambda matrix formed after GFRO decomposition.
@@ -214,6 +222,9 @@ class LRFragment(FermionicFragment):
         else:
             return False
 
+    def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
+        return get_expectation_vals_lr_frags(self, num_spin_orbs, expected_e)
+
     def to_tensor(self):
         return fluid_lr_2tensor(self)
 
@@ -291,3 +302,6 @@ from min_part.f3_opers import (  # noqa: E402
     fluid_lr_2tensor,
     remove_obp_lr,
 )
+
+from min_part.gfro_decomp import get_expectation_vals_gfro_frags  # noqa: E402
+from min_part.lr_decomp import get_expectation_vals_lr_frags  # noqa: E402

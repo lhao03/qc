@@ -90,6 +90,10 @@ class OperatorTest(unittest.TestCase):
         s = get_total_spin(self.eigenvectors[:, -1], 2)
         self.assertEqual(extract_eigenvalue(self.s_2_of, self.eigenvectors[:, -1]), s)
 
+    def test(self):
+        for i in range(16):
+            print(self.eigenvalues[i], get_total_spin(self.eigenvectors[:, i], 2))
+
     # === Operator Utils ===
     def test_square_operator(self):
         a_creat = FermionOperator("0^", 3.1)

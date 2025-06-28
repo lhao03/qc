@@ -16,9 +16,13 @@ from min_part.gfro_decomp import (
     gfro_decomp,
     gfro_fragment_occ,
     make_fr_tensor,
-    make_fr_tensor_from_u,
 )
-from min_part.operators import generate_occupied_spin_orb_permutations
+from min_part.operators import (
+    generate_occupied_spin_orb_permutations,
+    get_total_spin,
+    get_particle_number,
+    get_projected_spin,
+)
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import mol_h2
 from min_part.tensor import (
@@ -29,6 +33,7 @@ from min_part.tensor import (
     make_unitary,
     make_lambda_matrix,
     extract_thetas,
+    make_fr_tensor_from_u,
 )
 from tests.utils.sim_tensor import get_chem_tensors
 
@@ -220,7 +225,7 @@ class DecompTest(unittest.TestCase):
                 qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
             )
             occupations, eigenvalues = gfro_fragment_occ(
-                fragment=frag_details, num_spin_orbs=n
+                fragment=frag_details, num_spin_orbs=n, occ=None
             )
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
@@ -234,8 +239,16 @@ class DecompTest(unittest.TestCase):
             diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
             )
+            for i in range(16):
+                print(
+                    diag_eigenvalues[i],
+                    get_particle_number(diag_eigenvectors[:, i], 4),
+                    get_total_spin(diag_eigenvectors[:, i], 2),
+                    get_projected_spin(diag_eigenvectors[:, i], 2),
+                )
+
             occupations, eigenvalues = gfro_fragment_occ(
-                fragment=frag_details, num_spin_orbs=n
+                fragment=frag_details, num_spin_orbs=n, occ=None
             )
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))

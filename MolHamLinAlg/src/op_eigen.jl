@@ -16,7 +16,7 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     real_e = real(eig)
     img_e = imag(eig)
     isapprox(img_e, 0, atol=1e-10) || error("Eigenvalues should be real, got $(eig)")
-    real_e
+    round(real_e)
 end
 
 function UV_eigendecomp(mat)

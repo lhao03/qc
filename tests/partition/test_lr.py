@@ -11,6 +11,8 @@ from openfermion import (
     count_qubits,
     jordan_wigner,
     qubit_operator_sparse,
+    s_squared_operator,
+    sz_operator,
 )
 
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -30,6 +32,11 @@ from min_part.lr_decomp import (
     lr_fragment_occ,
 )
 from min_part.molecules import mol_h2
+from min_part.operators import (
+    get_projected_spin,
+    get_total_spin,
+    extract_eigenvalue,
+)
 from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
     obt2op,
@@ -37,6 +44,7 @@ from min_part.tensor import (
     make_x_matrix,
     extract_thetas,
     make_unitary_im,
+    make_fr_tensor_from_u,
 )
 
 from min_part.utils import do_lr_fo
@@ -53,7 +61,7 @@ settings.load_profile("fast")
 
 class DecompTest(unittest.TestCase):
     def setUp(self):
-        bond_length = 0.80
+        bond_length = 0.75
         self.mol = mol_h2(bond_length)
         self.H, num_elecs = obtain_OF_hamiltonian(self.mol)
         self.n_qubits = count_qubits(self.H)
@@ -263,9 +271,28 @@ class DecompTest(unittest.TestCase):
             occupations, eigenvalues = lr_fragment_occ(
                 fragment=frag_details, num_spin_orbs=n
             )
+            for i in range(16):
+                self.assertEqual(
+                    get_total_spin(diag_eigenvectors[:, i], 2),
+                    extract_eigenvalue(
+                        qubit_operator_sparse(
+                            jordan_wigner(s_squared_operator(n_spatial_orbitals=2))
+                        ),
+                        diag_eigenvectors[:, i],
+                        panic=False,
+                    ),
+                )
+                self.assertEqual(
+                    get_projected_spin(diag_eigenvectors[:, i], 2),
+                    extract_eigenvalue(
+                        qubit_operator_sparse(
+                            jordan_wigner(sz_operator(n_spatial_orbitals=2))
+                        ),
+                        diag_eigenvectors[:, i],
+                        panic=False,
+                    ),
+                )
+
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
             )
-
-
-from min_part.gfro_decomp import make_fr_tensor_from_u  # noqa: E402

@@ -117,3 +117,7 @@ def lr_fragment_occ(
                 occ_energy += float(fragment.coeffs[l]) * float(fragment.coeffs[m])
         occ_energies.append(fragment.outer_coeff * occ_energy)
     return occupation_combinations, np.array(occ_energies)
+
+
+def get_expectation_vals_lr_frags(self, num_spin_orbs: int, expected_e: int):
+    return lr_fragment_occ(self, num_spin_orbs, expected_e)

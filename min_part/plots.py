@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 
 
 class PlotNames(Enum):
-    NO_PARTITIONING = "No Partitioning"
+    NO_PARTITIONING = "Exact"
 
     LR_N = "LR F(M, 2)"
     GFRO_N = "GFRO F(M, 2)"
 
-    LR_N_S = "LR F(M, 2) + Spin"
-    GFRO_N_S = "GFRO F(M, 2) + Spin"
+    LR_N_S = "LR"
+    GFRO_N_S = "GFRO"
 
     LR_F_SPACE = "LR: All Fock Space"
     GFRO_F_SPACE = "GFRO: All Fock Space"
