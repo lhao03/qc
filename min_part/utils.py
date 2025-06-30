@@ -19,7 +19,7 @@ from d_types.fragment_types import GFROFragment
 from min_part.ffrag_utils import LR_frags_generator
 from min_part.gfro_decomp import gfro_fragment_occ
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
-from min_part.plots import PlotNames
+from min_part.plots import RefLBPlotNames
 
 
 def choose_lowest_energy(
@@ -201,13 +201,13 @@ def save_energies(
     gfro_all_subspace_energies,
 ):
     energies = {
-        PlotNames.NO_PARTITIONING.value: no_partitioning,
-        PlotNames.LR_N.value: lr_n_subspace_energies,
-        PlotNames.GFRO_N.value: gfro_n_subspace_energies,
-        PlotNames.LR_N_S.value: lr_n_s_subspace_energies,
-        PlotNames.GFRO_N_S.value: gfro_n_s_subspace_energies,
-        PlotNames.LR_F_SPACE.value: lr_all_subspace_energies,
-        PlotNames.GFRO_F_SPACE.value: gfro_all_subspace_energies,
+        RefLBPlotNames.NO_PARTITIONING.value: no_partitioning,
+        RefLBPlotNames.LR_N.value: lr_n_subspace_energies,
+        RefLBPlotNames.GFRO_N.value: gfro_n_subspace_energies,
+        RefLBPlotNames.LR_N_S.value: lr_n_s_subspace_energies,
+        RefLBPlotNames.GFRO_N_S.value: gfro_n_s_subspace_energies,
+        RefLBPlotNames.LR_F_SPACE.value: lr_all_subspace_energies,
+        RefLBPlotNames.GFRO_F_SPACE.value: gfro_all_subspace_energies,
     }
 
     energies_json = json.dumps(energies)
@@ -232,13 +232,13 @@ def load_energies(
         ) as file:
             data = json.load(file)
         return (
-            data[PlotNames.NO_PARTITIONING.value],
-            data[PlotNames.LR_N.value],
-            data[PlotNames.GFRO_N.value],
-            data[PlotNames.LR_N_S.value],
-            data[PlotNames.GFRO_N_S.value],
-            data[PlotNames.LR_F_SPACE.value],
-            data[PlotNames.GFRO_F_SPACE.value],
+            data[RefLBPlotNames.NO_PARTITIONING.value],
+            data[RefLBPlotNames.LR_N.value],
+            data[RefLBPlotNames.GFRO_N.value],
+            data[RefLBPlotNames.LR_N_S.value],
+            data[RefLBPlotNames.GFRO_N_S.value],
+            data[RefLBPlotNames.LR_F_SPACE.value],
+            data[RefLBPlotNames.GFRO_F_SPACE.value],
         )
     except FileNotFoundError:
         warnings.warn("JSON not found, continuing with empty arrays.")

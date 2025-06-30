@@ -17,15 +17,16 @@ from d_types.fragment_types import (
     LRFragment,
     FermionicFragment,
 )
-from min_part.f_3_ops import (
+from min_part.f3_opers import (
+    get_diag_idx,
     obt2fluid,
     fluid_2tensor,
     static_2tensor,
-    fluid_lr_2tensor,
     make_obp_tensor,
-    get_diag_idx,
+    fluid_lr_2tensor,
     make_lambdas,
 )
+
 from min_part.gfro_decomp import (
     gfro_decomp,
     make_fr_tensor,

@@ -1,3 +1,4 @@
+from copy import copy
 from functools import reduce
 from itertools import groupby
 from typing import Tuple, Optional, List
@@ -325,4 +326,13 @@ def make_lambdas(fluid_coeffs: List[Tuple[int, FluidCoeff]], n):
             c += g[1].coeff
         idx = get_diag_idx(orb, n)
         lambdas[idx] = c
+    return lambdas
+
+
+def lambdas_from_fluid_parts(fluid_parts: FluidParts):
+    m = fluid_parts.static_lambdas.size
+    n = solve_quad(1, 1, -2 * m)
+    lambdas = copy(fluid_parts.static_lambdas)
+    for i, c in enumerate(fluid_parts.fluid_lambdas):
+        lambdas[get_diag_idx(i, n)] = c
     return lambdas

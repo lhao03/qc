@@ -4,7 +4,7 @@ export extract_eigen
 export UV_eigendecomp
 
 function extract_eigen(op::Matrix, ev::Vector, panic)
-    ev = map((e) -> abs(e) > 1e-10 ? e : 0, ev)
+    ev = map((e) -> abs(e) > 1e-7 ? e : 0, ev)
     bv = op * ev
     b = bv ./ ev
     b = filter(!isnan, b)

@@ -6,7 +6,38 @@ import os
 import matplotlib.pyplot as plt
 
 
-class PlotNames(Enum):
+class FluidPlotNames(Enum):
+    NO_PARTITIONING = "Exact"
+
+    GFRO = "GFRO"
+    GFRO_FLUID = "GFRO Fluid"
+
+    LR_N_S = "LR"
+    GFRO_N_S = "GFRO"
+
+    LR_F_SPACE = "LR: All Fock Space"
+    GFRO_F_SPACE = "GFRO: All Fock Space"
+
+    @classmethod
+    def get_color(cls, label):
+        match label:
+            case RefLBPlotNames.NO_PARTITIONING:
+                return ColorBlindFriendly.BLUE
+            case RefLBPlotNames.LR_N:
+                return ColorBlindFriendly.ORANGE
+            case RefLBPlotNames.GFRO_N:
+                return ColorBlindFriendly.PINK
+            case RefLBPlotNames.LR_N_S:
+                return ColorBlindFriendly.BROWN
+            case RefLBPlotNames.GFRO_N_S:
+                return ColorBlindFriendly.PURPLE
+            case RefLBPlotNames.LR_F_SPACE:
+                return ColorBlindFriendly.RED
+            case RefLBPlotNames.GFRO_F_SPACE:
+                return ColorBlindFriendly.YELLOW
+
+
+class RefLBPlotNames(Enum):
     NO_PARTITIONING = "Exact"
 
     LR_N = "LR F(M, 2)"
@@ -21,19 +52,19 @@ class PlotNames(Enum):
     @classmethod
     def get_color(cls, label):
         match label:
-            case PlotNames.NO_PARTITIONING:
+            case RefLBPlotNames.NO_PARTITIONING:
                 return ColorBlindFriendly.BLUE
-            case PlotNames.LR_N:
+            case RefLBPlotNames.LR_N:
                 return ColorBlindFriendly.ORANGE
-            case PlotNames.GFRO_N:
+            case RefLBPlotNames.GFRO_N:
                 return ColorBlindFriendly.PINK
-            case PlotNames.LR_N_S:
+            case RefLBPlotNames.LR_N_S:
                 return ColorBlindFriendly.BROWN
-            case PlotNames.GFRO_N_S:
+            case RefLBPlotNames.GFRO_N_S:
                 return ColorBlindFriendly.PURPLE
-            case PlotNames.LR_F_SPACE:
+            case RefLBPlotNames.LR_F_SPACE:
                 return ColorBlindFriendly.RED
-            case PlotNames.GFRO_F_SPACE:
+            case RefLBPlotNames.GFRO_F_SPACE:
                 return ColorBlindFriendly.YELLOW
 
 
@@ -50,7 +81,7 @@ class ColorBlindFriendly:
 def plot_energies(
     xpoints: List[float],
     points: List[List[float]],
-    labels: List[PlotNames],
+    labels: List[RefLBPlotNames | FluidPlotNames],
     title: str,
     dir: str,
 ):
@@ -62,7 +93,7 @@ def plot_energies(
         plt.plot(
             xpoints,
             set_of_points,
-            color=PlotNames.get_color(label),
+            color=RefLBPlotNames.get_color(label),
             marker="|",
             alpha=0.6,
         )

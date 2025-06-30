@@ -25,7 +25,7 @@ from min_part.utils import (
     load_energies,
     get_saved_file_names,
 )
-from min_part.plots import plot_energies, PlotNames
+from min_part.plots import plot_energies, RefLBPlotNames
 from tests.utils.sim_tensor import get_chem_tensors
 
 settings.register_profile("slow", deadline=None)
@@ -163,7 +163,11 @@ class LowerBoundTest(unittest.TestCase):
                 gfro_n_subspace_energies,
             ],
             title=f"{config_settings.mol_name} Energies from Partitioning, No Spin Constraints",
-            labels=[PlotNames.NO_PARTITIONING, PlotNames.LR_N, PlotNames.GFRO_N],
+            labels=[
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.LR_N,
+                RefLBPlotNames.GFRO_N,
+            ],
             dir=child_dir,
         )
 
@@ -175,7 +179,11 @@ class LowerBoundTest(unittest.TestCase):
                 gfro_n_s_subspace_energies,
             ],
             title=f"{config_settings.mol_name} Energies from Partitioning, Spin Constraints",
-            labels=[PlotNames.NO_PARTITIONING, PlotNames.LR_N_S, PlotNames.GFRO_N_S],
+            labels=[
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.LR_N_S,
+                RefLBPlotNames.GFRO_N_S,
+            ],
             dir=child_dir,
         )
 
@@ -192,13 +200,13 @@ class LowerBoundTest(unittest.TestCase):
             ],
             title=f"{config_settings.mol_name} Energies from Partitioning, All Bounds",
             labels=[
-                PlotNames.NO_PARTITIONING,
-                PlotNames.LR_N,
-                PlotNames.GFRO_N,
-                PlotNames.LR_N_S,
-                PlotNames.GFRO_N_S,
-                PlotNames.LR_F_SPACE,
-                PlotNames.GFRO_F_SPACE,
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.LR_N,
+                RefLBPlotNames.GFRO_N,
+                RefLBPlotNames.LR_N_S,
+                RefLBPlotNames.GFRO_N_S,
+                RefLBPlotNames.LR_F_SPACE,
+                RefLBPlotNames.GFRO_F_SPACE,
             ],
             dir=child_dir,
         )
@@ -214,11 +222,11 @@ class LowerBoundTest(unittest.TestCase):
             ],
             title=f"{config_settings.mol_name} Energies from Partitioning, Tightest Bounds",
             labels=[
-                PlotNames.NO_PARTITIONING,
-                PlotNames.LR_N,
-                PlotNames.GFRO_N,
-                PlotNames.LR_N_S,
-                PlotNames.GFRO_N_S,
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.LR_N,
+                RefLBPlotNames.GFRO_N,
+                RefLBPlotNames.LR_N_S,
+                RefLBPlotNames.GFRO_N_S,
             ],
             dir=child_dir,
         )

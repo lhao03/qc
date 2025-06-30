@@ -114,6 +114,10 @@ class FermionicFragment:
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):
         raise NotImplementedError
 
+    def bulkmove2frag(self, to: OneBodyFragment, coeffs: Nums):
+        for i, c in enumerate(coeffs):
+            self.move2frag(to, c, i, True)
+
     @abstractmethod
     def to_tensor(self):
         raise NotImplementedError

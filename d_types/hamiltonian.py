@@ -13,6 +13,7 @@ from d_types.fragment_types import (
     Subspace,
     PartitionStrategy,
     GFROFragment,
+    OneBodyFragment,
 )
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
@@ -35,7 +36,7 @@ def zero_total_spin(t: Tuple[int]):
 class FragmentedHamiltonian:
     m_config: MConfig
     constant: float
-    one_body: FermionicFragment | np.ndarray
+    one_body: OneBodyFragment | np.ndarray
     two_body: List[FermionicFragment] | np.ndarray
     partitioned: bool
     fluid: bool
@@ -70,6 +71,9 @@ class FragmentedHamiltonian:
         else:
             return False
 
+    def optimize_fragments(self):
+        return greedy_fluid_gfro_optimize(self, iters=10000, debug=True)
+
     def _diagonalize_operator(self, fo: FermionOperator):
         eigenvalues, eigenvectors = sp.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(fo)).toarray()
@@ -85,13 +89,15 @@ class FragmentedHamiltonian:
         subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
         return min(subspace_e, default=0)
 
-    def partition(self, strategy: PartitionStrategy, bond_length: float):
+    def partition(
+        self, strategy: PartitionStrategy, bond_length: float, load_prev: bool = True
+    ):
         frag_path = os.path.join(
             self.m_config.frag_folder,
             ("gfro" if strategy is PartitionStrategy.GFRO else "lr"),
             str(bond_length),
         )
-        if os.path.exists(f"{frag_path}.pkl"):
+        if load_prev and os.path.exists(f"{frag_path}.pkl"):
             self.two_body = open_frags(frag_path)
         else:
             match strategy:
@@ -105,7 +111,22 @@ class FragmentedHamiltonian:
 
     def get_expectation_value(self):
         if self.partitioned and self.fluid:
-            pass
+            if isinstance(self.one_body, OneBodyFragment) and isinstance(
+                self.two_body[0], FermionicFragment
+            ):
+                const_obt = self._diagonalize_operator(
+                    self.constant + self.one_body.to_op()
+                )
+                tbt_e = 0
+                for frag in self.two_body:
+                    tbt_e += self._diagonalize_operator(
+                        frag.to_op()
+                    )  # TODO: optimize somehow????
+                return const_obt + tbt_e
+            else:
+                raise UserWarning(
+                    "Expected one body part to be of type `OneBodyFragment` and two body part to be of `TwoBodyFragment`"
+                )
         elif self.partitioned and not self.fluid:
             if isinstance(self.two_body[0], FermionicFragment):
                 const_obt = self._diagonalize_operator(
@@ -139,7 +160,7 @@ class FragmentedHamiltonian:
         else:
             raise UserWarning("Shouldn't end up here.")
 
-    def save(self):
+    def save(self, id: str = ""):
         file_name = os.path.join(
             self.m_config.f3_folder, self.m_config.mol_name, self.m_config.date
         )
@@ -166,6 +187,7 @@ class FragmentedHamiltonian:
             )
         else:
             raise UserWarning("Shouldn't end up here.")
+        file_name += f"_{id}" if len(id) > 0 else ""
         output = open(f"{file_name}.pkl", "wb")
         pickle.dump(self, output)
         output.close()
@@ -187,3 +209,6 @@ class FragmentedHamiltonian:
             raise UserWarning(
                 "Expected filename to contain 'fluid', 'gfro', 'lr', or 'unpartitioned'"
             )
+
+
+from min_part.f3_optimis import greedy_fluid_gfro_optimize  # noqa: E402
