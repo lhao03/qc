@@ -30,7 +30,6 @@ def subspace_projection_operator(fo: FermionOperator, n_spin_orbs: int, num_elec
     for i in range(len(Ssq_v)):
         if Ssq_v[i] <= 0.01:
             counter += 1
-    non_cisd_dim = counter
 
     Ssq_evals, NSz2SSq_Proj = Ssq_v[:counter], Ssq_w[:, :counter].T
     NSz2SSq_Proj_sparse = sp.sparse.csc_matrix(NSz2SSq_Proj)

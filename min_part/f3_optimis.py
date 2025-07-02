@@ -53,8 +53,10 @@ def find_fluid_coeffs(
         tbf_copy = deepcopy(tbf)
         for i in range(n):
             tbf_copy.move2frag(to=obf_copy, coeff=x0_0[i], orb=i, mutate=True)
-        obp_E = self._diagonalize_operator(self.constant + obf_copy.to_op())
-        tbp_E = self._diagonalize_operator(tbf_copy.operators)
+        obp_E = self._diagonalize_operator_with_ss_proj(
+            self.constant + obf_copy.to_op()
+        )
+        tbp_E = self._diagonalize_operator_with_ss_proj(tbf_copy.operators)
         return starting_E - (obp_E + tbp_E)
 
     greedy_coeffs: OptimizeResult = minimize(
@@ -87,7 +89,9 @@ def greedy_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool =
         for i in range(len(self.two_body)):
             if debug:
                 print(f"Optimizing fragment: {i}")
-            obp_E = self._diagonalize_operator(self.constant + self.one_body.to_op())
+            obp_E = self._diagonalize_operator_with_ss_proj(
+                self.constant + self.one_body.to_op()
+            )
             og_tbp_E = self._filter_frag_energy(self.two_body[i])
             starting_E = obp_E + og_tbp_E
             self.two_body[i].to_fluid()

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 import numpy as np
-from openfermion import FermionOperator
+from openfermion import FermionOperator, qubit_operator_sparse, jordan_wigner
 
 from d_types.config_types import MConfig
 from d_types.fragment_types import (
@@ -22,7 +22,7 @@ from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
 
 
-def zero_total_spin(t: Tuple[int]):
+def zero_s_z(t: Tuple[int]):
     even = 0
     odd = 0
     for x in t:
@@ -75,19 +75,35 @@ class FragmentedHamiltonian:
     def optimize_fragments(self):
         return greedy_fluid_optimize(self, iters=10000, debug=True)
 
-    def _diagonalize_operator(self, fo: FermionOperator):
-        # eigenvalues, eigenvectors = sp.linalg.eigh(
-        #     qubit_operator_sparse(jordan_wigner(fo)).toarray()
-        # )
-        # subspace_w = filter(
-        #     lambda i_w: (
-        #         self.subspace.n(i_w[1]) == self.subspace.expected_e
-        #         and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
-        #         and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
-        #     ),
-        #     enumerate(eigenvectors.T),
-        # )
-        # subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
+    def _add_up_orb_occs(self, frag: FermionicFragment):
+        occs, energies = frag.get_expectation_value(
+            num_spin_orbs=self.m_config.num_spin_orbs,
+            expected_e=self.subspace.expected_e,
+        )
+        subspace_energy = filter(
+            lambda occ_ener: zero_s_z(occ_ener[0]),
+            zip(occs, energies),
+        )
+        return min([o_e[1] for o_e in subspace_energy], default=0)
+
+    def _diagonalize_operator_complete_ss(
+        self, fo: FermionOperator
+    ) -> Tuple[int, float]:
+        eigenvalues, eigenvectors = np.linalg.eigh(
+            qubit_operator_sparse(jordan_wigner(fo)).toarray()
+        )
+        subspace_w = filter(
+            lambda i_w: (
+                self.subspace.n(i_w[1]) == self.subspace.expected_e
+                and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
+                and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
+            ),
+            enumerate(eigenvectors.T),
+        )
+        subspace_e = [(i_w[0], eigenvalues[i_w[0]]) for i_w in subspace_w]
+        return min(subspace_e, default=0, key=lambda t: t[1])
+
+    def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
         eigenvalues, eigenvectors = np.linalg.eigh(
             subspace_projection_operator(
                 fo, self.m_config.num_spin_orbs, self.subspace.expected_e
@@ -101,7 +117,7 @@ class FragmentedHamiltonian:
             expected_e=self.subspace.expected_e,
         )
         subspace_energy = filter(
-            lambda occ_ener: zero_total_spin(occ_ener[0]),
+            lambda occ_ener: zero_s_z(occ_ener[0]),
             zip(occs, energies),
         )
         return min([o_e[1] for o_e in subspace_energy], default=0)
@@ -142,13 +158,13 @@ class FragmentedHamiltonian:
 
     def get_expectation_value(self):
         if self.partitioned or self.fluid:
-            const_obt = self._diagonalize_operator(
+            const_obt = self._diagonalize_operator_with_ss_proj(
                 self.constant + self.one_body.to_op()
             )
             tbt_e = 0
             for frag in self.two_body:
                 # tbt_e += self._filter_frag_energy(frag)
-                tbt_e += self._diagonalize_operator(frag.to_op())
+                tbt_e += self._diagonalize_operator_with_ss_proj(frag.to_op())
             return const_obt + tbt_e
         elif not self.partitioned and not self.fluid:
             if not (
@@ -158,7 +174,7 @@ class FragmentedHamiltonian:
                 raise UserWarning(
                     "Expected one-electron and two-electron parts to be tensors."
                 )
-            return self._diagonalize_operator(
+            return self._diagonalize_operator_with_ss_proj(
                 self.constant + obt2op(self.one_body) + tbt2op(self.two_body)
             )
         else:

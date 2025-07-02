@@ -4,7 +4,7 @@ import unittest
 from typing import Tuple
 
 import numpy as np
-from openfermion import count_qubits, jordan_wigner
+from openfermion import count_qubits, jordan_wigner, qubit_operator_sparse
 
 from d_types.config_types import MConfig
 from d_types.fragment_types import Subspace, PartitionStrategy
@@ -13,6 +13,7 @@ from min_part.f3_optimis import subspace_operators
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
 from min_part.plots import RefLBPlotNames, plot_energies, FluidPlotNames
+from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_chem_tensors
 
 
@@ -264,8 +265,8 @@ class F3Test(unittest.TestCase):
                         jordan_wigner(gfro.get_operators()),
                     )
                     self.assertAlmostEqual(
-                        gfro._diagonalize_operator(original_operator_sum),
-                        gfro._diagonalize_operator(gfro.get_operators()),
+                        gfro._diagonalize_operator_with_ss_proj(original_operator_sum),
+                        gfro._diagonalize_operator_with_ss_proj(gfro.get_operators()),
                     )
                 except:
                     print("Failed JW check")
@@ -304,8 +305,8 @@ class F3Test(unittest.TestCase):
                         jordan_wigner(lr.get_operators()),
                     )
                     self.assertAlmostEqual(
-                        lr._diagonalize_operator(original_operator_sum),
-                        lr._diagonalize_operator(lr.get_operators()),
+                        lr._diagonalize_operator_with_ss_proj(original_operator_sum),
+                        lr._diagonalize_operator_with_ss_proj(lr.get_operators()),
                     )
                 except:
                     print("Failed JW check")
@@ -313,3 +314,96 @@ class F3Test(unittest.TestCase):
             jordan_wigner(original_operator_sum), jordan_wigner(lr.get_operators())
         )
         print(f"Final Energy: {lr.get_expectation_value()}")
+
+    def test_diagonalization_strats_and_weyls(
+        self, bond_length=0.8, m_config=h2_settings
+    ):
+        number_operator, sz, s2 = subspace_operators(m_config)
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        reference = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        ref_E_ss = reference.get_expectation_value()
+        ref_E_compl = reference._diagonalize_operator_complete_ss(
+            reference.constant + obt2op(reference.one_body) + tbt2op(reference.two_body)
+        )[1]
+        self.assertAlmostEqual(ref_E_ss, ref_E_compl)
+
+        lr = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
+        lr_E_ss = lr.get_expectation_value()
+        lr_E_compl = lr._diagonalize_operator_complete_ss(
+            lr.constant + lr.one_body.to_op()
+        )[1] + sum(
+            [lr._diagonalize_operator_complete_ss(f.operators)[1] for f in lr.two_body]
+        )
+        lr_E_orb_occ = lr._diagonalize_operator_complete_ss(
+            lr.constant + lr.one_body.to_op()
+        )[1] + sum([lr._add_up_orb_occs(f) for f in lr.two_body])
+        self.assertNotEqual(lr_E_ss, lr_E_compl)  # LR Partitioning Shows this Bug
+        self.assertAlmostEqual(lr_E_ss, lr_E_orb_occ)
+
+        gfro = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        gfro_E_ss = gfro.get_expectation_value()
+        lambda_indices = [
+            gfro._diagonalize_operator_complete_ss(f.operators)[0]
+            for f in gfro.two_body
+        ]
+        eigs = sum(
+            [
+                gfro._diagonalize_operator_complete_ss(f.operators)[1]
+                for f in gfro.two_body
+            ]
+        )
+        eigs_ss = sum(
+            [
+                gfro._diagonalize_operator_with_ss_proj(f.operators)
+                for f in gfro.two_body
+            ]
+        )
+        gfro_E_compl = (
+            gfro._diagonalize_operator_complete_ss(
+                gfro.constant + gfro.one_body.to_op()
+            )[1]
+            + eigs
+        )
+        gfro_E_occs = gfro._diagonalize_operator_complete_ss(
+            gfro.constant + gfro.one_body.to_op()
+        )[1] + sum([gfro._add_up_orb_occs(f) for f in gfro.two_body])
+        self.assertAlmostEqual(
+            gfro_E_ss, gfro_E_compl
+        )  # GFRO Partitioning Does Not Show Bug
+        vals, vecs = np.linalg.eigh(
+            qubit_operator_sparse(
+                jordan_wigner(sum([f.operators for f in gfro.two_body]))
+            ).toarray()
+        )
+        right_ind = sum([(16 - l) for l in lambda_indices]) - 16
+        for i, e in enumerate(reversed(vals)):
+            if i < right_ind:
+                self.assertTrue(eigs <= e)
+                self.assertTrue(eigs_ss <= e)
+        self.assertAlmostEqual(gfro_E_ss, gfro_E_occs)
