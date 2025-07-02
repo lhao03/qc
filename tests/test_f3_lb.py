@@ -235,7 +235,7 @@ class F3Test(unittest.TestCase):
         ) as f:
             f.write(energies_json)
 
-    def test_manual_f3_gfro(self, bond_length=0.8, m_config=h2_settings):
+    def test_manual_f3_gfro_proj(self, bond_length=0.8, m_config=h2_settings):
         number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
         gfro = FragmentedHamiltonian(
@@ -247,17 +247,54 @@ class F3Test(unittest.TestCase):
             fluid=False,
             subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
         )
+        vals, vecs = np.linalg.eigh(
+            qubit_operator_sparse(
+                jordan_wigner(
+                    gfro.constant + obt2op(gfro.one_body) + tbt2op(gfro.two_body)
+                )
+            ).toarray()
+        )
         print(f"OG Energy: {gfro.get_expectation_value()}")
         gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
         original_operator_sum = gfro.get_operators()
-        print(f"Partitioned Energy: {gfro.get_expectation_value()}")
         for j, f in enumerate(gfro.two_body):
             gfro.two_body[j] = f.to_fluid()
             for i, c in enumerate(f.fluid_parts.fluid_lambdas):
                 f.move2frag(gfro.one_body, c, i, mutate=True)
-                print(
-                    f"Energy after moving {c} to orb {i}: {gfro.get_expectation_value()}"
+
+                # == other diagonalization method check
+                ob_e, occs = gfro._diagonalize_operator_complete_ss(
+                    gfro.constant + gfro.one_body.to_op(),
+                    return_occ_spins=True,
                 )
+                es = []
+                for f in gfro.two_body:
+                    e, occs = gfro._diagonalize_operator_complete_ss(
+                        f.operators, return_occ_spins=True
+                    )
+                    es.append(e)
+                eigs = sum(es)
+
+                ob_e_ss = gfro._diagonalize_operator_with_ss_proj(
+                    gfro.constant + gfro.one_body.to_op()
+                )
+                eigs_ss = sum(
+                    [
+                        gfro._diagonalize_operator_with_ss_proj(f.operators)
+                        for f in gfro.two_body
+                    ]
+                )
+                print(f"{ob_e} vs {ob_e_ss}")
+                print(f"{eigs} vs {eigs_ss}")
+                # ==
+
+                fluid_sum = gfro.get_expectation_value()
+                print("===")
+                print(f"Moved {c} from orb {i}.")
+                for i, v in enumerate(reversed(vals)):
+                    if fluid_sum <= v:
+                        print(f"Index {i}, where {fluid_sum} <= {v}")
+                print("===")
                 try:
                     self.assertNotEqual(original_operator_sum, gfro.get_operators())
                     self.assertEqual(
@@ -265,8 +302,8 @@ class F3Test(unittest.TestCase):
                         jordan_wigner(gfro.get_operators()),
                     )
                     self.assertAlmostEqual(
-                        gfro._diagonalize_operator_with_ss_proj(original_operator_sum),
-                        gfro._diagonalize_operator_with_ss_proj(gfro.get_operators()),
+                        gfro._subspace_trace(original_operator_sum),
+                        gfro._subspace_trace(gfro.get_operators()),
                     )
                 except:
                     print("Failed JW check")
@@ -407,3 +444,69 @@ class F3Test(unittest.TestCase):
                 self.assertTrue(eigs <= e)
                 self.assertTrue(eigs_ss <= e)
         self.assertAlmostEqual(gfro_E_ss, gfro_E_occs)
+
+    def test_f3_gfro_violate_weyls(self, bond_length=0.8, m_config=h2_settings):
+        number_operator, sz, s2 = subspace_operators(m_config)
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        gfro = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        vals, vecs = np.linalg.eigh(
+            qubit_operator_sparse(
+                jordan_wigner(
+                    gfro.constant + obt2op(gfro.one_body) + tbt2op(gfro.two_body)
+                )
+            ).toarray()
+        )
+        print(f"OG Energy: {gfro.get_expectation_value()}")
+        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        original_operator_sum = gfro.get_operators()
+        for j, f in enumerate(gfro.two_body):
+            gfro.two_body[j] = f.to_fluid()
+            for i, c in enumerate(f.fluid_parts.fluid_lambdas):
+                f.move2frag(gfro.one_body, c, i, mutate=True)
+                ob_ind, ob_e = gfro._diagonalize_operator_complete_ss(
+                    gfro.constant + gfro.one_body.to_op()
+                )
+                lambda_indices = [
+                    gfro._diagonalize_operator_complete_ss(f.operators)[0]
+                    for f in gfro.two_body
+                ]
+                eigs = sum(
+                    [
+                        gfro._diagonalize_operator_complete_ss(f.operators)[1]
+                        for f in gfro.two_body
+                    ]
+                )
+                fluid_sum = ob_e + eigs
+                print("===")
+                print(f"Moved {c} from orb {i}.")
+                print(
+                    f"Lambda indices of one electron: {ob_ind}, two electron: {lambda_indices}"
+                )
+                for i, v in enumerate(reversed(vals)):
+                    if fluid_sum <= v:
+                        print(f"Index {i}, where {fluid_sum} <= {v}")
+                print("===")
+                try:
+                    self.assertNotEqual(original_operator_sum, gfro.get_operators())
+                    self.assertEqual(
+                        jordan_wigner(original_operator_sum),
+                        jordan_wigner(gfro.get_operators()),
+                    )
+                    self.assertAlmostEqual(
+                        gfro._diagonalize_operator_with_ss_proj(original_operator_sum),
+                        gfro._diagonalize_operator_with_ss_proj(gfro.get_operators()),
+                    )
+                except:
+                    print("Failed JW check")
+        self.assertEqual(
+            jordan_wigner(original_operator_sum), jordan_wigner(gfro.get_operators())
+        )
+        print(f"Final Energy: {gfro.get_expectation_value()}")
