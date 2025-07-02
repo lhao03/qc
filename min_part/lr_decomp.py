@@ -4,6 +4,7 @@ import numpy as np
 from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
+from min_part.f3_opers import lambdas_from_fluid_parts
 from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
 from min_part.operators import generate_occupied_spin_orb_permutations
 from min_part.tensor import tbt2op, make_unitary_im, make_lambda_matrix
@@ -119,5 +120,28 @@ def lr_fragment_occ(
     return occupation_combinations, np.array(occ_energies)
 
 
-def get_expectation_vals_lr_frags(self, num_spin_orbs: int, expected_e: int):
-    return lr_fragment_occ(self, num_spin_orbs, expected_e)
+def lr_fragment_occ_from_lambdas(
+    lambdas: np.ndarray, num_spin_orbs: int, occ: Optional[int] = None
+) -> Tuple[list[Tuple[int]], np.ndarray[Any, np.dtype[Any]]]:
+    occupation_combinations = generate_occupied_spin_orb_permutations(
+        num_spin_orbs, occ
+    )
+    l_mat = make_lambda_matrix(lambdas, num_spin_orbs)
+    occ_energies = []
+    for occ_comb in occupation_combinations:
+        occ_energy = 0
+        for l in occ_comb:
+            for m in occ_comb:
+                occ_energy += l_mat[l, m]
+        occ_energies.append(occ_energy)
+    return occupation_combinations, np.array(occ_energies)
+
+
+def get_expectation_vals_lr_frags(
+    self: LRFragment, num_spin_orbs: int, expected_e: int
+):
+    if self.fluid_parts is None:
+        return lr_fragment_occ(self, num_spin_orbs, expected_e)
+    else:
+        lambdas = self.outer_coeff * lambdas_from_fluid_parts(self.fluid_parts)
+        return lr_fragment_occ_from_lambdas(lambdas, num_spin_orbs, expected_e)

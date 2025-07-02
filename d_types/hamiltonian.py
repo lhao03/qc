@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 import numpy as np
-import scipy as sp
-from openfermion import FermionOperator, qubit_operator_sparse, jordan_wigner
+from openfermion import FermionOperator
 
 from d_types.config_types import MConfig
 from d_types.fragment_types import (
@@ -15,8 +14,10 @@ from d_types.fragment_types import (
     GFROFragment,
     OneBodyFragment,
 )
+from min_part.f3_opers import obt2fluid
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
+from min_part.operators import subspace_projection_operator
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
 
@@ -72,22 +73,51 @@ class FragmentedHamiltonian:
             return False
 
     def optimize_fragments(self):
-        return greedy_fluid_gfro_optimize(self, iters=10000, debug=True)
+        return greedy_fluid_optimize(self, iters=10000, debug=True)
 
     def _diagonalize_operator(self, fo: FermionOperator):
-        eigenvalues, eigenvectors = sp.linalg.eigh(
-            qubit_operator_sparse(jordan_wigner(fo)).toarray()
+        # eigenvalues, eigenvectors = sp.linalg.eigh(
+        #     qubit_operator_sparse(jordan_wigner(fo)).toarray()
+        # )
+        # subspace_w = filter(
+        #     lambda i_w: (
+        #         self.subspace.n(i_w[1]) == self.subspace.expected_e
+        #         and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
+        #         and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
+        #     ),
+        #     enumerate(eigenvectors.T),
+        # )
+        # subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
+        eigenvalues, eigenvectors = np.linalg.eigh(
+            subspace_projection_operator(
+                fo, self.m_config.num_spin_orbs, self.subspace.expected_e
+            ).toarray()
         )
-        subspace_w = filter(
-            lambda i_w: (
-                self.subspace.n(i_w[1]) == self.subspace.expected_e
-                and self.subspace.sz(i_w[1]) == self.subspace.expected_sz
-                and self.subspace.s2(i_w[1]) == self.subspace.expected_s2
-            ),
-            enumerate(eigenvectors.T),
+        return min(eigenvalues, default=0)
+
+    def _filter_frag_energy(self, frag: FermionicFragment):
+        occs, energies = frag.get_expectation_value(
+            num_spin_orbs=self.m_config.num_spin_orbs,
+            expected_e=self.subspace.expected_e,
         )
-        subspace_e = [eigenvalues[i_w[0]] for i_w in subspace_w]
-        return min(subspace_e, default=0)
+        subspace_energy = filter(
+            lambda occ_ener: zero_total_spin(occ_ener[0]),
+            zip(occs, energies),
+        )
+        return min([o_e[1] for o_e in subspace_energy], default=0)
+
+    def get_operators(self):
+        ob_op = (
+            obt2op(self.one_body)
+            if isinstance(self.one_body, np.ndarray)
+            else self.one_body.to_op()
+        )
+        tb_op = (
+            tbt2op(self.two_body)
+            if isinstance(self.two_body, np.ndarray)
+            else sum([f.to_op() for f in self.two_body])
+        )
+        return self.constant + ob_op + tb_op
 
     def partition(
         self, strategy: PartitionStrategy, bond_length: float, load_prev: bool = True
@@ -107,45 +137,19 @@ class FragmentedHamiltonian:
                     self.two_body = lr_decomp(self.two_body)
             save_frags(self.two_body, file_name=frag_path)
         self.partitioned = True
+        self.one_body = obt2fluid(self.one_body)
         return self.two_body
 
     def get_expectation_value(self):
-        if self.partitioned and self.fluid:
-            if isinstance(self.one_body, OneBodyFragment) and isinstance(
-                self.two_body[0], FermionicFragment
-            ):
-                const_obt = self._diagonalize_operator(
-                    self.constant + self.one_body.to_op()
-                )
-                tbt_e = 0
-                for frag in self.two_body:
-                    tbt_e += self._diagonalize_operator(
-                        frag.to_op()
-                    )  # TODO: optimize somehow????
-                return const_obt + tbt_e
-            else:
-                raise UserWarning(
-                    "Expected one body part to be of type `OneBodyFragment` and two body part to be of `TwoBodyFragment`"
-                )
-        elif self.partitioned and not self.fluid:
-            if isinstance(self.two_body[0], FermionicFragment):
-                const_obt = self._diagonalize_operator(
-                    self.constant + obt2op(self.one_body)
-                )
-                tbt_e = 0
-                for frag in self.two_body:
-                    occs, energies = frag.get_expectation_value(
-                        num_spin_orbs=self.m_config.num_spin_orbs,
-                        expected_e=self.subspace.expected_e,
-                    )
-                    subspace_energy = filter(
-                        lambda occ_ener: zero_total_spin(occ_ener[0]),
-                        zip(occs, energies),
-                    )
-                    tbt_e += min([o_e[1] for o_e in subspace_energy], default=0)
-                return const_obt + tbt_e
-            else:
-                raise UserWarning("Should not end up here")
+        if self.partitioned or self.fluid:
+            const_obt = self._diagonalize_operator(
+                self.constant + self.one_body.to_op()
+            )
+            tbt_e = 0
+            for frag in self.two_body:
+                # tbt_e += self._filter_frag_energy(frag)
+                tbt_e += self._diagonalize_operator(frag.to_op())
+            return const_obt + tbt_e
         elif not self.partitioned and not self.fluid:
             if not (
                 isinstance(self.one_body, np.ndarray)
@@ -211,4 +215,4 @@ class FragmentedHamiltonian:
             )
 
 
-from min_part.f3_optimis import greedy_fluid_gfro_optimize  # noqa: E402
+from min_part.f3_optimis import greedy_fluid_optimize  # noqa: E402

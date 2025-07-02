@@ -4,7 +4,7 @@ import unittest
 from typing import Tuple
 
 import numpy as np
-from openfermion import count_qubits
+from openfermion import count_qubits, jordan_wigner
 
 from d_types.config_types import MConfig
 from d_types.fragment_types import Subspace, PartitionStrategy
@@ -163,8 +163,36 @@ class F3Test(unittest.TestCase):
         gfro.optimize_fragments()
         gfro_fluid_E = gfro.get_expectation_value()
         gfro.save(id=str(bond_length))
+        print(f"Exact: {E}")
+        print(f"Only GFRO Partitioning: {gfro_E}")
+        print(f"Fluid GFRO: {gfro_fluid_E}")
         # self.assertTrue(E >= gfro_fluid_E >= gfro_E)
         return E, gfro_fluid_E, gfro_E
+
+    def test_lr_opt(self, bond_length=0.8, m_config=h2_settings):
+        print(f"Partitioning bond {bond_length}")
+        number_operator, sz, s2 = subspace_operators(m_config)
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        lr = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        E = lr.get_expectation_value()
+        lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
+        lr_E = lr.get_expectation_value()
+        lr.optimize_fragments()
+        lr_fluid_E = lr.get_expectation_value()
+        lr.save(id=str(bond_length))
+        print(f"Exact: {E}")
+        print(f"Only LR Partitioning: {lr_E}")
+        print(f"Fluid GFRO: {lr_fluid_E}")
+        # self.assertTrue(E >= gfro_fluid_E >= gfro_E)
+        return E, lr_fluid_E, lr_E
 
     def test_fluid_gfro(self):
         child_dir = os.path.join(
@@ -205,3 +233,83 @@ class F3Test(unittest.TestCase):
             "w",
         ) as f:
             f.write(energies_json)
+
+    def test_manual_f3_gfro(self, bond_length=0.8, m_config=h2_settings):
+        number_operator, sz, s2 = subspace_operators(m_config)
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        gfro = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        print(f"OG Energy: {gfro.get_expectation_value()}")
+        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        original_operator_sum = gfro.get_operators()
+        print(f"Partitioned Energy: {gfro.get_expectation_value()}")
+        for j, f in enumerate(gfro.two_body):
+            gfro.two_body[j] = f.to_fluid()
+            for i, c in enumerate(f.fluid_parts.fluid_lambdas):
+                f.move2frag(gfro.one_body, c, i, mutate=True)
+                print(
+                    f"Energy after moving {c} to orb {i}: {gfro.get_expectation_value()}"
+                )
+                try:
+                    self.assertNotEqual(original_operator_sum, gfro.get_operators())
+                    self.assertEqual(
+                        jordan_wigner(original_operator_sum),
+                        jordan_wigner(gfro.get_operators()),
+                    )
+                    self.assertAlmostEqual(
+                        gfro._diagonalize_operator(original_operator_sum),
+                        gfro._diagonalize_operator(gfro.get_operators()),
+                    )
+                except:
+                    print("Failed JW check")
+        self.assertEqual(
+            jordan_wigner(original_operator_sum), jordan_wigner(gfro.get_operators())
+        )
+        print(f"Final Energy: {gfro.get_expectation_value()}")
+
+    def test_manual_f3_lr(self, bond_length=0.8, m_config=h2_settings):
+        number_operator, sz, s2 = subspace_operators(m_config)
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        lr = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        )
+        print(f"OG Energy: {lr.get_expectation_value()}")
+        lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
+        original_operator_sum = lr.get_operators()
+        print(f"Partitioned Energy: {lr.get_expectation_value()}")
+        for j, f in enumerate(lr.two_body):
+            lr.two_body[j] = f.to_fluid()
+            for i, c in enumerate(f.fluid_parts.fluid_lambdas):
+                f.move2frag(lr.one_body, -c * 100, i, mutate=True)
+                print(
+                    f"Energy after moving {-c * 100} to orb {i}: {lr.get_expectation_value()}"
+                )
+                try:
+                    self.assertNotEqual(original_operator_sum, lr.get_operators())
+                    self.assertEqual(
+                        jordan_wigner(original_operator_sum),
+                        jordan_wigner(lr.get_operators()),
+                    )
+                    self.assertAlmostEqual(
+                        lr._diagonalize_operator(original_operator_sum),
+                        lr._diagonalize_operator(lr.get_operators()),
+                    )
+                except:
+                    print("Failed JW check")
+        self.assertEqual(
+            jordan_wigner(original_operator_sum), jordan_wigner(lr.get_operators())
+        )
+        print(f"Final Energy: {lr.get_expectation_value()}")

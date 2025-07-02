@@ -1,11 +1,15 @@
 from itertools import combinations
 from typing import Optional, List, Tuple
 
+import numpy as np
+import scipy as sp
 from openfermion import (
     number_operator,
     qubit_operator_sparse,
     jordan_wigner,
     FermionOperator,
+    s_squared_operator,
+    get_number_preserving_sparse_operator,
 )
 
 from min_part import julia_ops
@@ -13,6 +17,30 @@ from min_part import julia_ops
 
 def extract_eigenvalue(operator, w, panic: bool = True):
     return julia_ops.extract_eigen(operator, w, panic)
+
+
+def subspace_projection_operator(fo: FermionOperator, n_spin_orbs: int, num_elecs: int):
+    s_2 = s_squared_operator(n_spin_orbs // 2)
+    s_num_pre = get_number_preserving_sparse_operator(
+        s_2, n_spin_orbs, num_elecs, spin_preserving=True
+    )
+    Ssq_v, Ssq_w = np.linalg.eigh(s_num_pre.toarray())
+
+    counter = 0
+    for i in range(len(Ssq_v)):
+        if Ssq_v[i] <= 0.01:
+            counter += 1
+    non_cisd_dim = counter
+
+    Ssq_evals, NSz2SSq_Proj = Ssq_v[:counter], Ssq_w[:, :counter].T
+    NSz2SSq_Proj_sparse = sp.sparse.csc_matrix(NSz2SSq_Proj)
+    first_projected_op = get_number_preserving_sparse_operator(
+        fo,
+        n_spin_orbs,
+        num_elecs,
+        spin_preserving=True,
+    )
+    return NSz2SSq_Proj_sparse * first_projected_op * NSz2SSq_Proj_sparse.T
 
 
 def tuple2str(*args) -> str:

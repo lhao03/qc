@@ -8,7 +8,6 @@ from scipy.optimize import minimize
 from d_types.config_types import MConfig
 from d_types.fragment_types import OneBodyFragment, GFROFragment
 from d_types.hamiltonian import FragmentedHamiltonian
-from min_part.f3_opers import obt2fluid
 from min_part.operators import get_particle_number, get_projected_spin, get_total_spin
 
 
@@ -27,7 +26,9 @@ def sanity_checks():
     pass
 
 
-def find_fluid_coeffs_gfro(self: FragmentedHamiltonian, frag_i: int, iters: int):
+def find_fluid_coeffs(
+    self: FragmentedHamiltonian, frag_i: int, starting_E: float, iters: int
+):
     """
     Calculate the expectation value for the one electron part and one two electron GFRO fragment.
     Args:
@@ -44,7 +45,8 @@ def find_fluid_coeffs_gfro(self: FragmentedHamiltonian, frag_i: int, iters: int)
         raise UserWarning(
             "Expected the same number of one body parts as dimension of one-electron part"
         )
-    x0 = np.random.uniform(low=min(obp), high=max(obp), size=obp.size)
+    bounds = [(0, c) if c > 0 else (c, 0) for c in obp]
+    x0 = np.zeros(n)
 
     def cost(x0_0):
         obf_copy = deepcopy(obf)
@@ -52,25 +54,25 @@ def find_fluid_coeffs_gfro(self: FragmentedHamiltonian, frag_i: int, iters: int)
         for i in range(n):
             tbf_copy.move2frag(to=obf_copy, coeff=x0_0[i], orb=i, mutate=True)
         obp_E = self._diagonalize_operator(self.constant + obf_copy.to_op())
-        tbp_E = self._diagonalize_operator(tbf_copy.to_op())
-        return obp_E + tbp_E
+        tbp_E = self._diagonalize_operator(tbf_copy.operators)
+        return starting_E - (obp_E + tbp_E)
 
-    bounds = [(0, c) if c > 0 else (c, 0) for c in obp]
     greedy_coeffs: OptimizeResult = minimize(
         cost,
         x0=x0,
         bounds=bounds,
         method="L-BFGS-B",
-        options={"maxiter": iters, "disp": False},
+        options={
+            "maxiter": iters,
+            # "disp": False
+        },
     )
     return greedy_coeffs
 
 
-def greedy_fluid_gfro_optimize(
-    self: FragmentedHamiltonian, iters: int, debug: bool = False
-):
+def greedy_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = False):
     """
-    Mimimizes each GFRO fragment at once, starting with the largest.
+    Mimimizes each LR fragment at once.
 
     Args:
         self:
@@ -79,15 +81,21 @@ def greedy_fluid_gfro_optimize(
     Returns:
 
     """
+    n = self.one_body.lambdas.shape[0]
     if self.partitioned and not self.fluid:
         self.fluid = True
-        self.one_body = obt2fluid(self.one_body)
         for i in range(len(self.two_body)):
             if debug:
                 print(f"Optimizing fragment: {i}")
+            obp_E = self._diagonalize_operator(self.constant + self.one_body.to_op())
+            og_tbp_E = self._filter_frag_energy(self.two_body[i])
+            starting_E = obp_E + og_tbp_E
             self.two_body[i].to_fluid()
-            frag_i_coeffs = find_fluid_coeffs_gfro(self, i, iters)
-            self.two_body[i].bulkmove2frag(self.one_body, frag_i_coeffs.x)
+            frag_i_coeffs = find_fluid_coeffs(self, i, starting_E, iters)
+            for c in range(n):
+                self.two_body[i].move2frag(
+                    to=self.one_body, coeff=frag_i_coeffs.x[c], orb=c, mutate=True
+                )
     return self
 
 

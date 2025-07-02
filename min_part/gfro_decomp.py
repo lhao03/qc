@@ -221,9 +221,7 @@ def gfro_fragment_occ(
     return occupation_combinations, np.array(occ_energies)
 
 
-def get_expectation_vals_gfro_frags(
-    self: GFROFragment, num_spin_orbs: int, expected_e: int
-):
+def get_expectation_vals_gfro(self: GFROFragment, num_spin_orbs: int, expected_e: int):
     return gfro_fragment_occ(
         fragment=self,
         num_spin_orbs=num_spin_orbs,

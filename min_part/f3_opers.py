@@ -37,7 +37,7 @@ f = np.vectorize(lambda x: x if abs(x) > (np.finfo(float).eps ** 0.5) else 0.0)
 
 
 def cast_to_real(m):
-    return np.real_if_close(m)
+    return np.real_if_close(m, tol=10000000)
 
 
 # == GFRO Helpers
@@ -222,6 +222,8 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     Returns:
         `FluidFermionicFragment` object of the one-body tensor
     """
+    if isinstance(obt, OneBodyFragment):
+        return obt
     V, U = np.linalg.eigh(obt)
     assert V.size == obt.shape[0]
     assert U.shape == obt.shape
@@ -274,6 +276,8 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     )
     for orb, fluid_part in self.fluid_lambdas:
         fluid_h = make_obp_tensor(fluid_part, n, orb)
+        if isinstance(fluid_h[0, 0], complex):
+            print("here")
         h_pq += fluid_h
     return h_pq
 

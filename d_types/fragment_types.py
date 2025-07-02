@@ -5,12 +5,12 @@ from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
-from openfermion import FermionOperator
+from openfermion import FermionOperator, is_hermitian
 
 from d_types.config_types import Nums
+from min_part.julia_ops import jl_print
 
-
-from min_part.tensor import tbt2op
+from min_part.tensor import tbt2op, get_n_body_tensor_chemist_ordering
 
 
 class PartitionStrategy(Enum):
@@ -82,7 +82,12 @@ class OneBodyFragment:
             )
 
     def to_op(self):
-        return fluid_ob2op(self)
+        ob_op = fluid_ob2op(self)
+        if is_hermitian(ob_op):
+            return ob_op
+        else:
+            jl_print(get_n_body_tensor_chemist_ordering(ob_op, n=1, m=4))
+            raise UserWarning("Operator is not Hermitian according to OpenFermion")
 
     def to_tensor(self):
         return fluid_ob2ten(self)
@@ -143,7 +148,11 @@ class GFROFragment(FermionicFragment):
             return False
 
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
-        return get_expectation_vals_gfro_frags(self, num_spin_orbs, expected_e)
+        if self.fluid_parts is None:
+            return get_expectation_vals_gfro(self, num_spin_orbs, expected_e)
+        else:
+            self.lambdas = lambdas_from_fluid_parts(self.fluid_parts)
+            return get_expectation_vals_gfro(self, num_spin_orbs, expected_e)
 
     def get_ob_lambdas(self):
         """Returns the one-body part from a lambda matrix formed after GFRO decomposition.
@@ -186,6 +195,8 @@ class GFROFragment(FermionicFragment):
         Returns:
              `FermionOperator` containing "one" (the one body part from the two body fragment) and two body parts
         """
+        if self.fluid_parts is None:
+            return self.operators
         self.operators = tbt2op(fluid_gfro_2tensor(self))
         return self.operators
 
@@ -259,6 +270,8 @@ class LRFragment(FermionicFragment):
         return lr2fluid(self)
 
     def to_op(self):
+        if self.fluid_parts is None:
+            return self.operators
         self.operators = tbt2op(fluid_lr_2tensor(self))
         return self.operators
 
@@ -305,7 +318,8 @@ from min_part.f3_opers import (  # noqa: E402
     fluid_ob2ten,
     fluid_lr_2tensor,
     remove_obp_lr,
+    lambdas_from_fluid_parts,
 )
 
-from min_part.gfro_decomp import get_expectation_vals_gfro_frags  # noqa: E402
+from min_part.gfro_decomp import get_expectation_vals_gfro  # noqa: E402
 from min_part.lr_decomp import get_expectation_vals_lr_frags  # noqa: E402

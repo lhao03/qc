@@ -7,10 +7,13 @@ function extract_eigen(op::Matrix, ev::Vector, panic)
     ev = map((e) -> abs(e) > 1e-7 ? e : 0, ev)
     bv = op * ev
     b = bv ./ ev
-    b = filter(!isnan, b)
-    eig = b[1]
+    b_filtered = filter(!isnan, b)
+    eig = b_filtered[1]
     if panic
-        all(isapprox.(b, eig; atol=1e-10)) || error("Expected all elements of eigenvalue vector to be the same, but got: $(b). Original vector was: $(ev), after applying operator become $(bv)")
+        all(isapprox.(b_filtered, eig; atol=1e-10)) || error("""Expected all elements of eigenvalue vector to be the same, but got: $(b_filtered).
+                                                                Original vector was: $(ev).
+                                                                After applying operator become $(bv).
+                                                                After division got $(b).""")
         isapprox(eig * ev, bv; atol=1e-8) || error("O v != b v, got: $(bv) and $(eig * ev).")
     end
     real_e = real(eig)

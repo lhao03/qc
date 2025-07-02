@@ -4,10 +4,12 @@ from functools import reduce
 from typing import List, Tuple
 
 import numpy as np
+import scipy as sp
 from hypothesis import given, strategies as st, settings, HealthCheck
 from openfermion import (
     FermionOperator,
     jordan_wigner,
+    qubit_operator_sparse,
 )
 from opt_einsum import contract
 
@@ -25,6 +27,7 @@ from min_part.f3_opers import (
     make_obp_tensor,
     fluid_lr_2tensor,
     make_lambdas,
+    lambdas_from_fluid_parts,
 )
 
 from min_part.gfro_decomp import (
@@ -35,10 +38,12 @@ from min_part.lr_decomp import (
     get_lr_fragment_tensor_from_parts,
     lr_decomp,
     get_lr_fragment_tensor_from_lambda,
+    lr_fragment_occ_from_lambdas,
 )
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
+    subspace_projection_operator,
 )
 from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
@@ -56,7 +61,7 @@ from tests.utils.sim_molecules import (
     specific_gfro_decomp,
     specific_lr_decomp,
 )
-from tests.utils.sim_tensor import generate_symm_unitary_matrices
+from tests.utils.sim_tensor import generate_symm_unitary_matrices, make_tensors_h2
 
 settings.register_profile("slow", deadline=None, print_blob=True)
 settings.load_profile("slow")
@@ -337,8 +342,8 @@ class FluidFragmentTest(unittest.TestCase):
     # @settings(max_examples=2)
     def test_mutate_each_frag_gfro(
         self,
-        partition=10,
-        obt_tbt_frags_bl=specific_gfro_decomp(2.0909588606551686),
+        partition=1,
+        obt_tbt_frags_bl=specific_gfro_decomp(0.8),
     ):
         frags: List[GFROFragment]
         H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
@@ -430,6 +435,27 @@ class FluidFragmentTest(unittest.TestCase):
                 )
             ),
         )
+
+    def test_gfro_expectation_val(self, obt_tbt_frags_bl=specific_gfro_decomp(0.8)):
+        H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
+        expectation_values = [
+            f.get_expectation_value(num_spin_orbs=4, expected_e=2) for f in frags
+        ]
+        for f in frags:
+            f.to_fluid(performant=False)
+        fluid_expectation_values = [
+            f.get_expectation_value(num_spin_orbs=4, expected_e=2) for f in frags
+        ]
+        for occ_e_occ_e in zip(expectation_values, fluid_expectation_values):
+            og = occ_e_occ_e[0]
+            f = occ_e_occ_e[1]
+            occs = og[0]
+            f_occs = f[0]
+            es = og[1]
+            f_es = f[1]
+            for i in range(6):
+                self.assertEqual(occs[i], f_occs[i])
+                self.assertEqual(es[i], f_es[i])
 
     def test_rediag_1b(self):
         pass
@@ -665,3 +691,41 @@ class FluidFragmentTest(unittest.TestCase):
                 )
             ),
         )
+
+    def test_fluid_lr_h2_occs(self):
+        H_obt, H_tbt, frags, bl = specific_lr_decomp(2.0909588606551686)
+        n = H_tbt.shape[0]
+        for f in frags:
+            f.to_fluid()
+            diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(f.operators)).toarray()
+            )
+            lambdas = lambdas_from_fluid_parts(f.fluid_parts)
+            occupations, eigenvalues = lr_fragment_occ_from_lambdas(
+                lambdas, num_spin_orbs=n
+            )
+            self.assertTrue(
+                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
+            )
+
+    def test_projection_operator_lr(self):
+        H_const, H_obt, H_tbt = make_tensors_h2(0.8)
+        frags = lr_decomp(H_tbt)
+        obt_e, vecs = np.linalg.eigh(
+            subspace_projection_operator(
+                H_const + obt2op(H_obt), 4, num_elecs=2
+            ).toarray()
+        )
+        tbt_e = 0
+        for f in frags:
+            tbt_es, vecs = np.linalg.eigh(
+                subspace_projection_operator(f.operators, 4, num_elecs=2).toarray()
+            )
+            tbt_e += min(tbt_es)
+        total_e, vecs = np.linalg.eigh(
+            subspace_projection_operator(
+                H_const + obt2op(H_obt) + tbt2op(H_tbt), 4, num_elecs=2
+            ).toarray()
+        )
+        print(min(total_e))
+        print(min(obt_e) + tbt_e)

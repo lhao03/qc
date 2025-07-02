@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 import scipy as sp
 from openfermion import (
     count_qubits,
@@ -19,6 +20,7 @@ from min_part.operators import (
     extract_eigenvalue,
     make_total_spin_operator,
     collapse_to_number_operator,
+    subspace_projection_operator,
 )
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_chem_tensors
@@ -33,9 +35,9 @@ class OperatorTest(unittest.TestCase):
         H_const, H_obt, H_tbt = get_chem_tensors(H=H, N=self.n_qubits)
         H_ob_op = obt2op(H_obt)
         H_tb_op = tbt2op(H_tbt)
-        H_ele = H_const + H_ob_op + H_tb_op
+        self.H_ele = H_const + H_ob_op + H_tb_op
         self.eigenvalues, self.eigenvectors = sp.linalg.eigh(
-            qubit_operator_sparse(jordan_wigner(H_ele)).toarray()
+            qubit_operator_sparse(jordan_wigner(self.H_ele)).toarray()
         )
         self.s_2_of = qubit_operator_sparse(
             jordan_wigner(
@@ -162,3 +164,16 @@ class OperatorTest(unittest.TestCase):
         )
 
     # === Projection Operator ===
+    def test_projection_operator(self):
+        ss_H_ele = subspace_projection_operator(
+            self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=2
+        )
+        vals, vecs = np.linalg.eigh(ss_H_ele.toarray())
+
+        for val in vals:
+            i = np.where(np.isclose(self.eigenvalues, val))[0][0]
+            e_vec = self.eigenvectors[:, i]
+            print(f"""Energy: {val}, 
+            Elecs: {get_particle_number(e_vec, 4)},
+Spin2: {get_total_spin(e_vec, 2)},
+ProjSpin: {get_projected_spin(e_vec, 2)}""")
