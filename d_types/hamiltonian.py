@@ -1,7 +1,7 @@
 import os
 import pickle
 from dataclasses import dataclass
-from typing import List, Tuple, Any
+from typing import List, Tuple
 
 import numpy as np
 from openfermion import FermionOperator, qubit_operator_sparse, jordan_wigner
@@ -86,25 +86,22 @@ class FragmentedHamiltonian:
         )
         return min([o_e[1] for o_e in subspace_energy], default=0)
 
-    def _characterise_orb_occs(self, eigenvectors: np.ndarray):
-        occs_spins = []
-        for i in range(eigenvectors.shape[0]):
-            num_elecs = self.subspace.n(eigenvectors[:, i])
-            sz = self.subspace.sz(eigenvectors[:, i])
-            s2 = self.subspace.s2(eigenvectors[:, i])
-            occs_spins.append((num_elecs, sz, s2))
-        return occs_spins
+    def _trace(self, fo: FermionOperator, complete: bool = False):
+        eigenvalues, eigenvectors = (
+            np.linalg.eigh(qubit_operator_sparse(jordan_wigner(fo)).toarray())
+            if complete
+            else np.linalg.eigh(
+                subspace_projection_operator(
+                    fo, self.m_config.num_spin_orbs, self.subspace.expected_e
+                ).toarray()
+            )
+        )
+        return sum(eigenvalues)
 
     def _diagonalize_operator_complete_ss(
         self,
         fo: FermionOperator,
-        return_index: bool = False,
-        return_occ_spins: bool = False,
-    ) -> (
-        tuple[tuple[Any, Any] | int, list[tuple[Any, Any, Any]]]
-        | tuple[Any, Any]
-        | float
-    ):
+    ) -> float:
         eigenvalues, eigenvectors = np.linalg.eigh(
             qubit_operator_sparse(jordan_wigner(fo)).toarray()
         )
@@ -116,31 +113,7 @@ class FragmentedHamiltonian:
             ),
             enumerate(eigenvectors.T),
         )
-
-        subspace_e = (
-            [(i_w[0], eigenvalues[i_w[0]]) for i_w in subspace_w]
-            if return_index
-            else [eigenvalues[i_w[0]] for i_w in subspace_w]
-        )
-
-        if return_index and return_occ_spins:
-            return min(
-                subspace_e, default=0, key=lambda t: t[1]
-            ), self._characterise_orb_occs(eigenvectors)
-        elif return_index:
-            return min(subspace_e, default=0, key=lambda t: t[1])
-        elif return_occ_spins:
-            return min(subspace_e, default=0), self._characterise_orb_occs(eigenvectors)
-        else:
-            return min(subspace_e, default=0)
-
-    def _subspace_trace(self, fo: FermionOperator):
-        eigenvalues, eigenvectors = np.linalg.eigh(
-            subspace_projection_operator(
-                fo, self.m_config.num_spin_orbs, self.subspace.expected_e
-            ).toarray()
-        )
-        return sum(eigenvalues)
+        return min([eigenvalues[i_w[0]] for i_w in subspace_w], default=0)
 
     def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
         eigenvalues, eigenvectors = np.linalg.eigh(
@@ -271,5 +244,3 @@ class FragmentedHamiltonian:
 
 
 from min_part.f3_optimis import greedy_fluid_optimize  # noqa: E402
-
-#

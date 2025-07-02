@@ -113,7 +113,7 @@ def move_onebody_coeff(
         raise NotImplementedError
     if not self.fluid_parts:
         raise UserWarning(
-            "Call `to_fluid` method to partition into fluid and static parts!"
+            "Fragment is not fluid yet! Call `to_fluid` method to partition into fluid and static parts!"
         )
     assert orb <= self.fluid_parts.fluid_lambdas.size
     assert coeff.imag == 0
