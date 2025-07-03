@@ -281,23 +281,15 @@ class LRFragment(FermionicFragment):
 
 @dataclass
 class Subspace:
-    n: partial[[np.ndarray], float]
     expected_e: int
-    s2: partial[[np.ndarray], float]
     expected_s2: int
-    sz: partial[[np.ndarray], float]
     expected_sz: int
+    projector: Optional[partial] = None
 
     def __eq__(self, other):
         if isinstance(other, Subspace):
-            n_eq = self.n.func == other.n.func
-            s2_eq = self.s2.func == other.s2.func
-            sz_eq = self.sz.func == other.sz.func
             return (
-                n_eq
-                and s2_eq
-                and sz_eq
-                and self.expected_e == other.expected_e
+                self.expected_e == other.expected_e
                 and self.expected_s2 == other.expected_s2
                 and self.expected_sz == other.expected_sz
             )

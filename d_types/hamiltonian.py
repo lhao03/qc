@@ -1,6 +1,7 @@
 import os
 import pickle
 from dataclasses import dataclass
+from functools import partial
 from typing import List, Tuple
 
 import numpy as np
@@ -117,9 +118,7 @@ class FragmentedHamiltonian:
 
     def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
         eigenvalues, eigenvectors = np.linalg.eigh(
-            subspace_projection_operator(
-                fo, self.m_config.num_spin_orbs, self.subspace.expected_e
-            ).toarray()
+            self.subspace.projector(fo).toarray()
         )
         return min(eigenvalues, default=0)
 
@@ -169,6 +168,12 @@ class FragmentedHamiltonian:
         return self.two_body
 
     def get_expectation_value(self):
+        if not self.subspace.projector:
+            self.subspace.projector = partial(
+                subspace_projection_operator,
+                n_spin_orbs=self.m_config.num_spin_orbs,
+                num_elecs=self.subspace.expected_e,
+            )
         if self.partitioned or self.fluid:
             const_obt = self._diagonalize_operator_with_ss_proj(
                 self.constant + self.one_body.to_op()

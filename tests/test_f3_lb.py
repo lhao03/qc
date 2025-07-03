@@ -9,7 +9,6 @@ from openfermion import count_qubits, jordan_wigner, qubit_operator_sparse
 from d_types.config_types import MConfig
 from d_types.fragment_types import Subspace, PartitionStrategy
 from d_types.hamiltonian import FragmentedHamiltonian
-from min_part.f3_optimis import subspace_operators
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
 from min_part.plots import RefLBPlotNames, plot_energies, FluidPlotNames
@@ -26,7 +25,7 @@ def get_tensors(
     return get_chem_tensors(H=H, N=n_qubits)
 
 
-def create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt):
+def create_ham_objs(const, m_config, obt, tbt):
     reference = FragmentedHamiltonian(
         m_config=m_config,
         constant=const,
@@ -34,7 +33,7 @@ def create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt):
         two_body=tbt,
         partitioned=False,
         fluid=False,
-        subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        subspace=Subspace(expected_e=2, expected_sz=0, expected_s2=0),
     )
     gfro = FragmentedHamiltonian(
         m_config=m_config,
@@ -43,7 +42,7 @@ def create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt):
         two_body=tbt,
         partitioned=False,
         fluid=False,
-        subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        subspace=Subspace(expected_e=2, expected_sz=0, expected_s2=0),
     )
     lr = FragmentedHamiltonian(
         m_config=m_config,
@@ -52,18 +51,15 @@ def create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt):
         two_body=tbt,
         partitioned=False,
         fluid=False,
-        subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+        subspace=Subspace(expected_e=2, expected_sz=0, expected_s2=0),
     )
     return gfro, lr, reference
 
 
 class F3Test(unittest.TestCase):
     def test_partition(self, bond_length: float = 0.8, m_config: MConfig = h2_settings):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
-        gfro, lr, reference = create_ham_objs(
-            const, m_config, number_operator, obt, s2, sz, tbt
-        )
+        gfro, lr, reference = create_ham_objs(const, m_config, obt, tbt)
         E = reference.get_expectation_value()
         gfro_frags = gfro.partition(
             strategy=PartitionStrategy.GFRO, bond_length=bond_length
@@ -117,7 +113,6 @@ class F3Test(unittest.TestCase):
             f.write(energies_json)
 
     def test_simple_functionality(self, bond_length: float = 1, m_config=h2_settings):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
         self.assertTrue(isinstance(const, float))
         self.assertEqual(obt.shape, (m_config.num_spin_orbs, m_config.num_spin_orbs))
@@ -130,9 +125,7 @@ class F3Test(unittest.TestCase):
                 m_config.num_spin_orbs,
             ),
         )
-        reference, _, _ = create_ham_objs(
-            const, m_config, number_operator, obt, s2, sz, tbt
-        )
+        _, _, reference = create_ham_objs(const, m_config, obt, tbt)
         E = reference.get_expectation_value()
         self.assertTrue(-2 <= E <= 0)
         saved_location = reference.save()
@@ -140,7 +133,6 @@ class F3Test(unittest.TestCase):
         self.assertEqual(reference, loaded_reference)
 
     def test_manual_f3_gfro_proj(self, bond_length=0.8, m_config=h2_settings):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
         gfro = FragmentedHamiltonian(
             m_config=m_config,
@@ -149,7 +141,7 @@ class F3Test(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+            subspace=Subspace(2, 0, 0),
         )
         print(f"OG Energy: {gfro.get_expectation_value()}")
         gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
@@ -202,7 +194,6 @@ class F3Test(unittest.TestCase):
         print(f"Final Energy: {gfro.get_expectation_value()}")
 
     def test_manual_f3_lr(self, bond_length=0.8, m_config=h2_settings):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
         lr = FragmentedHamiltonian(
             m_config=m_config,
@@ -211,7 +202,7 @@ class F3Test(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+            subspace=Subspace(2, 0, 0),
         )
         print(f"OG Energy: {lr.get_expectation_value()}")
         lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
@@ -244,11 +235,8 @@ class F3Test(unittest.TestCase):
     def test_diagonalization_strats_and_weyls(
         self, bond_length=0.8, m_config=h2_settings
     ):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
-        reference, lr, gfro = create_ham_objs(
-            const, m_config, number_operator, obt, s2, sz, tbt
-        )
+        reference, lr, gfro = create_ham_objs(const, m_config, obt, tbt)
         ref_E_ss = reference.get_expectation_value()
         ref_E_compl = reference._diagonalize_operator_complete_ss(
             reference.constant + obt2op(reference.one_body) + tbt2op(reference.two_body)
@@ -284,7 +272,6 @@ class F3Test(unittest.TestCase):
         self.assertAlmostEqual(gfro_E_ss, gfro_E_occs)
 
     def test_f3_gfro_violate_weyls(self, bond_length=0.8, m_config=h2_settings):
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
         gfro = FragmentedHamiltonian(
             m_config=m_config,
@@ -293,7 +280,7 @@ class F3Test(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(number_operator, 2, s2, 0, sz, 0),
+            subspace=Subspace(2, 0, 0),
         )
         vals, vecs = np.linalg.eigh(
             qubit_operator_sparse(
@@ -346,9 +333,8 @@ class F3Test(unittest.TestCase):
 
     def test_gfro_opt(self, bond_length=0.8, m_config=h2_settings):
         print(f"Partitioning bond {bond_length}")
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
-        gfro, _, _ = create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt)
+        gfro, _, _ = create_ham_objs(const, m_config, obt, tbt)
         E = gfro.get_expectation_value()
         gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
         gfro_E = gfro.get_expectation_value()
@@ -363,9 +349,8 @@ class F3Test(unittest.TestCase):
 
     def test_lr_opt(self, bond_length=0.8, m_config=h2_settings):
         print(f"Partitioning bond {bond_length}")
-        number_operator, sz, s2 = subspace_operators(m_config)
         const, obt, tbt = get_tensors(m_config, bond_length)
-        lr, _, _ = create_ham_objs(const, m_config, number_operator, obt, s2, sz, tbt)
+        lr, _, _ = create_ham_objs(const, m_config, obt, tbt)
         E = lr.get_expectation_value()
         lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
         lr_E = lr.get_expectation_value()
