@@ -165,15 +165,27 @@ class OperatorTest(unittest.TestCase):
 
     # === Projection Operator ===
     def test_projection_operator(self):
-        ss_H_ele = subspace_projection_operator(
+        ss_H_0 = subspace_projection_operator(
+            self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=0
+        )
+        ss_H_1 = subspace_projection_operator(
+            self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=1
+        )
+        ss_H_2 = subspace_projection_operator(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=2
         )
-        vals, vecs = np.linalg.eigh(ss_H_ele.toarray())
-
-        for val in vals:
-            i = np.where(np.isclose(self.eigenvalues, val))[0][0]
-            e_vec = self.eigenvectors[:, i]
-            print(f"""Energy: {val}, 
-            Elecs: {get_particle_number(e_vec, 4)},
-Spin2: {get_total_spin(e_vec, 2)},
-ProjSpin: {get_projected_spin(e_vec, 2)}""")
+        ss_H_3 = subspace_projection_operator(
+            self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=3
+        )
+        ss_H_4 = subspace_projection_operator(
+            self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=4
+        )
+        for i in range(len(self.eigenvalues)):
+            print(f"energy: {self.eigenvalues[i]}")
+            print(f"num elecs: {get_particle_number(self.eigenvectors[:, i], 4)}")
+            print(f"s2: {get_total_spin(self.eigenvectors[:, i], 2)}")
+            print(f"sz: {get_projected_spin(self.eigenvectors[:, i], 2)}")
+        ss_opers = [ss_H_0, ss_H_1, ss_H_2, ss_H_3, ss_H_4]
+        for i, ss in enumerate(ss_opers):
+            vals, vecs = np.linalg.eigh(ss.toarray())
+            print(f"energies for {i} elecs, sz=0, s2=0: {vals}")

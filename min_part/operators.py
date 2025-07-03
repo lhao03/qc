@@ -20,26 +20,23 @@ def extract_eigenvalue(operator, w, panic: bool = True):
 
 
 def subspace_projection_operator(fo: FermionOperator, n_spin_orbs: int, num_elecs: int):
-    s_2 = s_squared_operator(n_spin_orbs // 2)
-    s_num_pre = get_number_preserving_sparse_operator(
-        s_2, n_spin_orbs, num_elecs, spin_preserving=True
+    s2 = s_squared_operator(n_spin_orbs // 2)
+    proj_s2 = get_number_preserving_sparse_operator(
+        s2, n_spin_orbs, num_elecs, spin_preserving=True
     )
-    Ssq_v, Ssq_w = np.linalg.eigh(s_num_pre.toarray())
+    Ssq_v, Ssq_w = np.linalg.eigh(proj_s2.toarray())
 
-    counter = 0
-    for i in range(len(Ssq_v)):
-        if Ssq_v[i] <= 0.01:
-            counter += 1
+    s2_eq_0 = (np.isclose(Ssq_v, 0)).sum()
 
-    Ssq_evals, NSz2SSq_Proj = Ssq_v[:counter], Ssq_w[:, :counter].T
-    NSz2SSq_Proj_sparse = sp.sparse.csc_matrix(NSz2SSq_Proj)
-    first_projected_op = get_number_preserving_sparse_operator(
+    _, s2_proj = Ssq_v[:s2_eq_0], Ssq_w[:, :s2_eq_0].T
+    s2_proj_sparse = sp.sparse.csc_matrix(s2_proj)
+    proj_H = get_number_preserving_sparse_operator(
         fo,
         n_spin_orbs,
         num_elecs,
         spin_preserving=True,
     )
-    return NSz2SSq_Proj_sparse * first_projected_op * NSz2SSq_Proj_sparse.T
+    return s2_proj_sparse * proj_H * s2_proj_sparse.T
 
 
 def tuple2str(*args) -> str:
