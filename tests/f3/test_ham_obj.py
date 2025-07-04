@@ -11,7 +11,7 @@ from d_types.fragment_types import Subspace, PartitionStrategy
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
-from min_part.plots import RefLBPlotNames, plot_energies, FluidPlotNames
+from min_part.plots import RefLBPlotNames, plot_energies
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_chem_tensors
 
@@ -56,7 +56,7 @@ def create_ham_objs(const, m_config, obt, tbt):
     return gfro, lr, reference
 
 
-class F3Test(unittest.TestCase):
+class HamTest(unittest.TestCase):
     def test_partition(self, bond_length: float = 0.8, m_config: MConfig = h2_settings):
         const, obt, tbt = get_tensors(m_config, bond_length)
         gfro, lr, reference = create_ham_objs(const, m_config, obt, tbt)
@@ -76,7 +76,7 @@ class F3Test(unittest.TestCase):
 
     def test_make_lb(self):
         child_dir = os.path.join(
-            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h2",
+            "/data/h2",
             h2_settings.date,
         )
         no_partitioning = []
@@ -328,77 +328,3 @@ class F3Test(unittest.TestCase):
             jordan_wigner(original_operator_sum), jordan_wigner(gfro.get_operators())
         )
         print(f"Final Energy: {gfro.get_expectation_value()}")
-
-    # Fluid Optimization Tests Begin
-
-    def test_gfro_opt(self, bond_length=0.8, m_config=h2_settings):
-        print(f"Partitioning bond {bond_length}")
-        const, obt, tbt = get_tensors(m_config, bond_length)
-        gfro, _, _ = create_ham_objs(const, m_config, obt, tbt)
-        E = gfro.get_expectation_value()
-        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
-        gfro_E = gfro.get_expectation_value()
-        gfro.optimize_fragments()
-        gfro_fluid_E = gfro.get_expectation_value()
-        gfro.save(id=str(bond_length))
-        print(f"Exact: {E}")
-        print(f"Only GFRO Partitioning: {gfro_E}")
-        print(f"Fluid GFRO: {gfro_fluid_E}")
-        # self.assertTrue(E >= gfro_fluid_E >= gfro_E)
-        return E, gfro_fluid_E, gfro_E
-
-    def test_lr_opt(self, bond_length=0.8, m_config=h2_settings):
-        print(f"Partitioning bond {bond_length}")
-        const, obt, tbt = get_tensors(m_config, bond_length)
-        lr, _, _ = create_ham_objs(const, m_config, obt, tbt)
-        E = lr.get_expectation_value()
-        lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
-        lr_E = lr.get_expectation_value()
-        lr.optimize_fragments()
-        lr_fluid_E = lr.get_expectation_value()
-        lr.save(id=str(bond_length))
-        print(f"Exact: {E}")
-        print(f"Only LR Partitioning: {lr_E}")
-        print(f"Fluid GFRO: {lr_fluid_E}")
-        # self.assertTrue(E >= gfro_fluid_E >= gfro_E)
-        return E, lr_fluid_E, lr_E
-
-    def test_fluid_gfro(self):
-        child_dir = os.path.join(
-            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h2",
-            h2_settings.date,
-        )
-        no_partitioning = []
-        gfro_fluid = []
-        gfro = []
-        for bond_length in h2_settings.xpoints:
-            E, gfro_fluid_E, gfro_E = self.test_gfro_opt(
-                bond_length=bond_length, m_config=h2_settings
-            )
-            print(f"E: {E}, Fluid GFRO E: {gfro_fluid_E}, GFRO E: {gfro_E}")
-            no_partitioning.append(E)
-            gfro_fluid.append(gfro_fluid_E)
-            gfro.append(gfro_E)
-        plot_energies(
-            xpoints=h2_settings.xpoints,
-            points=[no_partitioning, gfro_fluid, gfro],
-            title=f"GFRO Lower Bounds for {h2_settings.mol_name}",
-            labels=[
-                FluidPlotNames.NO_PARTITIONING,
-                FluidPlotNames.GFRO_FLUID,
-                FluidPlotNames.GFRO,
-            ],
-            dir=child_dir,
-        )
-        energies = {
-            FluidPlotNames.NO_PARTITIONING.value: no_partitioning,
-            FluidPlotNames.GFRO_FLUID.value: gfro_fluid,
-            FluidPlotNames.GFRO.value: gfro,
-        }
-
-        energies_json = json.dumps(energies)
-        with open(
-            os.path.join(child_dir, f"{h2_settings.mol_name}.json"),
-            "w",
-        ) as f:
-            f.write(energies_json)

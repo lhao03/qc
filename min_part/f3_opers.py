@@ -213,6 +213,36 @@ def lr2fluid(self: LRFragment, performant: bool = False) -> LRFragment:
 
 
 # === One Body Helpers
+def move_ob_to_ob(
+    from_ob: OneBodyFragment, to_ob: OneBodyFragment, coeff: float, orb: int
+):
+    """
+    Move a one-body part of a one-electron operator to another one-electron operator.
+    For testing the optimization purposes.
+
+    Args:
+        from_ob:
+        to_ob:
+        coeff:
+        orb:
+
+    Returns:
+
+    """
+    from_ob.lambdas[orb] -= coeff
+    to_ob.fluid_lambdas.append(
+        (
+            orb,
+            FluidCoeff(
+                coeff=coeff,
+                contract_pattern=ContractPattern.LR,
+                thetas=from_ob.thetas,
+                diag_thetas=from_ob.diag_thetas,
+            ),
+        )
+    )
+
+
 def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
     """
     Converts a one-body tensor to a `OneBodyFragment` type via diagonalization of the tensor.
@@ -276,8 +306,6 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     )
     for orb, fluid_part in self.fluid_lambdas:
         fluid_h = make_obp_tensor(fluid_part, n, orb)
-        if isinstance(fluid_h[0, 0], complex):
-            print("here")
         h_pq += fluid_h
     return h_pq
 

@@ -1,5 +1,6 @@
 from copy import deepcopy
 from functools import partial
+from typing import List
 
 import numpy as np
 from scipy.optimize import OptimizeResult
@@ -8,7 +9,13 @@ from scipy.optimize import minimize
 from d_types.config_types import MConfig
 from d_types.fragment_types import OneBodyFragment, GFROFragment
 from d_types.hamiltonian import FragmentedHamiltonian
-from min_part.operators import get_particle_number, get_projected_spin, get_total_spin
+from min_part.f3_opers import move_ob_to_ob
+from min_part.operators import (
+    get_particle_number,
+    get_projected_spin,
+    get_total_spin,
+    subspace_projection_operator,
+)
 
 
 def subspace_operators(m_config: MConfig):
@@ -18,15 +25,7 @@ def subspace_operators(m_config: MConfig):
     return number_operator, sz, s2
 
 
-def optimization_checks():
-    pass
-
-
-def sanity_checks():
-    pass
-
-
-def find_fluid_coeffs(
+def cost_part_E_sub_curr_E(
     self: FragmentedHamiltonian, frag_i: int, starting_E: float, iters: int
 ):
     """
@@ -45,7 +44,6 @@ def find_fluid_coeffs(
         raise UserWarning(
             "Expected the same number of one body parts as dimension of one-electron part"
         )
-    bounds = [(0, c) if c > 0 else (c, 0) for c in obp]
     x0 = np.zeros(n)
 
     def cost(x0_0):
@@ -62,12 +60,8 @@ def find_fluid_coeffs(
     greedy_coeffs: OptimizeResult = minimize(
         cost,
         x0=x0,
-        bounds=bounds,
         method="L-BFGS-B",
-        options={
-            "maxiter": iters,
-            # "disp": False
-        },
+        options={"maxiter": iters, "disp": False},
     )
     return greedy_coeffs
 
@@ -95,7 +89,7 @@ def greedy_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool =
             og_tbp_E = self._filter_frag_energy(self.two_body[i])
             starting_E = obp_E + og_tbp_E
             self.two_body[i].to_fluid()
-            frag_i_coeffs = find_fluid_coeffs(self, i, starting_E, iters)
+            frag_i_coeffs = cost_part_E_sub_curr_E(self, i, starting_E, iters)
             for c in range(n):
                 self.two_body[i].move2frag(
                     to=self.one_body, coeff=frag_i_coeffs.x[c], orb=c, mutate=True
@@ -126,3 +120,41 @@ def lp_fluid_lr_optimize(
     iters: int,
 ):
     pass
+
+
+# == Simple Test Cases ==
+def greedy_E_optimize(
+    ob: OneBodyFragment, frags: List[OneBodyFragment], iters: int, debug: bool = False
+):
+    def min_eig(fo):
+        return min(np.linalg.eigh(subspace_projection_operator(fo, n, 2).toarray())[0])
+
+    n = frags[0].lambdas.shape[0]
+    for i in range(len(frags)):
+        if debug:
+            print(f"Optimizing fragment: {i}")
+        obp_E = min_eig(ob.to_op())
+        og_tbp_E = min_eig(frags[i].to_op())
+        starting_E = obp_E + og_tbp_E
+        x0 = np.random.random(n)
+
+        def cost(x0_0):
+            obf_copy = deepcopy(ob)
+            frag_copy = deepcopy(frags[i])
+            for j in range(n):
+                move_ob_to_ob(from_ob=frag_copy, to_ob=obf_copy, coeff=x0_0[j], orb=j)
+            new_o_E = min_eig(obf_copy.to_op())
+            new_f_E = min_eig(frag_copy.to_op())
+            new_E = new_o_E + new_f_E
+            return starting_E - new_E
+
+        coeffs = minimize(
+            cost,
+            x0=x0,
+            method="L-BFGS-B",
+            options={"maxiter": iters, "disp": False},
+        )
+
+        for c in range(n):
+            move_ob_to_ob(from_ob=frags[i], to_ob=ob, coeff=coeffs.x[c], orb=c)
+    print("Complete")
