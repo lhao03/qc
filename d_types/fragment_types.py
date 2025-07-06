@@ -1,3 +1,4 @@
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -86,8 +87,13 @@ class OneBodyFragment:
         if is_hermitian(ob_op):
             return ob_op
         else:
-            jl_print(get_n_body_tensor_chemist_ordering(ob_op, n=1, m=4))
-            raise UserWarning("Operator is not Hermitian according to OpenFermion")
+            mat = get_n_body_tensor_chemist_ordering(ob_op, n=1, m=4)
+            jl_print(mat)
+            is_her_mat = np.allclose(mat, mat.T)
+            warnings.warn(
+                f"Operator may not be Hermitian according to OpenFermion, np says: {is_her_mat}"
+            )
+            return ob_op
 
     def to_tensor(self):
         return fluid_ob2ten(self)

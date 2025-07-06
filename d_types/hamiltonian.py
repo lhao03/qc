@@ -1,6 +1,7 @@
 import os
 import pickle
 from dataclasses import dataclass
+from enum import Enum
 from functools import partial
 from typing import List, Tuple
 
@@ -21,6 +22,12 @@ from min_part.lr_decomp import lr_decomp
 from min_part.operators import subspace_projection_operator
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
+
+
+class OptType(Enum):
+    OFAO = "OFAO"
+    OFAT = "OFAT"
+    GREEDY = "GREEDY"
 
 
 def zero_s_z(t: Tuple[int]):
@@ -73,8 +80,16 @@ class FragmentedHamiltonian:
         else:
             return False
 
-    def optimize_fragments(self):
-        return greedy_fluid_optimize(self, iters=10000, debug=True)
+    def optimize_fragments(
+        self, optimization_type: OptType, iters: int = 1000, debug: bool = False
+    ):
+        match optimization_type:
+            case OptType.OFAT:
+                return ofat_fluid_optimize(self, iters=iters, debug=debug)
+            case OptType.OFAO:
+                return afao_fluid_optimize(self, iters=iters)
+            case OptType.GREEDY:
+                return greedy_coeff_optimize(self, iters=10000, threshold=1e-9)
 
     def _add_up_orb_occs(self, frag: FermionicFragment):
         occs, energies = frag.get_expectation_value(
@@ -248,4 +263,8 @@ class FragmentedHamiltonian:
             )
 
 
-from min_part.f3_optimis import greedy_fluid_optimize  # noqa: E402
+from min_part.f3_optimis import (
+    ofat_fluid_optimize,
+    afao_fluid_optimize,
+    greedy_coeff_optimize,
+)  # noqa: E402

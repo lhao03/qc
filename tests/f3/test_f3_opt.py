@@ -6,9 +6,10 @@ import numpy as np
 from openfermion import qubit_operator_sparse, jordan_wigner
 
 from d_types.fragment_types import PartitionStrategy, Subspace
-from d_types.hamiltonian import FragmentedHamiltonian
+from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid
 from min_part.f3_optimis import greedy_E_optimize
+from min_part.julia_ops import jl_print
 from min_part.molecules import h2_settings
 from min_part.operators import (
     subspace_projection_operator,
@@ -54,28 +55,41 @@ class F3OptTest(unittest.TestCase):
         abs_min = min(vals)
         abs_max = max(vals)
         print(f"Absolute min: {abs_min}, Absolute max: {abs_max}")
-        partioned_E = (
+        partitioned_E = (
             get_min_eig(O.to_op()) + get_min_eig(A.to_op()) + get_min_eig(B.to_op())
         )
         print(f"Exact E: {ss_min_eig}")
-        print(f"Partioned E: {partioned_E}")
+        print(f"Partitioned E: {partitioned_E}")
         print(
-            f"Partioned E (solution): {get_min_eig(obt2op(obt)) + get_min_eig(obt2op(obt)) + get_min_eig(B.to_op())}"
+            f"Partitioned E (solution): {get_min_eig(obt2op(obt)) + get_min_eig(obt2op(obt)) + get_min_eig(B.to_op())}"
         )
-        greedy_E_optimize(ob=O, frags=[A, B], iters=1000, debug=True)
-        partioned_E = (
+        print("Before optimization")
+        jl_print(O.to_tensor())
+        jl_print(A.to_tensor())
+        jl_print(B.to_tensor())
+        print("==")
+        greedy_E_optimize(ob=A, frags=[O, B], iters=10000, debug=True)
+        partitioned_E = (
             get_min_eig(O.to_op()) + get_min_eig(A.to_op()) + get_min_eig(B.to_op())
         )
-        print(f"Optimized Partioned E: {partioned_E}")
+        print(f"Optimized Partioned E: {partitioned_E}")
         self.assertAlmostEqual(
             np.trace(C),
             np.trace(O.to_tensor()) + np.trace(A.to_tensor()) + np.trace(B.to_tensor()),
         )
+        np.testing.assert_array_almost_equal(
+            C, O.to_tensor() + A.to_tensor() + B.to_tensor()
+        )
+        print("Solution to partitioned matrices")
+        jl_print(O.to_tensor())
+        jl_print(A.to_tensor())
+        jl_print(B.to_tensor())
+        print("==")
 
-    def test_gfro_opt(self, bond_length=0.8, m_config=h2_settings):
+    def test_fluid_opt(self, bond_length=0.8, m_config=h2_settings):
         print(f"Partitioning bond {bond_length}")
         const, obt, tbt = get_tensors(m_config, bond_length)
-        gfro = FragmentedHamiltonian(
+        ham = FragmentedHamiltonian(
             m_config=m_config,
             constant=const,
             one_body=obt,
@@ -84,37 +98,39 @@ class F3OptTest(unittest.TestCase):
             fluid=False,
             subspace=Subspace(expected_e=2, expected_sz=0, expected_s2=0),
         )
-        E = gfro.get_expectation_value()
-        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
-        gfro_E = gfro.get_expectation_value()
-        gfro.optimize_fragments()
-        gfro_fluid_E = gfro.get_expectation_value()
-        gfro.save(id=str(bond_length))
+        E = ham.get_expectation_value()
+        ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        partitioned_E = ham.get_expectation_value()
+        ham.optimize_fragments(
+            iters=10000, debug=True, optimization_type=OptType.GREEDY
+        )
+        print(f"After optimization: {ham.get_expectation_value()}")
+        ham.save(id=str(bond_length))
         print(f"Exact: {E}")
-        print(f"Only GFRO Partitioning: {gfro_E}")
-        print(f"Fluid GFRO: {gfro_fluid_E}")
-        # self.assertTrue(E >= gfro_fluid_E >= gfro_E)
-        return E, gfro_fluid_E, gfro_E
+        print(f"Before optimization: {partitioned_E}")
+        print(f"After optimization: {ham.get_expectation_value()}")
+        self.assertTrue(E >= ham.get_expectation_value() >= partitioned_E)
+        return E, ham.get_expectation_value(), partitioned_E
 
-    def test_fluid_gfro(self):
+    def test_fluid(self):
         child_dir = os.path.join(
             "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data",
             h2_settings.date,
         )
         no_partitioning = []
-        gfro_fluid = []
-        gfro = []
+        fluid = []
+        partitioned = []
         for bond_length in h2_settings.xpoints:
-            E, gfro_fluid_E, gfro_E = self.test_gfro_opt(
+            E, fluid_E, partitioned_E = self.test_fluid_opt(
                 bond_length=bond_length, m_config=h2_settings
             )
-            print(f"E: {E}, Fluid GFRO E: {gfro_fluid_E}, GFRO E: {gfro_E}")
+            print(f"E: {E}, Fluid E: {fluid_E}, Partitioned E: {partitioned_E}")
             no_partitioning.append(E)
-            gfro_fluid.append(gfro_fluid_E)
-            gfro.append(gfro_E)
+            fluid.append(fluid_E)
+            partitioned.append(partitioned_E)
         plot_energies(
             xpoints=h2_settings.xpoints,
-            points=[no_partitioning, gfro_fluid, gfro],
+            points=[no_partitioning, fluid, partitioned],
             title=f"GFRO Lower Bounds for {h2_settings.mol_name}",
             labels=[
                 FluidPlotNames.NO_PARTITIONING,
@@ -125,8 +141,8 @@ class F3OptTest(unittest.TestCase):
         )
         energies = {
             FluidPlotNames.NO_PARTITIONING.value: no_partitioning,
-            FluidPlotNames.GFRO_FLUID.value: gfro_fluid,
-            FluidPlotNames.GFRO.value: gfro,
+            FluidPlotNames.GFRO_FLUID.value: fluid,
+            FluidPlotNames.GFRO.value: partitioned,
         }
 
         energies_json = json.dumps(energies)

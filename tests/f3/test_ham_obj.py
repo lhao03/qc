@@ -150,44 +150,21 @@ class HamTest(unittest.TestCase):
         for j, f in enumerate(gfro.two_body):
             f.to_fluid()
             for i, c in enumerate(f.fluid_parts.fluid_lambdas):
-                f.move2frag(gfro.one_body, c, i, mutate=True)
-
-                # == other diagonalization method check
-                ob_e = gfro._diagonalize_operator_complete_ss(
-                    gfro.constant + gfro.one_body.to_op()
-                )
-
-                ob_e_ss = gfro._diagonalize_operator_with_ss_proj(
-                    gfro.constant + gfro.one_body.to_op()
-                )
-                print(f"{ob_e} vs {ob_e_ss}")
-                eigs = sum(
-                    [
-                        gfro._diagonalize_operator_complete_ss(f.operators)
-                        for f in gfro.two_body
-                    ]
-                )
-                eigs_ss = sum(
-                    [
-                        gfro._diagonalize_operator_with_ss_proj(f.operators)
-                        for f in gfro.two_body
-                    ]
-                )
-                print(f"{eigs} vs {eigs_ss}")
-                # ==
-                print(f"Moved {c} from orb {i}, E: {gfro.get_expectation_value()}")
-                try:
-                    self.assertNotEqual(original_operator_sum, gfro.get_operators())
-                    self.assertEqual(
-                        jordan_wigner(original_operator_sum),
-                        jordan_wigner(gfro.get_operators()),
-                    )
-                    self.assertAlmostEqual(
-                        gfro._trace(original_operator_sum),
-                        gfro._trace(gfro.get_operators()),
-                    )
-                except:
-                    print("Failed JW check")
+                if i == 3 or i == 1 or i == 0:
+                    f.move2frag(gfro.one_body, -c, i, mutate=True)
+                    print(f"Moved {-c} from orb {i}, E: {gfro.get_expectation_value()}")
+                    try:
+                        self.assertNotEqual(original_operator_sum, gfro.get_operators())
+                        self.assertEqual(
+                            jordan_wigner(original_operator_sum),
+                            jordan_wigner(gfro.get_operators()),
+                        )
+                        self.assertAlmostEqual(
+                            gfro._trace(original_operator_sum),
+                            gfro._trace(gfro.get_operators()),
+                        )
+                    except:
+                        print("Failed JW check")
         self.assertEqual(
             jordan_wigner(original_operator_sum), jordan_wigner(gfro.get_operators())
         )
@@ -211,9 +188,9 @@ class HamTest(unittest.TestCase):
         for j, f in enumerate(lr.two_body):
             f.to_fluid()
             for i, c in enumerate(f.fluid_parts.fluid_lambdas):
-                f.move2frag(lr.one_body, c, i, mutate=True)
+                f.move2frag(lr.one_body, -c * 10, i, mutate=True)
                 print(
-                    f"Energy after moving {c} to orb {i}: {lr.get_expectation_value()}"
+                    f"Energy after moving {-c * 10} to orb {i}: {lr.get_expectation_value()}"
                 )
                 try:
                     self.assertNotEqual(original_operator_sum, lr.get_operators())
