@@ -304,6 +304,7 @@ def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
         unitary,
         unitary,
     )
+    another_hp = unitary @ np.diagflat(self.lambdas) @ np.linalg.inv(unitary)
     for orb, fluid_part in self.fluid_lambdas:
         fluid_h = make_obp_tensor(fluid_part, n, orb)
         h_pq += fluid_h

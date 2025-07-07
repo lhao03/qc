@@ -1,12 +1,12 @@
 from copy import deepcopy
-from functools import partial
+from functools import partial, reduce
 from typing import List
 
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
-
+import cvxpy as cp
 from d_types.config_types import MConfig
-from d_types.fragment_types import OneBodyFragment
+from d_types.fragment_types import OneBodyFragment, FermionicFragment
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob
 from min_part.operators import (
@@ -15,6 +15,7 @@ from min_part.operators import (
     get_total_spin,
     subspace_projection_operator,
 )
+from min_part.tensor import make_unitary
 
 
 def subspace_operators(m_config: MConfig):
@@ -24,6 +25,17 @@ def subspace_operators(m_config: MConfig):
     return number_operator, sz, s2
 
 
+def get_bounds(frags: List[FermionicFragment]):
+    bounds = []
+    for f in frags:
+        for c in f.fluid_parts.fluid_lambdas:
+            if c > 0:
+                bounds.append((0, c))
+            else:
+                bounds.append((c, 0))
+    return bounds
+
+
 def afao_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = False):
     n = self.one_body.lambdas.shape[0]
     if self.partitioned and not self.fluid:
@@ -31,30 +43,24 @@ def afao_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = F
         for f in self.two_body:
             if f.fluid_parts is None:
                 f.to_fluid()
-        obp_E = self._diagonalize_operator_with_ss_proj(self.one_body.to_op())
-        tbp_E = sum(
-            [self._diagonalize_operator_with_ss_proj(f.to_op()) for f in self.two_body]
-        )
-        starting_E = obp_E + tbp_E
+
+        starting_E = self.get_expectation_value()
 
         def cost(x0_0):
-            obf_copy = deepcopy(self.one_body)
-            tbf_copy = [deepcopy(f) for f in self.two_body]
-            for j, f in enumerate(tbf_copy):
+            self_copy = deepcopy(self)
+            for j, f in enumerate(self_copy.two_body):
                 coeffs = x0_0[j * n : j * n + n]
-                f.bulkmove2frag(to=obf_copy, coeffs=coeffs)
-            obp_E = self._diagonalize_operator_with_ss_proj(obf_copy.to_op())
-            tbp_E = sum(
-                [self._diagonalize_operator_with_ss_proj(f.to_op()) for f in tbf_copy]
-            )
-            new_E = obp_E + tbp_E
+                f.bulkmove2frag(to=self_copy.one_body, coeffs=coeffs)
+            new_E = self_copy.get_expectation_value()
             return starting_E - new_E
 
-        x0 = np.random.rand(n * len(self.two_body)) * 1000
+        bounds = get_bounds(self.two_body)
+        x0 = np.zeros(n * len(self.two_body))
         frag_i_coeffs: OptimizeResult = minimize(
             cost,
-            x0=x0,
-            method="CG",
+            x0=np.array(x0),
+            bounds=bounds,
+            method="Nelder-Mead",
             options={"maxiter": iters, "disp": False},
         )
         for i in range(len(self.two_body)):
@@ -65,8 +71,6 @@ def afao_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = F
 
 def ofat_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = False):
     """
-    Mimimizes each LR fragment at once.
-
     Args:
         self:
         iters:
@@ -104,66 +108,6 @@ def ofat_fluid_optimize(self: FragmentedHamiltonian, iters: int, debug: bool = F
             )
             self.two_body[i].bulkmove2frag(to=self.one_body, coeffs=frag_i_coeffs.x)
     return self
-
-
-def find_region_using_bisection(
-    self: FragmentedHamiltonian,
-    j: int,
-    orb: int,
-    lower: float = -100,
-    upper: float = 100,
-    second_try: bool = False,
-):
-    starting_E = self.get_expectation_value()
-
-    def get_diff(x0):
-        ham_copy = deepcopy(self)
-        ham_copy.two_body[j].move2frag(
-            ham_copy.one_body, orb=orb, coeff=x0, mutate=True
-        )
-        new_E = ham_copy.get_expectation_value()
-        return starting_E - new_E
-
-    f_a = get_diff(lower)
-    f_b = get_diff(upper)
-    if f_a < 0 and f_b > 0:
-        return lower, upper
-    elif f_a < 0 and f_b < 0:
-        i = 0
-        while f_b <= 0:
-            upper = 2**i
-            f_b = get_diff(upper)
-            if i == 12:
-                if second_try:
-                    raise UserWarning("Couldn't find region")
-                lower = np.random.randint(-100, 100)
-                upper = lower + 1
-                return find_region_using_bisection(
-                    self, j, orb, lower=lower, upper=upper, second_try=True
-                )
-    elif f_a > 0 and f_b > 0:
-        i = 1
-        while f_a > 0:
-            lower = -(2**i)
-            f_a = get_diff(lower)
-            i += 1
-            if i == 13:
-                if second_try:
-                    raise UserWarning("Couldn't find region")
-                lower = np.random.randint(-100, 100)
-                upper = lower + 1
-                return find_region_using_bisection(
-                    self, j, orb, lower=lower, upper=upper, second_try=True
-                )
-    elif f_a > 0 and f_b < 0:
-        if second_try:
-            raise UserWarning("Couldn't find region")
-        lower = np.random.randint(-100, 100)
-        upper = lower + 1
-        return find_region_using_bisection(
-            self, j, orb, lower=lower, upper=upper, second_try=True
-        )
-    raise UserWarning("Shouldn't get here")
 
 
 def greedy_coeff_optimize(
@@ -208,6 +152,10 @@ def greedy_coeff_optimize(
         starting_E = self_copy.get_expectation_value()
 
 
+def convex_optimization():
+    pass
+
+
 # == Simple Test Cases ==
 def greedy_E_optimize(
     ob: OneBodyFragment, frags: List[OneBodyFragment], iters: int, debug: bool = False
@@ -243,4 +191,55 @@ def greedy_E_optimize(
 
         for c in range(n):
             move_ob_to_ob(from_ob=frags[i], to_ob=ob, coeff=coeffs.x[c], orb=c)
+    print("Complete")
+
+
+def simple_convex_opt(
+    ob: OneBodyFragment, frags: List[OneBodyFragment], debug: bool = False
+):
+    n = frags[0].lambdas.shape[0]
+
+    def min_eig(fo):
+        return min(np.linalg.eigh(subspace_projection_operator(fo, n, 2).toarray())[0])
+
+    num_coeffs = reduce(
+        lambda x, y: np.concatenate((x, y), axis=None), [f.lambdas for f in frags]
+    )
+    coeffs = [cp.Variable() for _ in range(n * len(frags))]
+    geq_con = [
+        c >= 0 if (num_coeffs[i] > 0) else c >= num_coeffs[i]
+        for i, c in enumerate(coeffs)
+    ]
+    leq_con = [
+        c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
+        for i, c in enumerate(coeffs)
+    ]
+    constraints = geq_con + leq_con
+    ob_t = ob.to_tensor()
+    f_1 = frags[0].to_tensor()
+    f_2 = frags[1].to_tensor()
+    print(
+        f"starting eigenvalue sum: {min(np.linalg.eigh(ob_t)[0]) + min(np.linalg.eigh(f_1)[0]) + min(np.linalg.eigh(f_2)[0])}"
+    )
+    u_1 = make_unitary(frags[0].thetas, n, imag=False)
+    u_2 = make_unitary(frags[1].thetas, n, imag=False)
+    l_1 = cp.diag(cp.vstack(coeffs[0:4]))
+    l_2 = cp.diag(cp.vstack(coeffs[4:]))
+
+    new_obt = ob_t + u_1 @ l_1 @ np.linalg.inv(u_1) + u_2 @ l_2 @ np.linalg.inv(u_2)
+    new_f1 = f_1 - u_1 @ l_1 @ np.linalg.inv(u_1)
+    new_f2 = f_2 - u_2 @ l_2 @ np.linalg.inv(u_2)
+
+    objective = cp.Maximize(
+        cp.lambda_min(new_obt) + cp.lambda_min(new_f1) + cp.lambda_min(new_f2)
+    )
+    problem = cp.Problem(objective, constraints)
+    problem.solve()
+    print("status:", problem.status)
+    print("optimal value", problem.value)
+    optimal_coeffs = [c.value for c in coeffs]
+    for i, f in enumerate(frags):
+        c = i * n
+        for j in range(n):
+            move_ob_to_ob(from_ob=f, to_ob=ob, coeff=optimal_coeffs[c], orb=j)
     print("Complete")
