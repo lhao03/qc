@@ -1,6 +1,6 @@
 from copy import deepcopy
 from functools import partial, reduce
-from typing import List
+from typing import List, Callable
 
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
@@ -9,13 +9,12 @@ from d_types.config_types import MConfig
 from d_types.fragment_types import OneBodyFragment, FermionicFragment
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob
+from min_part.julia_ops import jl_make_u
 from min_part.operators import (
     get_particle_number,
     get_projected_spin,
     get_total_spin,
-    subspace_projection_operator,
 )
-from min_part.tensor import make_unitary
 
 
 def subspace_operators(m_config: MConfig):
@@ -158,49 +157,53 @@ def convex_optimization():
 
 # == Simple Test Cases ==
 def greedy_E_optimize(
-    ob: OneBodyFragment, frags: List[OneBodyFragment], iters: int, debug: bool = False
+    ob: OneBodyFragment,
+    frags: List[OneBodyFragment],
+    iters: int,
+    min_eig: Callable,
+    debug: bool = False,
 ):
-    def min_eig(fo):
-        return min(np.linalg.eigh(subspace_projection_operator(fo, n, 2).toarray())[0])
+    print(
+        f"""starting eigenvalue sum: {
+            min_eig(ob) + min_eig(frags[0]) + min_eig(frags[1])
+        }"""
+    )
 
     n = frags[0].lambdas.shape[0]
-    for i in range(len(frags)):
-        if debug:
-            print(f"Optimizing fragment: {i}")
-        obp_E = min_eig(ob.to_op())
-        og_tbp_E = min_eig(frags[i].to_op())
-        starting_E = obp_E + og_tbp_E
-        x0 = np.random.random(n)
+    starting_E = min_eig(ob) + min_eig(frags[0]) + min_eig(frags[1])
+    x0 = np.random.random(n * len(frags))
 
-        def cost(x0_0):
-            obf_copy = deepcopy(ob)
-            frag_copy = deepcopy(frags[i])
+    def cost(x0_0):
+        obf_copy = deepcopy(ob)
+        frags_copy = deepcopy(frags)
+        for i, f in enumerate(frags_copy):
             for j in range(n):
-                move_ob_to_ob(from_ob=frag_copy, to_ob=obf_copy, coeff=x0_0[j], orb=j)
-            new_o_E = min_eig(obf_copy.to_op())
-            new_f_E = min_eig(frag_copy.to_op())
-            new_E = new_o_E + new_f_E
-            return starting_E - new_E
+                move_ob_to_ob(from_ob=f, to_ob=obf_copy, coeff=x0_0[(i * n) + j], orb=j)
+        new_o_E = min_eig(obf_copy)
+        new_f_E = sum([min_eig(f) for f in frags_copy])
+        new_E = new_o_E + new_f_E
+        return starting_E - new_E
 
-        coeffs = minimize(
-            cost,
-            x0=x0,
-            method="L-BFGS-B",
-            options={"maxiter": iters, "disp": False},
-        )
+    coeffs = minimize(
+        cost,
+        x0=x0,
+        method="L-BFGS-B",
+        options={"maxiter": iters, "disp": False},
+    )
 
+    for i, f in enumerate(frags):
         for c in range(n):
-            move_ob_to_ob(from_ob=frags[i], to_ob=ob, coeff=coeffs.x[c], orb=c)
+            ind = (i * n) + c
+            move_ob_to_ob(from_ob=f, to_ob=ob, coeff=coeffs.x[ind], orb=c)
     print("Complete")
 
 
 def simple_convex_opt(
-    ob: OneBodyFragment, frags: List[OneBodyFragment], debug: bool = False
+    ob: OneBodyFragment,
+    frags: List[OneBodyFragment],
+    min_eig: Callable,
 ):
     n = frags[0].lambdas.shape[0]
-
-    def min_eig(fo):
-        return min(np.linalg.eigh(subspace_projection_operator(fo, n, 2).toarray())[0])
 
     num_coeffs = reduce(
         lambda x, y: np.concatenate((x, y), axis=None), [f.lambdas for f in frags]
@@ -218,17 +221,18 @@ def simple_convex_opt(
     ob_t = ob.to_tensor()
     f_1 = frags[0].to_tensor()
     f_2 = frags[1].to_tensor()
-    print(
-        f"starting eigenvalue sum: {min(np.linalg.eigh(ob_t)[0]) + min(np.linalg.eigh(f_1)[0]) + min(np.linalg.eigh(f_2)[0])}"
-    )
-    u_1 = make_unitary(frags[0].thetas, n, imag=False)
-    u_2 = make_unitary(frags[1].thetas, n, imag=False)
+    print(f"starting eigenvalue sum: {min_eig(ob_t) + min_eig(f_1) + min_eig(f_2)}")
+    u_1 = jl_make_u(frags[0].thetas, n)
+    u_2 = jl_make_u(frags[1].thetas, n)
     l_1 = cp.diag(cp.vstack(coeffs[0:4]))
     l_2 = cp.diag(cp.vstack(coeffs[4:]))
 
-    new_obt = ob_t + u_1 @ l_1 @ np.linalg.inv(u_1) + u_2 @ l_2 @ np.linalg.inv(u_2)
-    new_f1 = f_1 - u_1 @ l_1 @ np.linalg.inv(u_1)
-    new_f2 = f_2 - u_2 @ l_2 @ np.linalg.inv(u_2)
+    fluid_1 = u_1 @ l_1 @ np.linalg.inv(u_1)
+    fluid_2 = u_2 @ l_2 @ np.linalg.inv(u_2)
+
+    new_obt = ob_t + fluid_1 + fluid_2
+    new_f1 = f_1 - fluid_1
+    new_f2 = f_2 - fluid_2
 
     objective = cp.Maximize(
         cp.lambda_min(new_obt) + cp.lambda_min(new_f1) + cp.lambda_min(new_f2)
@@ -241,5 +245,12 @@ def simple_convex_opt(
     for i, f in enumerate(frags):
         c = i * n
         for j in range(n):
-            move_ob_to_ob(from_ob=f, to_ob=ob, coeff=optimal_coeffs[c], orb=j)
+            move_ob_to_ob(from_ob=f, to_ob=ob, coeff=optimal_coeffs[c + j], orb=j)
+    print(
+        {
+            min_eig(ob.to_tensor())
+            + min_eig(frags[0].to_tensor())
+            + min_eig(frags[1].to_tensor())
+        }
+    )
     print("Complete")
