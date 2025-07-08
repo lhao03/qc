@@ -289,26 +289,36 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = self.lambdas.size
-    unitary = (
-        self.unitary
-        if isinstance(self.unitary, np.ndarray)
-        else (
-            jl_make_u_im(self.thetas, self.diag_thetas, n)
-            if isinstance(self.diag_thetas, np.ndarray)
-            else jl_make_u(self.thetas, n)
-        )
-    )
+    unitary = make_unitary_py(n, self)
     h_pq = contract(
         "r,pr,qr->pq",
         self.lambdas,
         unitary,
         unitary,
     )
-    another_hp = unitary @ np.diagflat(self.lambdas) @ np.linalg.inv(unitary)
     for orb, fluid_part in self.fluid_lambdas:
         fluid_h = make_obp_tensor(fluid_part, n, orb)
         h_pq += fluid_h
     return h_pq
+
+
+def make_unitary_py(n, self):
+    return (
+        self.unitary
+        if isinstance(self.unitary, np.ndarray)
+        else (make_unitary_jl(n, self))
+    )
+
+
+def make_unitary_jl(n, self):
+    if not hasattr(self, "diag_thetas"):
+        return jl_make_u(self.thetas, n)
+    else:
+        return (
+            jl_make_u_im(self.thetas, self.diag_thetas, n)
+            if isinstance(self.diag_thetas, np.ndarray)
+            else jl_make_u(self.thetas, n)
+        )
 
 
 def make_obp_tensor(fluid_part: FluidCoeff, n: int, orb: int):

@@ -11,7 +11,7 @@ from openfermion import (
 )
 
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.molecules import mol_h2
+from min_part.molecules import mol_h2, mol_h4, mol_n2
 from min_part.operators import (
     get_particle_number,
     get_projected_spin,
@@ -44,6 +44,18 @@ class OperatorTest(unittest.TestCase):
                 s_squared_operator(n_spatial_orbitals=(self.n_qubits + 1) // 2)
             )
         )
+        # h4
+        self.h4_mol = mol_h4(bond_length)
+        H_4, num_elecs_h4 = obtain_OF_hamiltonian(self.h4_mol)
+        self.h4_qubits = count_qubits(H_4)
+        H4_const, H4_obt, H4_tbt = get_chem_tensors(H_4, N=self.h4_qubits)
+        self.H_4ele = H4_const + obt2op(H4_obt) + tbt2op(H_tbt)
+        # n2
+        self.n2_mol = mol_n2(bond_length)
+        H_N2, num_elecs_n2 = obtain_OF_hamiltonian(self.h4_mol)
+        self.n2_qubits = count_qubits(H_N2)
+        N_const, N_obt, N_tbt = get_chem_tensors(H_N2, N=self.n2_qubits)
+        self.H_N2_ele = N_const + obt2op(N_obt) + tbt2op(N_tbt)
 
     # === Particle Number ===
     def test_fermion_occ_num_op(self):
@@ -187,5 +199,44 @@ class OperatorTest(unittest.TestCase):
             print(f"sz: {get_projected_spin(self.eigenvectors[:, i], 2)}")
         ss_opers = [ss_H_0, ss_H_1, ss_H_2, ss_H_3, ss_H_4]
         for i, ss in enumerate(ss_opers):
+            vals, vecs = np.linalg.eigh(ss.toarray())
+            print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
+
+    def test_cicd_projection_operator(self):
+        # == exact for h2
+        for i in range(self.n_qubits + 1):
+            print("exact for h2")
+            ss = subspace_projection_operator(
+                self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=i
+            )
+            vals, vecs = np.linalg.eigh(ss.toarray())
+            print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
+            print("cisd for h2")
+            ss = subspace_projection_operator(
+                self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=i, ci_projection=2
+            )
+            vals, vecs = np.linalg.eigh(ss.toarray())
+            print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
+
+        # ==  n2
+        gs_n2 = min(
+            np.linalg.eigh(
+                qubit_operator_sparse(jordan_wigner(self.H_N2_ele)).toarray()
+            )[0]
+        )
+        print(f"ground state of n2: {gs_n2}")
+        for i in range(self.n2_qubits + 1):
+            print("exact for n2")
+            ss = subspace_projection_operator(
+                self.H_N2_ele,
+                n_spin_orbs=self.n2_qubits,
+                num_elecs=i,
+            )
+            vals, vecs = np.linalg.eigh(ss.toarray())
+            print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
+            print("cisd for n2")
+            ss = subspace_projection_operator(
+                self.H_N2_ele, n_spin_orbs=self.n2_qubits, num_elecs=i, ci_projection=2
+            )
             vals, vecs = np.linalg.eigh(ss.toarray())
             print(f"energies for {i} elecs, sz=0, s2=0: {vals}")

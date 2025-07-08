@@ -19,11 +19,25 @@ def extract_eigenvalue(operator, w, panic: bool = True):
     return julia_ops.extract_eigen(operator, w, panic)
 
 
-def subspace_projection_operator(fo: FermionOperator, n_spin_orbs: int, num_elecs: int):
+def subspace_projection_operator(
+    fo: FermionOperator,
+    n_spin_orbs: int,
+    num_elecs: int,
+    ci_projection: Optional[int] = None,
+):
     s2 = s_squared_operator(n_spin_orbs // 2)
-    proj_s2 = get_number_preserving_sparse_operator(
-        s2, n_spin_orbs, num_elecs, spin_preserving=True
-    )
+    if ci_projection is not None:
+        proj_s2 = get_number_preserving_sparse_operator(
+            s2,
+            n_spin_orbs,
+            num_elecs,
+            spin_preserving=True,
+            excitation_level=ci_projection,
+        )
+    else:
+        proj_s2 = get_number_preserving_sparse_operator(
+            s2, n_spin_orbs, num_elecs, spin_preserving=True
+        )
     Ssq_v, Ssq_w = np.linalg.eigh(proj_s2.toarray())
 
     s2_eq_0 = (np.isclose(Ssq_v, 0)).sum()
@@ -32,9 +46,10 @@ def subspace_projection_operator(fo: FermionOperator, n_spin_orbs: int, num_elec
     s2_proj_sparse = sp.sparse.csc_matrix(s2_proj)
     proj_H = get_number_preserving_sparse_operator(
         fo,
-        n_spin_orbs,
-        num_elecs,
+        num_qubits=n_spin_orbs,
+        num_electrons=num_elecs,
         spin_preserving=True,
+        excitation_level=ci_projection,
     )
     return s2_proj_sparse * proj_H * s2_proj_sparse.T
 

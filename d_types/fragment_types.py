@@ -154,6 +154,7 @@ class GFROFragment(FermionicFragment):
             return False
 
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
+        # raise NotImplementedError
         if self.fluid_parts is None:
             return get_expectation_vals_gfro(self, num_spin_orbs, expected_e)
         else:
@@ -220,7 +221,8 @@ class GFROFragment(FermionicFragment):
         Returns:
             the mutated/new GFROFragment and OneBodyFragment(no
         """
-        assert isinstance(coeff, float) or isinstance(coeff, int)
+        if not (isinstance(coeff, float) or isinstance(coeff, int)):
+            raise UserWarning(f"Got type {type(coeff)}")
         return move_onebody_coeff(self, to, coeff, orb, mutate)
 
 

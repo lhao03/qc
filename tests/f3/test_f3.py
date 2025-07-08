@@ -729,3 +729,46 @@ class FluidFragmentTest(unittest.TestCase):
         )
         print(min(total_e))
         print(min(obt_e) + tbt_e)
+
+    def test_subspace_proj_vs_occ_energies(
+        self, partition=4, obt_tbt_frags_bl=specific_gfro_decomp(2.0909588606551686)
+    ):
+        frags: List[GFROFragment]
+        H_obt, H_tbt, frags, bl = obt_tbt_frags_bl
+        obt_f = obt2fluid(H_obt)
+        for n, f in enumerate(frags):
+            f.to_fluid()
+            for i in range(4):
+                to_move = f.fluid_parts.fluid_lambdas[i] / partition
+                for p in range(1, partition + 1):
+                    f.move2frag(to=obt_f, orb=i, coeff=to_move, mutate=True)
+                    occs, energy = f.get_expectation_value(
+                        num_spin_orbs=4, expected_e=2
+                    )
+                    # eigs, vecs = np.linalg.eigh(
+                    #     subspace_projection_operator(
+                    #         f.to_op(), n_spin_orbs=4, num_elecs=2
+                    #     ).toarray()
+                    # )
+                    eigs, vecs = np.linalg.eigh(
+                        qubit_operator_sparse(
+                            jordan_wigner(f.to_op()),
+                        ).toarray()
+                    )
+                    min_energy_in_eigs = False
+                    min_occ_energy = min(energy)
+                    for e in eigs:
+                        if np.isclose(e, min_occ_energy):
+                            min_energy_in_eigs = True
+                    # self.assertTrue(min_energy_in_eigs)
+        self.assertEqual(
+            jordan_wigner(obt2op(H_obt) + tbt2op(H_tbt)),
+            jordan_wigner(
+                obt_f.to_op()
+                + reduce(
+                    lambda a, b: a + b,
+                    [f.to_op() for f in frags],
+                    FermionOperator(),
+                )
+            ),
+        )

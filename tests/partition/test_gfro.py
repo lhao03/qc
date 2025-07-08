@@ -35,12 +35,13 @@ from min_part.tensor import (
     extract_thetas,
     make_fr_tensor_from_u,
 )
+from tests.utils.sim_molecules import specific_gfro_decomp
 from tests.utils.sim_tensor import get_chem_tensors
 
 
 class DecompTest(unittest.TestCase):
     def setUp(self):
-        bond_length = 0.45
+        bond_length = 0.8
         self.mol = mol_h2(bond_length)
         H, num_elecs = obtain_OF_hamiltonian(self.mol)
         self.n_qubits = count_qubits(H)
@@ -233,12 +234,13 @@ class DecompTest(unittest.TestCase):
             self.assertEqual(fake_hamiltonian_operator, frag_details.operators)
 
     def test_grfo_h2_occs(self):
-        gfro_frags = gfro_decomp(tbt=self.H_tbt)
+        H_obt, H_tbt, frags, bl = specific_gfro_decomp(0.8)
         n = self.H_tbt.shape[0]
-        for frag_details in gfro_frags:
+        for frag_details in frags:
             diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
             )
+
             for i in range(16):
                 print(
                     diag_eigenvalues[i],
@@ -250,6 +252,9 @@ class DecompTest(unittest.TestCase):
             occupations, eigenvalues = gfro_fragment_occ(
                 fragment=frag_details, num_spin_orbs=n, occ=None
             )
+            for o, e in zip(occupations, eigenvalues):
+                print(o, e)
+
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
             )

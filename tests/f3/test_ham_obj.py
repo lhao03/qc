@@ -68,8 +68,16 @@ class HamTest(unittest.TestCase):
         self.assertEqual(
             sum([f.operators for f in gfro_frags]), sum([f.operators for f in lr_frags])
         )
-        E_gfro = gfro.get_expectation_value()
-        E_lr = lr.get_expectation_value()
+        proj_E_lr = lr.get_expectation_value(use_frag_energies=False)
+        E_lr = lr.get_expectation_value(
+            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (1, 3), (2, 3)]
+        )
+        proj_E_gfro = gfro.get_expectation_value(use_frag_energies=False)
+        E_gfro = gfro.get_expectation_value(
+            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (1, 3), (2, 3)]
+        )
+        self.assertAlmostEqual(E_gfro, proj_E_gfro)
+        self.assertAlmostEqual(E_lr, proj_E_lr)
         self.assertTrue(E >= E_gfro)
         self.assertTrue(E >= E_lr)
         return E, E_gfro, E_lr
@@ -125,7 +133,15 @@ class HamTest(unittest.TestCase):
                 m_config.num_spin_orbs,
             ),
         )
-        _, _, reference = create_ham_objs(const, m_config, obt, tbt)
+        reference = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(2, 0, 0),
+        )
         E = reference.get_expectation_value()
         self.assertTrue(-2 <= E <= 0)
         saved_location = reference.save()
