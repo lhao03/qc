@@ -96,6 +96,7 @@ class FragmentedHamiltonian:
         self,
         optimization_type: OptType,
         min_eig: Optional = None,
+        desired_occs: Optional = None,
         iters: int = 1000,
         debug: bool = False,
     ):
@@ -107,7 +108,7 @@ class FragmentedHamiltonian:
             case OptType.GREEDY:
                 return greedy_coeff_optimize(self, iters=10000, threshold=1e-9)
             case OptType.CONVEX:
-                return convex_optimization(self, min_eig)
+                return convex_optimization(self, min_eig, desired_occs)
 
     def _add_up_orb_occs(self, frag: FermionicFragment):
         occs, energies = frag.get_expectation_value(
@@ -134,6 +135,7 @@ class FragmentedHamiltonian:
 
     def _diagonalize_operator_manual_ss(self, fo: FermionOperator):
         eigs, vecs = np.linalg.eigh(qubit_operator_sparse(jordan_wigner(fo)).toarray())
+        print(eigs)
         if (
             not isinstance(self.number_operator, np.ndarray)
             or not isinstance(self.s2_operator, np.ndarray)
@@ -256,6 +258,7 @@ class FragmentedHamiltonian:
                     tbt_e += self._diagonalize_operator_manual_ss(frag.to_op())
                 else:
                     tbt_e += self._diagonalize_operator_with_ss_proj(frag.to_op())
+                print(tbt_e)
             return const_obt + tbt_e
         elif not self.partitioned and not self.fluid:
             if not (

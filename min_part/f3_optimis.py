@@ -1,14 +1,13 @@
 from copy import deepcopy
 from functools import partial, reduce
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 import numpy as np
-from opt_einsum import contract
 from scipy.optimize import minimize, OptimizeResult
 import cvxpy as cp
 
 from d_types.config_types import MConfig
-from d_types.fragment_types import OneBodyFragment, FermionicFragment, ContractPattern
+from d_types.fragment_types import OneBodyFragment, FermionicFragment
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
 from min_part.julia_ops import jl_make_u
@@ -17,6 +16,7 @@ from min_part.operators import (
     get_projected_spin,
     get_total_spin,
 )
+from min_part.tensor import make_lambda_matrix
 
 
 def subspace_operators(m_config: MConfig):
@@ -153,59 +153,74 @@ def greedy_coeff_optimize(
         starting_E = self_copy.get_expectation_value()
 
 
-def convex_optimization(self: FragmentedHamiltonian, min_eig: Callable):
+def get_energy_expressions(
+    i, n, num_coeffs, f: FermionicFragment, fluid_variables, desired_occs: List[Tuple]
+):
+    curr_coeffs = num_coeffs[i * n, (i * n) + n]
+    curr_variables = fluid_variables[i * n, (i * n) + n]
+    lambda_matrix = make_lambda_matrix(f.fluid_parts.static_lambdas, n)
+    energies = []
+    for occ in desired_occs:
+        occ_expression = 0
+        for i in occ:
+            for j in occ:
+                if i == j:
+                    occ_expression = occ_expression + (
+                        curr_coeffs[i] - curr_variables[i]
+                    )
+                else:
+                    occ_expression = occ_expression + lambda_matrix[i][j]
+        energies.append(occ_expression)
+
+
+def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
+    print(
+        f"""starting eigenvalue sum: {
+            self.get_expectation_value(
+                use_frag_energies=True, desired_occs=desired_occs
+            )
+        }"""
+    )
     n = self.one_body.lambdas.shape[0]
     num_coeffs = []
     for f in self.two_body:
         f.to_fluid()
         num_coeffs = np.append(num_coeffs, f.fluid_parts.fluid_lambdas)
-    coeffs = [cp.Variable() for _ in range(n * len(self.two_body))]
-    geq_con = [
+
+    fluid_variables = [cp.Variable() for _ in range(n * len(self.two_body))]
+    constraints = [
         c >= 0 if (num_coeffs[i] > 0) else c >= num_coeffs[i]
-        for i, c in enumerate(coeffs)
-    ]
-    leq_con = [
+        for i, c in enumerate(fluid_variables)
+    ] + [
         c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
-        for i, c in enumerate(coeffs)
+        for i, c in enumerate(fluid_variables)
     ]
-    constraints = geq_con + leq_con
     ob_t = self.one_body.to_tensor()
     unitaries = [make_unitary_jl(n, f) for f in self.two_body]
-    frag_tensors = [
-        contract(
-            ContractPattern.GFRO.value,
-            f.fluid_parts.fluid_lambdas,
-            unitaries[i],
-            unitaries[i],
-        )
-        for i, f in enumerate(self.two_body)
-    ]
-    print(f"optimal eigenvalue sum: {np.linalg.eigh(ob_t + sum(frag_tensors))[0]}")
-    print(
-        f"starting eigenvalue sum: {min_eig(ob_t) + sum([min_eig(f) for f in frag_tensors])}"
-    )
     fluid_lambdas = [
-        cp.diag(cp.vstack(coeffs[j * n : (j * n) + n]))
+        cp.diag(cp.vstack(fluid_variables[j * n : (j * n) + n]))
         for j in range(len(self.two_body))
     ]
     fluid_tensors = [
-        np.linalg.inv(unitaries[i]) @ fluid_lambdas[i] @ unitaries[i]
+        unitaries[i] @ fluid_lambdas[i] @ np.linalg.inv(unitaries[i])
         for i in range(len(self.two_body))
     ]
-
     new_obt = ob_t
     for i, fluid_tensor in enumerate(fluid_tensors):
         new_obt = new_obt + fluid_tensor
-        frag_tensors[i] = frag_tensors[i] - fluid_tensor
 
+    frag_energies = [
+        get_energy_expressions(i, n, num_coeffs, f, fluid_variables, desired_occs)
+        for i, f in enumerate(self.two_body)
+    ]
     objective = cp.Maximize(
-        cp.lambda_min(new_obt) + cp.sum([cp.lambda_min(m) for m in frag_tensors])
+        cp.lambda_min(new_obt) + cp.sum([cp.min(energy) for energy in frag_energies])
     )
     problem = cp.Problem(objective, constraints)
     problem.solve()
     print("status:", problem.status)
     print("optimal value", problem.value)
-    optimal_coeffs: List[float] = [c.value for c in coeffs]
+    optimal_coeffs: List[float] = [c.value for c in fluid_variables]
     for i, f in enumerate(self.two_body):
         for j in range(n):
             c = (i * n) + j

@@ -68,25 +68,29 @@ class HamTest(unittest.TestCase):
         self.assertEqual(
             sum([f.operators for f in gfro_frags]), sum([f.operators for f in lr_frags])
         )
+        print("lr projected")
         proj_E_lr = lr.get_expectation_value(use_frag_energies=False)
+        print("lr complete")
         comp_E_lr = lr.get_expectation_value(diag_complete_space=True)
+        print("lr frag energies")
         E_lr = lr.get_expectation_value(
-            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (1, 3), (2, 3)]
+            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)]
         )
+        print("done lr")
         proj_E_gfro = gfro.get_expectation_value(use_frag_energies=False)
         comp_E_gfro = gfro.get_expectation_value(diag_complete_space=True)
         E_gfro = gfro.get_expectation_value(
-            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (1, 3), (2, 3)]
+            use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)]
         )
-        print(proj_E_gfro, comp_E_gfro, E_gfro)
+        self.assertAlmostEqual(proj_E_lr, E_lr)
+        self.assertAlmostEqual(proj_E_gfro, E_gfro)
         self.assertTrue(E >= E_gfro)
-        print(proj_E_lr, comp_E_lr, E_lr)
         self.assertTrue(E >= E_lr)
         return E, E_gfro, E_lr
 
     def test_make_lb(self):
         child_dir = os.path.join(
-            "/data/h2",
+            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h2",
             h2_settings.date,
         )
         no_partitioning = []
