@@ -10,6 +10,9 @@ from openfermion import (
     FermionOperator,
     qubit_operator_sparse,
     jordan_wigner,
+    number_operator,
+    s_squared_operator,
+    sz_operator,
 )
 
 from d_types.config_types import MConfig
@@ -55,6 +58,9 @@ class FragmentedHamiltonian:
     partitioned: bool
     fluid: bool
     subspace: Subspace
+    number_operator: any = None
+    s2_operator: any = None
+    sz_operator: any = None
     ci_projection: Optional[int] = None
 
     def __eq__(self, other):
@@ -126,6 +132,45 @@ class FragmentedHamiltonian:
         )
         return sum(eigenvalues)
 
+    def _diagonalize_operator_manual_ss(self, fo: FermionOperator):
+        eigs, vecs = np.linalg.eigh(qubit_operator_sparse(jordan_wigner(fo)).toarray())
+        if (
+            not isinstance(self.number_operator, np.ndarray)
+            or not isinstance(self.s2_operator, np.ndarray)
+            or not isinstance(self.sz_operator, np.ndarray)
+        ):
+            self.number_operator = qubit_operator_sparse(
+                jordan_wigner(number_operator(n_modes=self.m_config.num_spin_orbs))
+            ).toarray()
+            self.s2_operator = qubit_operator_sparse(
+                jordan_wigner(
+                    s_squared_operator(
+                        n_spatial_orbitals=self.m_config.num_spin_orbs // 2
+                    )
+                )
+            ).toarray()
+            self.sz_operator = qubit_operator_sparse(
+                jordan_wigner(
+                    sz_operator(n_spatial_orbitals=self.m_config.num_spin_orbs // 2)
+                )
+            ).toarray()
+        energies = []
+        for i in range(vecs.shape[0]):
+            vec = vecs[:, i]
+            num_elecs = np.allclose(
+                self.number_operator @ vec, self.subspace.expected_e * vec
+            )
+            if num_elecs:
+                s2 = np.allclose(
+                    self.s2_operator @ vec, self.subspace.expected_s2 * vec
+                )
+                sz = np.allclose(
+                    self.sz_operator @ vec, self.subspace.expected_sz * vec
+                )
+                if num_elecs and sz and s2:
+                    energies.append(eigs[i])
+        return min(energies)
+
     def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
         eigenvalues, eigenvectors = np.linalg.eigh(
             self.subspace.projector(fo).toarray()
@@ -187,7 +232,10 @@ class FragmentedHamiltonian:
         return self.two_body
 
     def get_expectation_value(
-        self, use_frag_energies: bool = False, desired_occs: Optional = None
+        self,
+        use_frag_energies: bool = False,
+        diag_complete_space: bool = False,
+        desired_occs: Optional = None,
     ):
         if not self.subspace.projector:
             self.subspace.projector = partial(
@@ -204,6 +252,8 @@ class FragmentedHamiltonian:
             for frag in self.two_body:
                 if use_frag_energies:
                     tbt_e += self._filter_frag_energy(frag, desired_occs=desired_occs)
+                elif diag_complete_space:
+                    tbt_e += self._diagonalize_operator_manual_ss(frag.to_op())
                 else:
                     tbt_e += self._diagonalize_operator_with_ss_proj(frag.to_op())
             return const_obt + tbt_e

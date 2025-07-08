@@ -154,7 +154,6 @@ class GFROFragment(FermionicFragment):
             return False
 
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
-        # raise NotImplementedError
         if self.fluid_parts is None:
             return get_expectation_vals_gfro(self, num_spin_orbs, expected_e)
         else:

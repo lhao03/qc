@@ -10,6 +10,7 @@ from openfermion import (
     FermionOperator,
     s_squared_operator,
     get_number_preserving_sparse_operator,
+    sz_operator,
 )
 
 from min_part import julia_ops
@@ -200,7 +201,7 @@ def get_total_spin(w, p: int) -> float:
     Returns:
         the projected spin
     """
-    s_2 = qubit_operator_sparse(jordan_wigner(make_total_spin_operator(p)))
+    s_2 = qubit_operator_sparse(jordan_wigner(s_squared_operator(p)))
     return extract_eigenvalue(s_2, w, panic=False)
 
 
@@ -215,7 +216,7 @@ def get_projected_spin(w, p: int) -> float:
     Returns:
         The projected spin, 0 if singlet, 1 if triplet.
     """
-    s_z_operator = qubit_operator_sparse(jordan_wigner(make_spin_z_operator(p=p)))
+    s_z_operator = qubit_operator_sparse(jordan_wigner(sz_operator(p)))
     return extract_eigenvalue(s_z_operator, w, panic=False)
 
 

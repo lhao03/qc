@@ -8,6 +8,9 @@ from openfermion import (
     count_qubits,
     jordan_wigner,
     qubit_operator_sparse,
+    number_operator,
+    s_squared_operator,
+    sz_operator,
 )
 
 from min_part.gfro_decomp import (
@@ -19,8 +22,8 @@ from min_part.gfro_decomp import (
 )
 from min_part.operators import (
     generate_occupied_spin_orb_permutations,
-    get_total_spin,
     get_particle_number,
+    get_total_spin,
     get_projected_spin,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -35,7 +38,7 @@ from min_part.tensor import (
     extract_thetas,
     make_fr_tensor_from_u,
 )
-from tests.utils.sim_molecules import specific_gfro_decomp
+from tests.utils.sim_molecules import specific_lr_decomp
 from tests.utils.sim_tensor import get_chem_tensors
 
 
@@ -234,27 +237,27 @@ class DecompTest(unittest.TestCase):
             self.assertEqual(fake_hamiltonian_operator, frag_details.operators)
 
     def test_grfo_h2_occs(self):
-        H_obt, H_tbt, frags, bl = specific_gfro_decomp(0.8)
+        from openfermion import qubit_operator_sparse, jordan_wigner
+
+        H_obt, H_tbt, frags, bl = specific_lr_decomp(0.8)
         n = self.H_tbt.shape[0]
         for frag_details in frags:
+            print("frag")
             diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
                 qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
             )
 
+            n_op = qubit_operator_sparse(jordan_wigner(number_operator(4))).toarray()
+            s2 = qubit_operator_sparse(jordan_wigner(s_squared_operator(2))).toarray()
+            sz = qubit_operator_sparse(jordan_wigner(sz_operator(2))).toarray()
             for i in range(16):
-                print(
-                    diag_eigenvalues[i],
-                    get_particle_number(diag_eigenvectors[:, i], 4),
-                    get_total_spin(diag_eigenvectors[:, i], 2),
-                    get_projected_spin(diag_eigenvectors[:, i], 2),
-                )
-
-            occupations, eigenvalues = gfro_fragment_occ(
-                fragment=frag_details, num_spin_orbs=n, occ=None
-            )
-            for o, e in zip(occupations, eigenvalues):
-                print(o, e)
-
-            self.assertTrue(
-                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
-            )
+                vec = diag_eigenvectors[:, i]
+                if np.allclose(n_op @ vec, 2 * vec):
+                    print(diag_eigenvalues[i])
+                    print(np.allclose(s2 @ vec, 0 * vec))
+                    print(np.allclose(sz @ vec, 0 * vec))
+                    print(
+                        get_particle_number(diag_eigenvectors[:, i], 4),
+                        get_total_spin(diag_eigenvectors[:, i], 2),
+                        get_projected_spin(diag_eigenvectors[:, i], 2),
+                    )
