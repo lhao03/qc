@@ -8,6 +8,10 @@ from openfermion import (
     qubit_operator_sparse,
     FermionOperator,
     s_squared_operator,
+    expectation,
+    number_operator,
+    sz_operator,
+    eigenspectrum,
 )
 
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -61,11 +65,16 @@ class OperatorTest(unittest.TestCase):
     def test_fermion_occ_num_op(self):
         n = get_particle_number(self.eigenvectors[:, 0], 4)
         self.assertEqual(2, n)
+        no = qubit_operator_sparse(jordan_wigner(number_operator(n_modes=4)))
+        of_expectation_value = expectation(operator=no, state=self.eigenvectors[:, 0])
+        self.assertEqual(2, round(of_expectation_value))
 
     # === Projected Spin ===
     def test_projected_spin_operator_singlet_state(self):
         s = get_projected_spin(self.eigenvectors[:, 0], 2)
+        sz = qubit_operator_sparse(jordan_wigner(sz_operator(2)))
         self.assertEqual(0, s)
+        self.assertEqual(0, round(expectation(sz, self.eigenvectors[:, 0])))
 
     def test_projected_spin_operator_1_elec(self):
         s = get_projected_spin(self.eigenvectors[:, 4], 2)
@@ -88,8 +97,13 @@ class OperatorTest(unittest.TestCase):
 
     def test_total_spin_operator_1_elec(self):
         s = get_total_spin(self.eigenvectors[:, 4], 2)
+        print(eigenspectrum(sz_operator(2)))
+        s2 = qubit_operator_sparse(jordan_wigner(s_squared_operator(2)))
         self.assertEqual(
             extract_eigenvalue(self.s_2_of, self.eigenvectors[:, 4], panic=True), s
+        )
+        self.assertEqual(
+            s, round(expectation(operator=s2, state=self.eigenvectors[:, 4]))
         )
 
     def test_total_spin_operator_2_elec(self):

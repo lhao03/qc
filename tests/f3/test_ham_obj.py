@@ -68,11 +68,9 @@ class HamTest(unittest.TestCase):
         self.assertEqual(
             sum([f.operators for f in gfro_frags]), sum([f.operators for f in lr_frags])
         )
-        print("lr projected")
         proj_E_lr = lr.get_expectation_value(use_frag_energies=False)
         print("lr complete")
         comp_E_lr = lr.get_expectation_value(diag_complete_space=True)
-        print("lr frag energies")
         E_lr = lr.get_expectation_value(
             use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)]
         )

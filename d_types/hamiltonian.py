@@ -13,6 +13,7 @@ from openfermion import (
     number_operator,
     s_squared_operator,
     sz_operator,
+    expectation,
 )
 
 from d_types.config_types import MConfig
@@ -135,7 +136,6 @@ class FragmentedHamiltonian:
 
     def _diagonalize_operator_manual_ss(self, fo: FermionOperator):
         eigs, vecs = np.linalg.eigh(qubit_operator_sparse(jordan_wigner(fo)).toarray())
-        print(eigs)
         if (
             not isinstance(self.number_operator, np.ndarray)
             or not isinstance(self.s2_operator, np.ndarray)
@@ -143,40 +143,39 @@ class FragmentedHamiltonian:
         ):
             self.number_operator = qubit_operator_sparse(
                 jordan_wigner(number_operator(n_modes=self.m_config.num_spin_orbs))
-            ).toarray()
+            )
             self.s2_operator = qubit_operator_sparse(
                 jordan_wigner(
                     s_squared_operator(
                         n_spatial_orbitals=self.m_config.num_spin_orbs // 2
                     )
                 )
-            ).toarray()
+            )
             self.sz_operator = qubit_operator_sparse(
                 jordan_wigner(
                     sz_operator(n_spatial_orbitals=self.m_config.num_spin_orbs // 2)
                 )
-            ).toarray()
+            )
         energies = []
         for i in range(vecs.shape[0]):
             vec = vecs[:, i]
-            num_elecs = np.allclose(
-                self.number_operator @ vec, self.subspace.expected_e * vec
-            )
-            if num_elecs:
-                s2 = np.allclose(
-                    self.s2_operator @ vec, self.subspace.expected_s2 * vec
-                )
-                sz = np.allclose(
-                    self.sz_operator @ vec, self.subspace.expected_sz * vec
-                )
-                if num_elecs and sz and s2:
-                    energies.append(eigs[i])
+            num_elecs = round(expectation(operator=self.number_operator, state=vec))
+            s2 = expectation(operator=self.s2_operator, state=vec)
+            sz = expectation(operator=self.sz_operator, state=vec)
+            print(eigs[i], num_elecs, s2, sz)
+            if (
+                (num_elecs == self.subspace.expected_e)
+                and (np.isclose(self.subspace.expected_s2, s2))
+                and (np.isclose(self.subspace.expected_sz, sz))
+            ):
+                energies.append(eigs[i])
         return min(energies)
 
     def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
         eigenvalues, eigenvectors = np.linalg.eigh(
             self.subspace.projector(fo).toarray()
         )
+        print(eigenvalues)
         return min(eigenvalues, default=0)
 
     def _filter_frag_energy(
