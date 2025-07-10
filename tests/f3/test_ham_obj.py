@@ -69,14 +69,10 @@ class HamTest(unittest.TestCase):
             sum([f.operators for f in gfro_frags]), sum([f.operators for f in lr_frags])
         )
         proj_E_lr = lr.get_expectation_value(use_frag_energies=False)
-        print("lr complete")
-        comp_E_lr = lr.get_expectation_value(diag_complete_space=True)
         E_lr = lr.get_expectation_value(
             use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)]
         )
-        print("done lr")
         proj_E_gfro = gfro.get_expectation_value(use_frag_energies=False)
-        comp_E_gfro = gfro.get_expectation_value(diag_complete_space=True)
         E_gfro = gfro.get_expectation_value(
             use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)]
         )
@@ -325,3 +321,41 @@ class HamTest(unittest.TestCase):
             jordan_wigner(original_operator_sum), jordan_wigner(gfro.get_operators())
         )
         print(f"Final Energy: {gfro.get_expectation_value()}")
+
+    def test_fraG_energies(self, bond_length=0.8, m_config=h2_settings):
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        ham = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+            subspace=Subspace(2, 0, 0),
+        )
+        ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        for f in ham.two_body:
+            f.to_fluid()
+        for f in ham.two_body:
+            f.move2frag(
+                ham.one_body, coeff=0.3, orb=np.random.randint(0, 3), mutate=True
+            )
+        total_e = 0
+        occs = [(0, 1), (1, 2), (2, 3)]
+        occs_es = ham.one_body.get_expectation_value(elecs=2)
+        possible_energies = []
+        for occ, e in occs_es:
+            if occ in occs:
+                possible_energies.append(e)
+        total_e += min(possible_energies)
+        tb_e = 0
+        for f in ham.two_body:
+            possible_energies = []
+            occs, es = f.get_expectation_value(num_spin_orbs=4, expected_e=2)
+            for occ, e in zip(occs, es):
+                if occ in occs:
+                    possible_energies.append(e)
+            tb_e += min(possible_energies)
+        total_e += tb_e + ham.constant
+        ex_val = ham.get_expectation_value(use_frag_energies=True, desired_occs=occs)
+        self.assertAlmostEqual(total_e, ex_val)  # imperfect proxy

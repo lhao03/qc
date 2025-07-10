@@ -10,6 +10,7 @@ from openfermion import FermionOperator, is_hermitian
 
 from d_types.config_types import Nums
 from min_part.julia_ops import jl_print
+from min_part.operators import generate_occupied_spin_orb_permutations
 
 from min_part.tensor import tbt2op, get_n_body_tensor_chemist_ordering
 
@@ -98,6 +99,22 @@ class OneBodyFragment:
     def to_tensor(self):
         return fluid_ob2ten(self)
 
+    def get_expectation_value(self, elecs):
+        vals, vecs = np.linalg.eigh(self.to_tensor())
+        occupation_combinations = generate_occupied_spin_orb_permutations(
+            self.lambdas.shape[0], elecs
+        )
+        energies = []
+        for occ in occupation_combinations:
+            energy = 0
+            for i in occ:
+                energy += vals[i]
+            energies.append((occ, energy))
+        return energies
+
+    def get_expectation_value_cvxpy(self):
+        raise NotImplementedError
+
 
 @dataclass(kw_only=True)
 class FermionicFragment:
@@ -135,6 +152,10 @@ class FermionicFragment:
 
     @abstractmethod
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_expectation_value_cvxpy(self):
         raise NotImplementedError
 
 

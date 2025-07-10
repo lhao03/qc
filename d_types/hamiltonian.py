@@ -96,7 +96,6 @@ class FragmentedHamiltonian:
     def optimize_fragments(
         self,
         optimization_type: OptType,
-        min_eig: Optional = None,
         desired_occs: Optional = None,
         iters: int = 1000,
         debug: bool = False,
@@ -109,7 +108,7 @@ class FragmentedHamiltonian:
             case OptType.GREEDY:
                 return greedy_coeff_optimize(self, iters=10000, threshold=1e-9)
             case OptType.CONVEX:
-                return convex_optimization(self, min_eig, desired_occs)
+                return convex_optimization(self, desired_occs)
 
     def _add_up_orb_occs(self, frag: FermionicFragment):
         occs, energies = frag.get_expectation_value(
@@ -162,7 +161,6 @@ class FragmentedHamiltonian:
             num_elecs = round(expectation(operator=self.number_operator, state=vec))
             s2 = expectation(operator=self.s2_operator, state=vec)
             sz = expectation(operator=self.sz_operator, state=vec)
-            print(eigs[i], num_elecs, s2, sz)
             if (
                 (num_elecs == self.subspace.expected_e)
                 and (np.isclose(self.subspace.expected_s2, s2))
@@ -175,7 +173,6 @@ class FragmentedHamiltonian:
         eigenvalues, eigenvectors = np.linalg.eigh(
             self.subspace.projector(fo).toarray()
         )
-        print(eigenvalues)
         return min(eigenvalues, default=0)
 
     def _filter_frag_energy(
@@ -257,7 +254,6 @@ class FragmentedHamiltonian:
                     tbt_e += self._diagonalize_operator_manual_ss(frag.to_op())
                 else:
                     tbt_e += self._diagonalize_operator_with_ss_proj(frag.to_op())
-                print(tbt_e)
             return const_obt + tbt_e
         elif not self.partitioned and not self.fluid:
             if not (

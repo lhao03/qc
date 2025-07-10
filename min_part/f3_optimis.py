@@ -7,6 +7,14 @@ from scipy.optimize import minimize, OptimizeResult
 import cvxpy as cp
 
 from d_types.config_types import MConfig
+from d_types.cvx_exp import (
+    make_fluid_variables,
+    make_fluid_matrices,
+    make_ob_matrices,
+    fluid_ob_op,
+    tb_energy_expressions,
+    summed_fragment_energies,
+)
 from d_types.fragment_types import OneBodyFragment, FermionicFragment
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
@@ -16,7 +24,6 @@ from min_part.operators import (
     get_projected_spin,
     get_total_spin,
 )
-from min_part.tensor import make_lambda_matrix
 
 
 def subspace_operators(m_config: MConfig):
@@ -153,41 +160,14 @@ def greedy_coeff_optimize(
         starting_E = self_copy.get_expectation_value()
 
 
-def get_energy_expressions(
-    i, n, num_coeffs, f: FermionicFragment, fluid_variables, desired_occs: List[Tuple]
-):
-    curr_coeffs = num_coeffs[i * n, (i * n) + n]
-    curr_variables = fluid_variables[i * n, (i * n) + n]
-    lambda_matrix = make_lambda_matrix(f.fluid_parts.static_lambdas, n)
-    energies = []
-    for occ in desired_occs:
-        occ_expression = 0
-        for i in occ:
-            for j in occ:
-                if i == j:
-                    occ_expression = occ_expression + (
-                        curr_coeffs[i] - curr_variables[i]
-                    )
-                else:
-                    occ_expression = occ_expression + lambda_matrix[i][j]
-        energies.append(occ_expression)
-
-
 def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
-    print(
-        f"""starting eigenvalue sum: {
-            self.get_expectation_value(
-                use_frag_energies=True, desired_occs=desired_occs
-            )
-        }"""
-    )
     n = self.one_body.lambdas.shape[0]
     num_coeffs = []
     for f in self.two_body:
         f.to_fluid()
         num_coeffs = np.append(num_coeffs, f.fluid_parts.fluid_lambdas)
 
-    fluid_variables = [cp.Variable() for _ in range(n * len(self.two_body))]
+    fluid_variables = make_fluid_variables(n, self)
     constraints = [
         c >= 0 if (num_coeffs[i] > 0) else c >= num_coeffs[i]
         for i, c in enumerate(fluid_variables)
@@ -195,38 +175,24 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
         c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
         for i, c in enumerate(fluid_variables)
     ]
-    ob_t = self.one_body.to_tensor()
-    unitaries = [make_unitary_jl(n, f) for f in self.two_body]
-    fluid_lambdas = [
-        cp.diag(cp.vstack(fluid_variables[j * n : (j * n) + n]))
-        for j in range(len(self.two_body))
-    ]
-    fluid_tensors = [
-        unitaries[i] @ fluid_lambdas[i] @ np.linalg.inv(unitaries[i])
-        for i in range(len(self.two_body))
-    ]
-    new_obt = ob_t
-    for i, fluid_tensor in enumerate(fluid_tensors):
-        new_obt = new_obt + fluid_tensor
+    fluid_lambdas = make_fluid_matrices(fluid_variables, n, self)
 
-    frag_energies = [
-        get_energy_expressions(i, n, num_coeffs, f, fluid_variables, desired_occs)
-        for i, f in enumerate(self.two_body)
-    ]
-    objective = cp.Maximize(
-        cp.lambda_min(new_obt) + cp.sum([cp.min(energy) for energy in frag_energies])
+    unitaries = [make_unitary_jl(n, f) for f in self.two_body]
+
+    fluid_tensors = make_ob_matrices(fluid_lambdas, self, unitaries)
+
+    new_obt = fluid_ob_op(fluid_tensors, self)
+
+    frag_energies = tb_energy_expressions(
+        desired_occs, fluid_variables, n, num_coeffs, self
     )
+
+    objective = cp.Maximize(summed_fragment_energies(frag_energies, new_obt, self))
     problem = cp.Problem(objective, constraints)
     problem.solve()
-    print("status:", problem.status)
-    print("optimal value", problem.value)
-    optimal_coeffs: List[float] = [c.value for c in fluid_variables]
+    optimal_coeffs: List[float] = [float(c.value) for c in fluid_variables]
     for i, f in enumerate(self.two_body):
-        for j in range(n):
-            c = (i * n) + j
-            f.move2frag(
-                to=self.one_body, coeff=float(optimal_coeffs[c]), orb=j, mutate=True
-            )
+        f.bulkmove2frag(to=self.one_body, coeffs=optimal_coeffs[i * n : (i * n) + n])
 
 
 # == Simple Test Cases ==
@@ -299,7 +265,6 @@ def simple_convex_opt(
     ob_t = ob.to_tensor()
     f_1 = frags[0].to_tensor()
     f_2 = frags[1].to_tensor()
-    print(f"starting eigenvalue sum: {min_eig(ob_t) + min_eig(f_1) + min_eig(f_2)}")
     u_1 = jl_make_u(frags[0].thetas, n)
     u_2 = jl_make_u(frags[1].thetas, n)
     l_1 = cp.diag(cp.vstack(coeffs[0:4]))
