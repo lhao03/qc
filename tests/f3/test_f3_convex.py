@@ -4,7 +4,11 @@ import numpy as np
 from openfermion import random_hermitian_matrix, eigenspectrum
 from opt_einsum import contract
 
-from d_types.cvx_exp import make_fluid_variables, make_ob_matrices
+from d_types.cvx_exp import (
+    make_fluid_variables,
+    make_ob_matrices,
+    get_energy_expressions,
+)
 from d_types.fragment_types import (
     OneBodyFragment,
     Subspace,
@@ -99,7 +103,10 @@ class F3ConvexTest(unittest.TestCase):
             )
             cv_mat = m.value
             np.testing.assert_array_almost_equal(np_contract, cv_mat)
-        lr = FragmentedHamiltonian(
+
+    def test_frag_energies(self, m_config=h2_settings, bond_length=0.8):
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        ham = FragmentedHamiltonian(
             m_config=m_config,
             constant=const,
             one_body=obt,
@@ -108,30 +115,60 @@ class F3ConvexTest(unittest.TestCase):
             fluid=False,
             subspace=Subspace(2, 0, 0),
         )
-        lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
-        fluid_variables = make_fluid_variables(n=n, self=lr)
-        unitaries = [make_unitary_jl(n=4, self=f) for f in lr.two_body]
-        ob_fluid_matrices = make_ob_matrices(
-            contract_pattern=ContractPattern.LR,
-            fluid_lambdas=fluid_variables,
-            self=lr,
-            unitaries=unitaries,
+        n = 4
+        ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        fluid_variables = make_fluid_variables(n=n, self=ham)
+        num_coeffs = []
+        for f in ham.two_body:
+            f.to_fluid()
+            num_coeffs += list(f.fluid_parts.fluid_lambdas)
+        energy_expressions = get_energy_expressions(
+            i=0,
+            n=n,
+            num_coeffs=num_coeffs,
+            f=ham.two_body[0],
+            fluid_variables=fluid_variables,
+            desired_occs=[
+                (0,),
+                (0, 1),
+                (0, 1, 2),
+                (0, 1, 2, 3),
+            ],
         )
-        for i, f in enumerate(lr.two_body):
+        for i, f in enumerate(ham.two_body):
             f.to_fluid()
             for j in range(n):
-                fluid_variables[(i * n) + j].value = lr.two_body[
-                    i
-                ].fluid_parts.fluid_lambdas[j]
-        for i, m in enumerate(ob_fluid_matrices):
-            np_contract = contract(
-                ContractPattern.LR.value,
-                lr.two_body[i].fluid_parts.fluid_lambdas,
-                unitaries[i],
-                unitaries[i],
-            )
-            cv_mat = m.value
-            np.testing.assert_array_almost_equal(np_contract, cv_mat)
+                c = ham.two_body[i].fluid_parts.fluid_lambdas[j] / 2
+                fluid_variables[(i * n) + j].value = c
+                f.move2frag(to=ham.one_body, coeff=c, orb=j, mutate=True)
+        occs1, frag_energies_1 = ham.two_body[0].get_expectation_value(
+            num_spin_orbs=4, expected_e=1
+        )
+        for i, occ in enumerate(occs1):
+            if occ == (0,):
+                self.assertEqual(frag_energies_1[i], energy_expressions[0].value)
+                break
+        occs2, frag_energies_2 = ham.two_body[0].get_expectation_value(
+            num_spin_orbs=4, expected_e=2
+        )
+        for i, occ in enumerate(occs2):
+            if occ == (0, 1):
+                self.assertAlmostEqual(frag_energies_2[i], energy_expressions[1].value)
+                break
+        occs3, frag_energies_3 = ham.two_body[0].get_expectation_value(
+            num_spin_orbs=4, expected_e=3
+        )
+        for i, occ in enumerate(occs3):
+            if occ == (0, 1, 2):
+                self.assertAlmostEqual(frag_energies_3[i], energy_expressions[2].value)
+                break
+        occs4, frag_energies_4 = ham.two_body[0].get_expectation_value(
+            num_spin_orbs=4, expected_e=4
+        )
+        for i, occ in enumerate(occs4):
+            if occ == (0, 1, 2, 3):
+                self.assertAlmostEqual(frag_energies_4[i], energy_expressions[3].value)
+                break
 
     def test_simple_ob_tb(self, m_config=h2_settings, bond_length=0.8):
         const, obt, tbt = get_tensors(m_config, bond_length)
