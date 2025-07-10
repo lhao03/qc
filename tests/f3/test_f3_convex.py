@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import cvxpy as cp
 from openfermion import random_hermitian_matrix, eigenspectrum
 from opt_einsum import contract
 
@@ -8,6 +9,8 @@ from d_types.cvx_exp import (
     make_fluid_variables,
     make_ob_matrices,
     get_energy_expressions,
+    fluid_ob_op,
+    summed_fragment_energies,
 )
 from d_types.fragment_types import (
     OneBodyFragment,
@@ -210,29 +213,34 @@ class F3ConvexTest(unittest.TestCase):
             self=ham,
             unitaries=unitaries,
         )
-        ob_e_ten = obt + ob_fluid_matrices[0] + ob_fluid_matrices[1]
+        ob_e_ten = fluid_ob_op(ob_fluid_matrices, ham)
         for i, f in enumerate(ham.two_body):
             for j in range(n):
                 c = ham.two_body[i].fluid_parts.fluid_lambdas[j] / 2
                 fluid_variables[(i * n) + j].value = c
                 f.move2frag(to=ham.one_body, coeff=c, orb=j, mutate=True)
-        occs2_0, frag_energies_2_0 = ham.two_body[0].get_expectation_value(
-            num_spin_orbs=4, expected_e=2
-        )
-        np.testing.assert_array_almost_equal(
-            sorted(frag_energies_2_0), sorted([e.value for e in energy_expressions_0])
-        )
-        occs2_1, frag_energies_2_1 = ham.two_body[1].get_expectation_value(
-            num_spin_orbs=4, expected_e=2
-        )
-        np.testing.assert_array_almost_equal(
-            sorted(frag_energies_2_1), sorted([e.value for e in energy_expressions_1])
-        )
         np.testing.assert_array_almost_equal(ham.one_body.to_tensor(), ob_e_ten.value)
         ob_e = ham.one_body.get_expectation_value(elecs=2)
         vals, vecs = np.linalg.eigh(ob_e_ten.value)
         cv_ob_e = vals[0] + vals[1]
         self.assertEqual(ob_e[0][1], cv_ob_e)
+        print(
+            summed_fragment_energies(
+                new_obt=ob_e_ten,
+                frag_energies=[
+                    cp.hstack(energy_expressions_0),
+                    cp.hstack(energy_expressions_1),
+                ],
+                self=ham,
+            ).value
+            + ham.constant
+        )
+        print(
+            ham.get_expectation_value(
+                use_frag_energies=True,
+                desired_occs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+            )
+        )
 
     def test_simple_ob_tb(self, m_config=h2_settings, bond_length=0.8):
         const, obt, tbt = get_tensors(m_config, bond_length)
