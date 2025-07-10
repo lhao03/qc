@@ -17,6 +17,7 @@ from openfermion import (
 )
 
 from d_types.config_types import MConfig
+from d_types.cvx_exp import make_fluid_variables
 from d_types.fragment_types import (
     FermionicFragment,
     Subspace,
@@ -63,6 +64,7 @@ class FragmentedHamiltonian:
     s2_operator: any = None
     sz_operator: any = None
     ci_projection: Optional[int] = None
+    fluid_variables: any = None
 
     def __eq__(self, other):
         if isinstance(other, FragmentedHamiltonian):
@@ -93,6 +95,12 @@ class FragmentedHamiltonian:
         else:
             return False
 
+    def _return_proper_fluid_vars(self, frag):
+        n = self.m_config.num_spin_orbs
+        for i, f in enumerate(self.two_body):
+            if f == frag:
+                return self.fluid_variables[i * n, (i * n) + n]
+
     def optimize_fragments(
         self,
         optimization_type: OptType,
@@ -100,6 +108,9 @@ class FragmentedHamiltonian:
         iters: int = 1000,
         debug: bool = False,
     ):
+        self.fluid_variables = make_fluid_variables(
+            n=self.one_body.lambdas.shape[0], self=self
+        )
         match optimization_type:
             case OptType.OFAT:
                 return ofat_fluid_optimize(self, iters=iters, debug=debug)

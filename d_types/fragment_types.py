@@ -9,6 +9,12 @@ import numpy as np
 from openfermion import FermionOperator, is_hermitian
 
 from d_types.config_types import Nums
+from d_types.cvx_exp import (
+    fluid_ob_op,
+    make_ob_matrices,
+    get_energy_expressions,
+)
+from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.julia_ops import jl_print
 from min_part.operators import generate_occupied_spin_orb_permutations
 
@@ -112,8 +118,17 @@ class OneBodyFragment:
             energies.append((occ, energy))
         return energies
 
-    def get_expectation_value_cvxpy(self):
-        raise NotImplementedError
+    def get_expectation_value_cvxpy(self, ham: FragmentedHamiltonian):
+        n = self.lambdas.shape[0]
+        unitaries = [make_unitary_jl(n=n, self=f) for f in ham.two_body]
+        ob_fluid_matrices = make_ob_matrices(
+            contract_pattern=self.fluid_lambdas[0][1].contract_pattern,
+            fluid_lambdas=ham.fluid_variables,
+            self=ham,
+            unitaries=unitaries,
+        )
+        ob_fluid_tensor = fluid_ob_op(ob_fluid_matrices, ham)
+        return np.linalg.eigh(ob_fluid_tensor)
 
 
 @dataclass(kw_only=True)
@@ -155,7 +170,13 @@ class FermionicFragment:
         raise NotImplementedError
 
     @abstractmethod
-    def get_expectation_value_cvxpy(self):
+    def get_expectation_value_cvxpy(
+        self,
+        num_spin_orbs: int,
+        expected_e: int,
+        ham: FragmentedHamiltonian,
+        desired_occs,
+    ):
         raise NotImplementedError
 
 
@@ -173,6 +194,25 @@ class GFROFragment(FermionicFragment):
             )
         else:
             return False
+
+    def get_expectation_value_cvxpy(
+        self,
+        num_spin_orbs: int,
+        expected_e: int,
+        ham: FragmentedHamiltonian,
+        desired_occs,
+    ):
+        n = ham.one_body.shape[0]
+        num_coeffs = [self.lambdas[get_diag_idx(i, n)] for i in range(n)]
+        energy_expressions = get_energy_expressions(
+            i=0,
+            n=n,
+            num_coeffs=num_coeffs,
+            f=ham.two_body[0],
+            fluid_variables=ham._return_proper_fluid_vars(self),
+            desired_occs=desired_occs,
+        )
+        return [exp.value for exp in energy_expressions]
 
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
         if self.fluid_parts is None:
@@ -339,6 +379,8 @@ from min_part.f3_opers import (  # noqa: E402
     fluid_lr_2tensor,
     remove_obp_lr,
     lambdas_from_fluid_parts,
+    make_unitary_jl,
+    get_diag_idx,
 )
 
 from min_part.gfro_decomp import get_expectation_vals_gfro  # noqa: E402
