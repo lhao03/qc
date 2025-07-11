@@ -122,7 +122,7 @@ def lr_fragment_occ(
 
 def lr_fragment_occ_from_lambdas(
     lambdas: np.ndarray, num_spin_orbs: int, occ: Optional[int] = None
-) -> Tuple[list[Tuple[int]], np.ndarray[Any, np.dtype[Any]]]:
+) -> tuple[list[tuple[int]], list[int | Any]]:
     occupation_combinations = generate_occupied_spin_orb_permutations(
         num_spin_orbs, occ
     )
@@ -134,7 +134,7 @@ def lr_fragment_occ_from_lambdas(
             for m in occ_comb:
                 occ_energy += l_mat[l, m]
         occ_energies.append(occ_energy)
-    return occupation_combinations, np.array(occ_energies)
+    return occupation_combinations, occ_energies
 
 
 def get_expectation_vals_lr_frags(
@@ -143,5 +143,5 @@ def get_expectation_vals_lr_frags(
     if self.fluid_parts is None:
         return lr_fragment_occ(self, num_spin_orbs, expected_e)
     else:
-        lambdas = self.outer_coeff * lambdas_from_fluid_parts(self.fluid_parts)
+        lambdas = lambdas_from_fluid_parts(self.fluid_parts)
         return lr_fragment_occ_from_lambdas(lambdas, num_spin_orbs, expected_e)

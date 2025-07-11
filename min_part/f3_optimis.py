@@ -175,7 +175,7 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
         c >= 0 if (num_coeffs[i] > 0) else c >= num_coeffs[i]
         for i, c in enumerate(fluid_variables)
     ] + [
-        c <= 10 * num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
+        c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
         for i, c in enumerate(fluid_variables)
     ]
     unitaries = [make_unitary_jl(n, f) for f in self.two_body]

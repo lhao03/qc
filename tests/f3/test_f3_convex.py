@@ -275,19 +275,21 @@ class F3ConvexTest(unittest.TestCase):
             fluid=False,
             subspace=Subspace(2, 0, 0),
         )
-        ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+        ham.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
         total_op = obt2op(obt) + tbt2op(tbt) + ham.constant
         print(f"actual energy: {min(eigenspectrum(total_op))}")
         desired_occs = [(0, 1), (0, 3), (1, 2), (2, 3)]
         print(
             f"""energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs), ham.get_expectation_value()}"""
         )
+        print(eigenspectrum(ham.two_body[2].to_op()))
         ham.optimize_fragments(
             optimization_type=OptType.CONVEX, desired_occs=desired_occs
         )
         print(
             f"""energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs), ham.get_expectation_value()}"""
         )
+        print(eigenspectrum(ham.two_body[2].to_op()))
         self.assertEqual(
             jordan_wigner(total_op),
             jordan_wigner(

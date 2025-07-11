@@ -23,14 +23,7 @@ from min_part.julia_ops import (
     eigen_jl,
     check_lr_decomp,
 )
-from min_part.lr_decomp import (
-    make_supermatrix,
-    four_tensor_to_two_tensor_indices,
-    lr_decomp,
-    get_lr_fragment_tensor_from_parts,
-    get_lr_fragment_tensor,
-    lr_fragment_occ,
-)
+
 from min_part.molecules import mol_h2
 from min_part.operators import (
     get_projected_spin,
@@ -45,6 +38,7 @@ from min_part.tensor import (
     extract_thetas,
     make_unitary_im,
     make_fr_tensor_from_u,
+    make_lambda_matrix,
 )
 
 from min_part.utils import do_lr_fo
@@ -271,6 +265,36 @@ class DecompTest(unittest.TestCase):
             occupations, eigenvalues = lr_fragment_occ(
                 fragment=frag_details, num_spin_orbs=n
             )
+            frag_details.to_fluid()
+            c = np.reshape(frag_details.coeffs, (n, 1))
+            c_matrix = frag_details.outer_coeff * c @ c.T
+            np.testing.assert_array_almost_equal(
+                make_lambda_matrix(frag_details.fluid_parts.static_lambdas, 4)
+                + np.diag(frag_details.fluid_parts.fluid_lambdas),
+                c_matrix,
+            )
+            occupations_0, eigenvalues_0 = get_expectation_vals_lr_frags(
+                self=frag_details, num_spin_orbs=n, expected_e=0
+            )
+            occupations_1, eigenvalues_1 = get_expectation_vals_lr_frags(
+                self=frag_details, num_spin_orbs=n, expected_e=1
+            )
+            occupations_2, eigenvalues_2 = get_expectation_vals_lr_frags(
+                self=frag_details, num_spin_orbs=n, expected_e=2
+            )
+            occupations_3, eigenvalues_3 = get_expectation_vals_lr_frags(
+                self=frag_details, num_spin_orbs=n, expected_e=3
+            )
+            occupations_4, eigenvalues_4 = get_expectation_vals_lr_frags(
+                self=frag_details, num_spin_orbs=n, expected_e=4
+            )
+            eigs_f = (
+                eigenvalues_0
+                + eigenvalues_1
+                + eigenvalues_2
+                + eigenvalues_3
+                + eigenvalues_4
+            )
             for i in range(16):
                 self.assertEqual(
                     get_total_spin(diag_eigenvectors[:, i], 2),
@@ -293,6 +317,18 @@ class DecompTest(unittest.TestCase):
                     ),
                 )
 
+            np.testing.assert_array_almost_equal(np.sort(eigs_f), np.sort(eigenvalues))
             self.assertTrue(
                 np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
             )
+
+
+from min_part.lr_decomp import (  # noqa: E402
+    make_supermatrix,
+    four_tensor_to_two_tensor_indices,
+    lr_decomp,
+    get_lr_fragment_tensor_from_parts,
+    get_lr_fragment_tensor,
+    lr_fragment_occ,
+    get_expectation_vals_lr_frags,
+)
