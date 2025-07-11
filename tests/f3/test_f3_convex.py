@@ -1,7 +1,12 @@
 import unittest
 
 import numpy as np
-from openfermion import random_hermitian_matrix, eigenspectrum, random_unitary_matrix
+from openfermion import (
+    random_hermitian_matrix,
+    eigenspectrum,
+    random_unitary_matrix,
+    jordan_wigner,
+)
 from opt_einsum import contract
 
 from d_types.cvx_exp import (
@@ -18,7 +23,7 @@ from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings
-from min_part.tensor import obt2op
+from min_part.tensor import obt2op, tbt2op
 from tests.f3.test_ham_obj import get_tensors
 
 
@@ -271,20 +276,23 @@ class F3ConvexTest(unittest.TestCase):
             subspace=Subspace(2, 0, 0),
         )
         ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
-        ham.two_body = [ham.two_body[0]]
-        total_op = obt2op(obt) + ham.two_body[0].to_op()
-        desired_occs = [(0, 1), (1, 2), (2, 3)]
-        print(f"eigenspectrum of entire operator: {eigenspectrum(total_op)}")
-        print(f"with constant added: {ham.constant + min(eigenspectrum(total_op))}")
+        total_op = obt2op(obt) + tbt2op(tbt) + ham.constant
+        print(f"actual energy: {min(eigenspectrum(total_op))}")
+        desired_occs = [(0, 1), (0, 3), (1, 2), (2, 3)]
         print(
-            f"summed eigenspectrum (over complete hilbert space): {sum([min(eigenspectrum(o)) for o in [obt2op(obt), ham.two_body[0].to_op()]])}"
-        )
-        print(
-            f"energy (min eigenvalue over subspace of interest): {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
+            f"""energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs), ham.get_expectation_value()}"""
         )
         ham.optimize_fragments(
             optimization_type=OptType.CONVEX, desired_occs=desired_occs
         )
         print(
-            f"energy (min eigenvalue over subspace of interest): {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
+            f"""energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs), ham.get_expectation_value()}"""
+        )
+        self.assertEqual(
+            jordan_wigner(total_op),
+            jordan_wigner(
+                ham.one_body.to_op()
+                + sum(f.to_op() for f in ham.two_body)
+                + ham.constant
+            ),
         )
