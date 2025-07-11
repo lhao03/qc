@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 from openfermion import FermionOperator
 
-from d_types.fragment_types import PartitionStrategy, Subspace
+from d_types.config_types import PartitionStrategy, Subspace
 from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid
 from min_part.f3_optimis import greedy_E_optimize, simple_convex_opt

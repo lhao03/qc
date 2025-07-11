@@ -15,8 +15,8 @@ from d_types.fragment_types import (
     FluidCoeff,
     FluidParts,
     OneBodyFragment,
-    ContractPattern,
 )
+from d_types.config_types import ContractPattern
 from min_part.julia_ops import (
     solve_quad,
     jl_make_u_im,

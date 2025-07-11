@@ -1,34 +1,25 @@
 import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
-from openfermion import FermionOperator, is_hermitian
-
-from d_types.config_types import Nums
-from d_types.cvx_exp import (
-    fluid_ob_op,
-    make_ob_matrices,
-    get_energy_expressions,
+from openfermion import (
+    FermionOperator,
+    is_hermitian,
 )
-from d_types.hamiltonian import FragmentedHamiltonian
+
+from d_types.config_types import (
+    Nums,
+    ContractPattern,
+)
+
 from min_part.julia_ops import jl_print
-from min_part.operators import generate_occupied_spin_orb_permutations
+from min_part.operators import (
+    generate_occupied_spin_orb_permutations,
+)
 
 from min_part.tensor import tbt2op, get_n_body_tensor_chemist_ordering
-
-
-class PartitionStrategy(Enum):
-    GFRO = "GFRO"
-    LR = "LR"
-
-
-class ContractPattern(Enum):
-    GFRO = "r,rp,rq->pq"
-    LR = "r,pr,qr->pq"
 
 
 @dataclass
@@ -118,7 +109,7 @@ class OneBodyFragment:
             energies.append((occ, energy))
         return energies
 
-    def get_expectation_value_cvxpy(self, ham: FragmentedHamiltonian):
+    def get_expectation_value_cvxpy(self, ham):
         n = self.lambdas.shape[0]
         unitaries = [make_unitary_jl(n=n, self=f) for f in ham.two_body]
         ob_fluid_matrices = make_ob_matrices(
@@ -174,7 +165,7 @@ class FermionicFragment:
         self,
         num_spin_orbs: int,
         expected_e: int,
-        ham: FragmentedHamiltonian,
+        ham,
         desired_occs,
     ):
         raise NotImplementedError
@@ -199,7 +190,7 @@ class GFROFragment(FermionicFragment):
         self,
         num_spin_orbs: int,
         expected_e: int,
-        ham: FragmentedHamiltonian,
+        ham,
         desired_occs,
     ):
         n = ham.one_body.shape[0]
@@ -347,24 +338,6 @@ class LRFragment(FermionicFragment):
         return move_onebody_coeff(self, to, coeff, orb, mutate)
 
 
-@dataclass
-class Subspace:
-    expected_e: int
-    expected_s2: int
-    expected_sz: int
-    projector: Optional[partial] = None
-
-    def __eq__(self, other):
-        if isinstance(other, Subspace):
-            return (
-                self.expected_e == other.expected_e
-                and self.expected_s2 == other.expected_s2
-                and self.expected_sz == other.expected_sz
-            )
-        else:
-            return False
-
-
 # == For importing functions and avoiding circular import error ==
 from min_part.f3_opers import (  # noqa: E402
     get_obp_from_frag_gfro,
@@ -385,3 +358,9 @@ from min_part.f3_opers import (  # noqa: E402
 
 from min_part.gfro_decomp import get_expectation_vals_gfro  # noqa: E402
 from min_part.lr_decomp import get_expectation_vals_lr_frags  # noqa: E402
+
+from d_types.cvx_exp import (  # noqa: E402
+    fluid_ob_op,
+    make_ob_matrices,
+    get_energy_expressions,
+)

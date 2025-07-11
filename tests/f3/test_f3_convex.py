@@ -12,17 +12,13 @@ from d_types.cvx_exp import (
     fluid_ob_op,
     summed_fragment_energies,
 )
-from d_types.fragment_types import (
-    OneBodyFragment,
-    Subspace,
-    PartitionStrategy,
-    ContractPattern,
-)
-from d_types.hamiltonian import FragmentedHamiltonian, OptType
+
+from d_types.config_types import PartitionStrategy, ContractPattern, Subspace
+from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings
-from min_part.tensor import obt2op, extract_thetas, tbt2op
+from min_part.tensor import obt2op
 from tests.f3.test_ham_obj import get_tensors
 
 
@@ -49,9 +45,9 @@ class F3ConvexTest(unittest.TestCase):
             return min(np.linalg.eigh(t)[0])
 
         _, obt, _ = get_tensors(h2_settings, 0.8)
-        O: OneBodyFragment = obt2fluid(obt)
-        A: OneBodyFragment = obt2fluid(random_hermitian_matrix(n=4, real=True))
-        B: OneBodyFragment = obt2fluid(random_hermitian_matrix(n=4, real=True))
+        O = obt2fluid(obt)
+        A = obt2fluid(random_hermitian_matrix(n=4, real=True))
+        B = obt2fluid(random_hermitian_matrix(n=4, real=True))
         C: np.ndarray = O.to_tensor() + A.to_tensor() + B.to_tensor()
         print(f"spectrum: {eigenspectrum(operator=obt2op(C))}")
         print(
@@ -244,13 +240,6 @@ class F3ConvexTest(unittest.TestCase):
 
     def test_simple_ob_tb(self, m_config=h2_settings, bond_length=0.8):
         const, obt, tbt = get_tensors(m_config, bond_length)
-        random_hermitian = random_hermitian_matrix(n=4, real=True, seed=0)
-        unitary = np.diagflat(np.ones(4))
-        tb_tensor = contract(
-            "lm,lp,lq,mr,ms->pqrs", random_hermitian, unitary, unitary, unitary, unitary
-        )
-        tb_op = tbt2op(tb_tensor)
-        thetas, _ = extract_thetas(unitary)
         ham = FragmentedHamiltonian(
             m_config=m_config,
             constant=const,
@@ -263,25 +252,14 @@ class F3ConvexTest(unittest.TestCase):
         ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
         ham.two_body = [ham.two_body[0]]
         total_op = obt2op(obt) + ham.two_body[0].to_op()
+        desired_occs = [(0, 1), (1, 2), (2, 3)]
         print(f"total eigenspectrum: {eigenspectrum(total_op)}")
         print(
-            f"starting energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=[(0, 1), (1, 2), (2, 3)])}"
+            f"starting energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
         )
         print(
             f"summed eigenspectrum (over complete hilbert space): {sum([min(eigenspectrum(o)) for o in [obt2op(obt), ham.two_body[0].to_op()]])}"
         )
-        desired_occs = [(0, 1), (1, 2), (2, 3)]
-        ham.optimize_fragments(
-            optimization_type=OptType.CONVEX, desired_occs=[(0, 1), (1, 2), (2, 3)]
-        )
-        vals, vecs = np.linalg.eigh(ham.one_body.to_tensor())
-        print(vals)
-        tbt_e = 0
-        for f in ham.two_body:
-            es = []
-            occs, e = f.get_expectation_value(4, 2)
-            for i, occ in enumerate(occs):
-                if occ in desired_occs:
-                    es.append(e[i])
-            tbt_e += min(es)
-        print(tbt_e)
+        # ham.optimize_fragments(
+        #     optimization_type=OptType.CONVEX, desired_occs=desired_occs
+        # )

@@ -5,7 +5,7 @@ from cvxpy import Variable
 
 import cvxpy as cp
 
-from d_types.fragment_types import ContractPattern
+from d_types.config_types import ContractPattern
 from min_part.tensor import make_lambda_matrix
 
 

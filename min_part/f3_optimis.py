@@ -14,7 +14,10 @@ from d_types.cvx_exp import (
     tb_energy_expressions,
     summed_fragment_energies,
 )
-from d_types.fragment_types import OneBodyFragment, FermionicFragment
+from d_types.fragment_types import (
+    OneBodyFragment,
+    FermionicFragment,
+)
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
 from min_part.julia_ops import jl_make_u

@@ -6,8 +6,7 @@ from typing import Tuple
 import numpy as np
 from openfermion import count_qubits, jordan_wigner, qubit_operator_sparse
 
-from d_types.config_types import MConfig
-from d_types.fragment_types import Subspace, PartitionStrategy
+from d_types.config_types import MConfig, PartitionStrategy, Subspace
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings

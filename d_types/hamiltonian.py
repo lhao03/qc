@@ -3,7 +3,7 @@ import pickle
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 from openfermion import (
@@ -16,16 +16,11 @@ from openfermion import (
     expectation,
 )
 
-from d_types.config_types import MConfig
+from d_types.config_types import MConfig, Subspace, PartitionStrategy
 from d_types.cvx_exp import make_fluid_variables
-from d_types.fragment_types import (
-    FermionicFragment,
-    Subspace,
-    PartitionStrategy,
-    GFROFragment,
-    OneBodyFragment,
-)
+from d_types.fragment_types import GFROFragment, OneBodyFragment, FermionicFragment
 from min_part.f3_opers import obt2fluid
+
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
 from min_part.operators import subspace_projection_operator
@@ -331,9 +326,9 @@ class FragmentedHamiltonian:
             )
 
 
-from min_part.f3_optimis import (
+from min_part.f3_optimis import (  # noqa: E402
     ofat_fluid_optimize,
     afao_fluid_optimize,
     greedy_coeff_optimize,
     convex_optimization,
-)  # noqa: E402
+)
