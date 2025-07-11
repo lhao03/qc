@@ -6,7 +6,7 @@ import numpy as np
 from scipy.optimize import minimize, OptimizeResult
 import cvxpy as cp
 
-from d_types.config_types import MConfig
+from d_types.config_types import MConfig, ContractPattern
 from d_types.cvx_exp import (
     make_fluid_variables,
     make_ob_matrices,
@@ -17,6 +17,7 @@ from d_types.cvx_exp import (
 from d_types.fragment_types import (
     OneBodyFragment,
     FermionicFragment,
+    GFROFragment,
 )
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
@@ -181,14 +182,23 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
     tb_frag_energies = tb_energy_expressions(
         desired_occs, fluid_variables, n, num_coeffs, self
     )
+    constract_pattern = (
+        ContractPattern.GFRO
+        if isinstance(self.two_body[0], GFROFragment)
+        else ContractPattern.LR
+    )
     ob_fluid_parts = make_ob_matrices(
-        contract_pattern=self.one_body.fluid_lambdas[0][1].contract_pattern,
+        contract_pattern=constract_pattern,
         fluid_lambdas=fluid_variables,
         self=self,
         unitaries=unitaries,
     )
     new_obt = fluid_ob_op(ob_fluid_parts, self)
-    objective = cp.Maximize(summed_fragment_energies(tb_frag_energies, new_obt, self))
+    objective = cp.Maximize(
+        summed_fragment_energies(
+            frag_energies=tb_frag_energies, new_obt=new_obt, self=self
+        )
+    )
     problem = cp.Problem(objective, constraints)
     problem.solve()
     optimal_coeffs: List[float] = [float(c.value) for c in fluid_variables]

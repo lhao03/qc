@@ -14,14 +14,6 @@ def make_fluid_variables(n, self):
     return fluid_variables
 
 
-def make_fluid_matrices(fluid_variables: List[Variable], n, self):
-    fluid_lambdas = [
-        cp.diag(cp.vstack(fluid_variables[j * n : (j * n) + n]))
-        for j in range(len(self.two_body))
-    ]
-    return fluid_lambdas
-
-
 def sum_over_r(lambdas, u_1, u_2):
     """
     Performs the same matrix operation as either r, pr, qr or r, rp, rq, depending on whether u_1/u_2 is a row or a column.
@@ -109,14 +101,9 @@ def tb_energy_expressions(
     num_coeffs: List[float],
     self,
 ):
-    frag_energies = cp.hstack(
-        [
-            cp.hstack(
-                get_energy_expressions(
-                    i, n, num_coeffs, f, fluid_variables, desired_occs
-                )
-            )
-            for i, f in enumerate(self.two_body)
-        ]
-    )
-    return frag_energies
+    return [
+        cp.hstack(
+            get_energy_expressions(i, n, num_coeffs, f, fluid_variables, desired_occs)
+        )
+        for i, f in enumerate(self.two_body)
+    ]

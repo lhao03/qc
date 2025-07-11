@@ -1,8 +1,7 @@
 import unittest
 
 import numpy as np
-import cvxpy as cp
-from openfermion import random_hermitian_matrix, eigenspectrum
+from openfermion import random_hermitian_matrix, eigenspectrum, random_unitary_matrix
 from opt_einsum import contract
 
 from d_types.cvx_exp import (
@@ -11,10 +10,11 @@ from d_types.cvx_exp import (
     get_energy_expressions,
     fluid_ob_op,
     summed_fragment_energies,
+    tb_energy_expressions,
 )
 
 from d_types.config_types import PartitionStrategy, ContractPattern, Subspace
-from d_types.hamiltonian import FragmentedHamiltonian
+from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings
@@ -187,22 +187,6 @@ class F3ConvexTest(unittest.TestCase):
             f.to_fluid()
             num_coeffs += list(f.fluid_parts.fluid_lambdas)
         unitaries = [make_unitary_jl(n=4, self=f) for f in ham.two_body]
-        energy_expressions_0 = get_energy_expressions(
-            i=0,
-            n=n,
-            num_coeffs=num_coeffs,
-            f=ham.two_body[0],
-            fluid_variables=fluid_variables,
-            desired_occs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
-        )
-        energy_expressions_1 = get_energy_expressions(
-            i=1,
-            n=n,
-            num_coeffs=num_coeffs,
-            f=ham.two_body[1],
-            fluid_variables=fluid_variables,
-            desired_occs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
-        )
         ob_fluid_matrices = make_ob_matrices(
             contract_pattern=ContractPattern.GFRO,
             fluid_lambdas=fluid_variables,
@@ -212,7 +196,7 @@ class F3ConvexTest(unittest.TestCase):
         ob_e_ten = fluid_ob_op(ob_fluid_matrices, ham)
         for i, f in enumerate(ham.two_body):
             for j in range(n):
-                c = ham.two_body[i].fluid_parts.fluid_lambdas[j] / 2
+                c = 0  # ham.two_body[i].fluid_parts.fluid_lambdas[j] / 2
                 fluid_variables[(i * n) + j].value = c
                 f.move2frag(to=ham.one_body, coeff=c, orb=j, mutate=True)
         np.testing.assert_array_almost_equal(ham.one_body.to_tensor(), ob_e_ten.value)
@@ -223,10 +207,13 @@ class F3ConvexTest(unittest.TestCase):
         print(
             summed_fragment_energies(
                 new_obt=ob_e_ten,
-                frag_energies=[
-                    cp.hstack(energy_expressions_0),
-                    cp.hstack(energy_expressions_1),
-                ],
+                frag_energies=tb_energy_expressions(
+                    desired_occs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+                    fluid_variables=fluid_variables,
+                    n=4,
+                    num_coeffs=num_coeffs,
+                    self=ham,
+                ),
                 self=ham,
             ).value
             + ham.constant
@@ -237,6 +224,40 @@ class F3ConvexTest(unittest.TestCase):
                 desired_occs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
             )
         )
+
+    def test_contract(self):
+        ham = FragmentedHamiltonian(
+            m_config=None,
+            constant=None,
+            one_body=None,
+            two_body=[1],
+            partitioned=None,
+            fluid=None,
+            subspace=None,
+        )
+        random_herm = random_hermitian_matrix(n=4, real=True)
+        random_herm_diag = np.diag(random_herm)
+        random_uni = random_unitary_matrix(n=4)
+        contract_a = contract(
+            ContractPattern.LR.value, random_herm_diag, random_uni, random_uni
+        )
+        ob_contract_a = make_ob_matrices(
+            ContractPattern.LR,
+            fluid_lambdas=random_herm_diag,
+            unitaries=[random_uni],
+            self=ham,
+        )[0].value
+        np.testing.assert_array_almost_equal(contract_a, ob_contract_a)
+        contract_b = contract(
+            ContractPattern.GFRO.value, random_herm_diag, random_uni, random_uni
+        )
+        ob_contract_b = make_ob_matrices(
+            ContractPattern.GFRO,
+            fluid_lambdas=random_herm_diag,
+            unitaries=[random_uni],
+            self=ham,
+        )[0].value
+        np.testing.assert_array_almost_equal(contract_b, ob_contract_b)
 
     def test_simple_ob_tb(self, m_config=h2_settings, bond_length=0.8):
         const, obt, tbt = get_tensors(m_config, bond_length)
@@ -253,13 +274,17 @@ class F3ConvexTest(unittest.TestCase):
         ham.two_body = [ham.two_body[0]]
         total_op = obt2op(obt) + ham.two_body[0].to_op()
         desired_occs = [(0, 1), (1, 2), (2, 3)]
-        print(f"total eigenspectrum: {eigenspectrum(total_op)}")
-        print(
-            f"starting energy: {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
-        )
+        print(f"eigenspectrum of entire operator: {eigenspectrum(total_op)}")
+        print(f"with constant added: {ham.constant + min(eigenspectrum(total_op))}")
         print(
             f"summed eigenspectrum (over complete hilbert space): {sum([min(eigenspectrum(o)) for o in [obt2op(obt), ham.two_body[0].to_op()]])}"
         )
-        # ham.optimize_fragments(
-        #     optimization_type=OptType.CONVEX, desired_occs=desired_occs
-        # )
+        print(
+            f"energy (min eigenvalue over subspace of interest): {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
+        )
+        ham.optimize_fragments(
+            optimization_type=OptType.CONVEX, desired_occs=desired_occs
+        )
+        print(
+            f"energy (min eigenvalue over subspace of interest): {ham.get_expectation_value(use_frag_energies=True, desired_occs=desired_occs)}"
+        )
