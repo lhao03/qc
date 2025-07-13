@@ -56,18 +56,17 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
     lr_frags = lr_decomp_params(tbt)
     lr_frag_details = []
     for i, lr_frag in enumerate(lr_frags):
-        outer_coeff, coeffs = lr_frag[0]
-        u = lr_frag[1]
-        if np.isclose(np.linalg.det(u), -1):
-            u[:, [0, 1]] = u[:, [1, 0]]
-            prev_0 = coeffs[0]
-            prev_1 = coeffs[1]
-            coeffs[0] = prev_1
-            coeffs[1] = prev_0
-        thetas, diags_thetas = jl_extract_thetas(u)
-        tensor = lr_frag[2]
-        operators = tbt2op(tensor)
+        operators = tbt2op(lr_frag[2])
         if operators.induced_norm(2) > 1e-6:
+            outer_coeff, coeffs = lr_frag[0]
+            u = lr_frag[1]
+            if np.isclose(np.linalg.det(u), -1):
+                u[:, [0, 1]] = u[:, [1, 0]]
+                prev_0 = coeffs[0]
+                prev_1 = coeffs[1]
+                coeffs[0] = prev_1
+                coeffs[1] = prev_0
+            thetas, diags_thetas = jl_extract_thetas(u)
             lr_frag_details.append(
                 LRFragment(
                     outer_coeff=outer_coeff,

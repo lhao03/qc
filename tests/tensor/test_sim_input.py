@@ -2,13 +2,23 @@ import unittest
 
 import numpy as np
 from hypothesis import given
+from openfermion import count_qubits
 from opt_einsum import contract
 
+from min_part.ham_utils import obtain_OF_hamiltonian
+from min_part.molecules import mol_n2
 from tests.utils.sim_tensor import (
     generate_symm_unitary_matrices,
-    make_tensors_n2,
     make_tensors_h2,
+    get_chem_tensors,
 )
+
+
+def make_tensors_n2(bond_length):
+    mol = mol_n2(bond_length)
+    H, num_elecs = obtain_OF_hamiltonian(mol)
+    n_qubits = count_qubits(H)
+    return get_chem_tensors(H=H, N=n_qubits)
 
 
 class TensorTest(unittest.TestCase):

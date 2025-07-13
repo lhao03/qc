@@ -172,10 +172,10 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
 
     fluid_variables = make_fluid_variables(n, self)
     constraints = [
-        c >= 0 if (num_coeffs[i] > 0) else c >= num_coeffs[i]
+        c >= 0 if (num_coeffs[i] > 0) else c >= 100 * num_coeffs[i]
         for i, c in enumerate(fluid_variables)
     ] + [
-        c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
+        c <= 100 * num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
         for i, c in enumerate(fluid_variables)
     ]
     unitaries = [make_unitary_jl(n, f) for f in self.two_body]
@@ -202,7 +202,6 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
     problem = cp.Problem(objective, constraints)
     problem.solve()
     optimal_coeffs: List[float] = [float(c.value) for c in fluid_variables]
-    print(f"fluid coeffs found: {optimal_coeffs}")
     for i, f in enumerate(self.two_body):
         f.bulkmove2frag(to=self.one_body, coeffs=optimal_coeffs[i * n : (i * n) + n])
 

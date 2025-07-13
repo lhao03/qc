@@ -9,8 +9,8 @@ from fontTools.misc.py23 import isclose
 from hypothesis import strategies as st
 from openfermion import count_qubits
 
+from d_types.config_types import MConfig
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.molecules import mol_h2, mol_n2
 
 
 @st.composite
@@ -288,8 +288,13 @@ def make_tensors_h2(bond_length):
     return get_chem_tensors(H=H, N=n_qubits)
 
 
-def make_tensors_n2(bond_length):
-    mol = mol_n2(bond_length)
+def get_tensors(
+    m_config: MConfig, bond_length: float
+) -> Tuple[float, np.ndarray, np.ndarray]:
+    mol = m_config.mol_of_interest(bond_length)
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
     return get_chem_tensors(H=H, N=n_qubits)
+
+
+from min_part.molecules import mol_h2  # noqa: E402

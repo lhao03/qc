@@ -1,27 +1,16 @@
 import json
 import os
 import unittest
-from typing import Tuple
 
 import numpy as np
-from openfermion import count_qubits, jordan_wigner, qubit_operator_sparse
+from openfermion import jordan_wigner, qubit_operator_sparse
 
 from d_types.config_types import MConfig, PartitionStrategy, Subspace
 from d_types.hamiltonian import FragmentedHamiltonian
-from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.molecules import h2_settings
 from min_part.plots import RefLBPlotNames, plot_energies
 from min_part.tensor import obt2op, tbt2op
-from tests.utils.sim_tensor import get_chem_tensors
-
-
-def get_tensors(
-    m_config: MConfig, bond_length: float
-) -> Tuple[float, np.ndarray, np.ndarray]:
-    mol = m_config.mol_of_interest(bond_length)
-    H, num_elecs = obtain_OF_hamiltonian(mol)
-    n_qubits = count_qubits(H)
-    return get_chem_tensors(H=H, N=n_qubits)
+from tests.utils.sim_tensor import get_tensors
 
 
 def create_ham_objs(const, m_config, obt, tbt):

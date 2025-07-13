@@ -16,7 +16,7 @@ from min_part.operators import (
 )
 from min_part.plots import plot_energies, FluidPlotNames
 from min_part.tensor import obt2op
-from tests.f3.test_ham_obj import get_tensors
+from tests.utils.sim_tensor import get_tensors
 
 
 class F3OptTest(unittest.TestCase):
