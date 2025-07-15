@@ -17,7 +17,8 @@ from min_part.gfro_decomp import gfro_decomp
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import lr_decomp
 from min_part.molecules import h2_settings
-from min_part.tensor import obt2op, tbt2op, make_unitary
+from min_part.tensor import obt2op, tbt2op
+from d_types.helper_types import make_unitary
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,
@@ -75,7 +76,7 @@ class LowerBoundTest(unittest.TestCase):
 
         for i, bond_length in enumerate(config_settings.xpoints):
             print(f"Now partitioning: {bond_length} angstroms.")
-            mol = config_settings.mol_of_interest(bond_length)
+            mol = config_settings.mol_coords(bond_length)
             H, num_elecs = obtain_OF_hamiltonian(mol)
             n_qubits = count_qubits(H)
             H_const, H_obt, H_tbt = get_chem_tensors(H=H, N=n_qubits)

@@ -34,12 +34,10 @@ from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
     obt2op,
     tbt2op,
-    make_x_matrix,
-    extract_thetas,
-    make_unitary_im,
     make_fr_tensor_from_u,
     make_lambda_matrix,
 )
+from d_types.helper_types import make_x_matrix, extract_thetas, make_unitary_im
 
 from min_part.utils import do_lr_fo
 from tests.utils.sim_tensor import (

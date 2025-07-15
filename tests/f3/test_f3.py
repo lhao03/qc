@@ -43,17 +43,16 @@ from min_part.lr_decomp import (
 from min_part.operators import (
     assert_number_operator_equality,
     collapse_to_number_operator,
-    subspace_projection_operator,
+    subspace_restriction,
 )
 from min_part.tensor import (
     get_n_body_tensor_chemist_ordering,
     obt2op,
     tbt2op,
     make_lambda_matrix,
-    extract_thetas,
-    make_unitary_im,
     extract_lambdas,
 )
+from d_types.helper_types import extract_thetas, make_unitary_im
 
 from tests.utils.sim_molecules import (
     H_2_GFRO,
@@ -712,18 +711,16 @@ class FluidFragmentTest(unittest.TestCase):
         H_const, H_obt, H_tbt = make_tensors_h2(0.8)
         frags = lr_decomp(H_tbt)
         obt_e, vecs = np.linalg.eigh(
-            subspace_projection_operator(
-                H_const + obt2op(H_obt), 4, num_elecs=2
-            ).toarray()
+            subspace_restriction(H_const + obt2op(H_obt), 4, num_elecs=2).toarray()
         )
         tbt_e = 0
         for f in frags:
             tbt_es, vecs = np.linalg.eigh(
-                subspace_projection_operator(f.operators, 4, num_elecs=2).toarray()
+                subspace_restriction(f.operators, 4, num_elecs=2).toarray()
             )
             tbt_e += min(tbt_es)
         total_e, vecs = np.linalg.eigh(
-            subspace_projection_operator(
+            subspace_restriction(
                 H_const + obt2op(H_obt) + tbt2op(H_tbt), 4, num_elecs=2
             ).toarray()
         )

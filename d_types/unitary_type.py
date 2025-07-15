@@ -1,3 +1,4 @@
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -42,6 +43,7 @@ class Unitary:
                     thetas=thetas_filtered, diag_thetas=diags_filtered, dim=dim
                 )
         except Exception:
+            warnings.warn("Failed to deconstruct unitary, storing it entirely.")
             return WholeUnitary(mat=u, dim=dim)
 
 
@@ -183,20 +185,20 @@ def make_unitary_im(thetas, diags, n):
 
 
 def jl_extract_thetas(u) -> tuple[np.ndarray, np.ndarray]:
-    return MolHamLinAlg.helper_types.extract_thetas(u)
+    return MolHamLinAlg.extract_thetas(u)
 
 
 def jl_make_x_im(t, d, n) -> np.ndarray:
-    return MolHamLinAlg.helper_types.make_x_matrix(t, d, n)
+    return MolHamLinAlg.make_x_matrix(t, d, n)
 
 
 def jl_make_x(t, n) -> np.ndarray:
-    return MolHamLinAlg.helper_types.make_x_matrix(t, n)
+    return MolHamLinAlg.make_x_matrix(t, n)
 
 
 def jl_make_u_im(t, d, n) -> np.ndarray:
-    return MolHamLinAlg.helper_types.make_unitary(t, d, n)
+    return MolHamLinAlg.make_unitary(t, d, n)
 
 
 def jl_make_u(t, d) -> np.ndarray:
-    return MolHamLinAlg.helper_types.make_unitary(t, d)
+    return MolHamLinAlg.make_unitary(t, d)

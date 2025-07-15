@@ -45,23 +45,3 @@ def lr_decomp_params(tbt) -> Tuple[np.ndarray, np.ndarray]:
 
 def jl_compare_matrices(a, b):
     MolHamLinAlg.jl_compare_matrices(a, b)
-
-
-def jl_extract_thetas(u) -> tuple[np.ndarray, np.ndarray]:
-    return MolHamLinAlg.extract_thetas(u)
-
-
-def jl_make_x_im(t, d, n) -> np.ndarray:
-    return MolHamLinAlg.make_x_matrix(t, d, n)
-
-
-def jl_make_x(t, n) -> np.ndarray:
-    return MolHamLinAlg.make_x_matrix(t, n)
-
-
-def jl_make_u_im(t, d, n) -> np.ndarray:
-    return MolHamLinAlg.make_unitary(t, d, n)
-
-
-def jl_make_u(t, d) -> np.ndarray:
-    return MolHamLinAlg.make_unitary(t, d)

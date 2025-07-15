@@ -32,12 +32,10 @@ from min_part.tensor import (
     get_no_from_tensor,
     obt2op,
     tbt2op,
-    make_x_matrix,
-    make_unitary,
     make_lambda_matrix,
-    extract_thetas,
     make_fr_tensor_from_u,
 )
+from d_types.helper_types import make_x_matrix, make_unitary, extract_thetas
 from tests.utils.sim_molecules import specific_lr_decomp
 from tests.utils.sim_tensor import get_chem_tensors
 

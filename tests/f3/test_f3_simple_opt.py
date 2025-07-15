@@ -12,7 +12,7 @@ from min_part.f3_optimis import greedy_E_optimize, simple_convex_opt
 from min_part.julia_ops import jl_print
 from min_part.molecules import h2_settings
 from min_part.operators import (
-    subspace_projection_operator,
+    subspace_restriction,
 )
 from min_part.plots import plot_energies, FluidPlotNames
 from min_part.tensor import obt2op
@@ -71,7 +71,7 @@ class F3OptTest(unittest.TestCase):
         def min_eig(fo):
             if not isinstance(fo, FermionOperator):
                 fo = obt2op(fo)
-            arr = subspace_projection_operator(fo, 4, 2).toarray()
+            arr = subspace_restriction(fo, 4, 2).toarray()
             return min(np.linalg.eigh(arr)[0])
 
         _, obt, _ = get_tensors(h2_settings, 0.6)
@@ -130,7 +130,7 @@ class F3OptTest(unittest.TestCase):
         def min_eig(fo):
             if not isinstance(fo, FermionOperator):
                 fo = obt2op(fo)
-            arr = subspace_projection_operator(fo, 4, 2).toarray()
+            arr = subspace_restriction(fo, 4, 2).toarray()
             return min(np.linalg.eigh(arr)[0])
 
         ham.optimize_fragments(

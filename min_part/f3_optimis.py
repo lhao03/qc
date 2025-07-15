@@ -21,7 +21,7 @@ from d_types.fragment_types import (
 )
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
-from min_part.julia_ops import jl_make_u
+from d_types.unitary_type import jl_make_u
 from min_part.operators import (
     get_particle_number,
     get_projected_spin,
@@ -175,7 +175,7 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
         c >= 0 if (num_coeffs[i] > 0) else c >= 100 * num_coeffs[i]
         for i, c in enumerate(fluid_variables)
     ] + [
-        c <= 100 * num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
+        c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
         for i, c in enumerate(fluid_variables)
     ]
     unitaries = [make_unitary_jl(n, f) for f in self.two_body]

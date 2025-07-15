@@ -5,7 +5,9 @@ description = "Add your description here"
 requires-python = ">=3.9"
 dependencies = [
     "cvxpy>=1.6.6",
+    "dask[distributed]>=2024.8.0",
     "hypothesis>=6.135.7",
+    "ipyparallel>=9.0.1",
     "joblib>=1.5.0",
     "julia>=0.6.2",
     "jupyterlab>=4.4.2",
@@ -15,6 +17,7 @@ dependencies = [
     "opt-einsum>=3.4.0",
     "pyscf>=2.9.0",
     "pytest-quickcheck>=0.9.0",
+    "ray>=2.47.1",
     "torch>=2.7.1",
 ]
 

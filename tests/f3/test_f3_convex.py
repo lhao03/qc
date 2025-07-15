@@ -1,6 +1,7 @@
 import json
 import os
 import unittest
+import warnings
 
 import numpy as np
 from openfermion import (
@@ -20,8 +21,8 @@ from d_types.cvx_exp import (
     tb_energy_expressions,
 )
 
-from d_types.config_types import PartitionStrategy, ContractPattern, Subspace
-from d_types.hamiltonian import FragmentedHamiltonian, OptType
+from d_types.config_types import PartitionStrategy, ContractPattern
+from d_types.hamiltonian import FragmentedHamiltonian, OptType, zero_s_z
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings, h4_settings
@@ -43,7 +44,6 @@ class F3ConvexTest(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(2, 0, 0),
         )
         ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
         for f in ham.two_body:
@@ -84,7 +84,6 @@ class F3ConvexTest(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(2, 0, 0),
         )
         n = len(gfro.two_body)
         gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
@@ -120,7 +119,6 @@ class F3ConvexTest(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(2, 0, 0),
         )
         n = 4
         ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
@@ -186,7 +184,6 @@ class F3ConvexTest(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(2, 0, 0),
         )
         n = len(ham.two_body)
         ham.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
@@ -277,7 +274,6 @@ class F3ConvexTest(unittest.TestCase):
             two_body=tbt,
             partitioned=False,
             fluid=False,
-            subspace=Subspace(2, 0, 0),
         )
         ham.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
         total_op = obt2op(obt) + tbt2op(tbt) + ham.constant
@@ -302,62 +298,66 @@ class F3ConvexTest(unittest.TestCase):
         )
 
     def test_optimize_fragments(self, m_config=h4_settings, bond_length=0.8):
-        desired_occs = generate_occupied_spin_orb_permutations(total_spin_orbs=8, occ=4)
-        const, obt, tbt = get_tensors(m_config, bond_length)
-        lr = FragmentedHamiltonian(
-            m_config=m_config,
-            constant=const,
-            one_body=obt,
-            two_body=tbt,
-            partitioned=False,
-            fluid=False,
-            subspace=Subspace(4, 0, 0),
-        )
-        total_op = obt2op(obt) + tbt2op(tbt) + lr.constant
-        exact_energy = min(eigenspectrum(total_op))
-        # lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
-        # lr_unoptimized_energy = lr.get_expectation_value(
-        #     use_frag_energies=True, desired_occs=desired_occs
-        # )
-        # lr.optimize_fragments(
-        #     optimization_type=OptType.CONVEX, desired_occs=desired_occs
-        # )
-        # lr_optimized_energy = lr.get_expectation_value(
-        #     use_frag_energies=True, desired_occs=desired_occs
-        # )
-        gfro = FragmentedHamiltonian(
-            m_config=m_config,
-            constant=const,
-            one_body=obt,
-            two_body=tbt,
-            partitioned=False,
-            fluid=False,
-            subspace=Subspace(4, 0, 0),
-        )
-        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
-        gfro_unoptimized_energy = gfro.get_expectation_value(
-            use_frag_energies=True, desired_occs=desired_occs
-        )
-        gfro.optimize_fragments(
-            optimization_type=OptType.CONVEX, desired_occs=desired_occs
-        )
-        gfro_optimized_energy = gfro.get_expectation_value(
-            use_frag_energies=True, desired_occs=desired_occs
-        )
-        print(f"exact energy: {exact_energy}")
-        # print(
-        #     f"LR: {lr_unoptimized_energy} -> {lr_optimized_energy}, diff: {lr_optimized_energy - lr_unoptimized_energy}"
-        # )
-        print(
-            f"GFRO: {gfro_unoptimized_energy} -> {gfro_optimized_energy}, diff: {gfro_optimized_energy - gfro_unoptimized_energy}"
-        )
-        return (
-            exact_energy,
-            # lr_unoptimized_energy,
-            # lr_optimized_energy,
-            gfro_unoptimized_energy,
-            gfro_optimized_energy,
-        )
+        with warnings.catch_warnings(action="ignore"):
+            desired_occs = generate_occupied_spin_orb_permutations(
+                total_spin_orbs=8, occ=4
+            )
+            desired_occs = list(filter(zero_s_z, desired_occs))
+            const, obt, tbt = get_tensors(m_config, bond_length)
+            lr = FragmentedHamiltonian(
+                m_config=m_config,
+                constant=const,
+                one_body=obt,
+                two_body=tbt,
+                partitioned=False,
+                fluid=False,
+            )
+            total_op = obt2op(obt) + tbt2op(tbt) + lr.constant
+            exact_energy = min(eigenspectrum(total_op))
+            # lr.partition(strategy=PartitionStrategy.LR, bond_length=bond_length)
+            # lr_unoptimized_energy = lr.get_expectation_value(
+            #     use_frag_energies=True, desired_occs=desired_occs
+            # )
+            # lr.optimize_fragments(
+            #     optimization_type=OptType.CONVEX, desired_occs=desired_occs
+            # )
+            # lr_optimized_energy = lr.get_expectation_value(
+            #     use_frag_energies=True, desired_occs=desired_occs
+            # )
+            gfro = FragmentedHamiltonian(
+                m_config=m_config,
+                constant=const,
+                one_body=obt,
+                two_body=tbt,
+                partitioned=False,
+                fluid=False,
+            )
+            gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
+            gfro_unoptimized_energy = gfro.get_expectation_value(
+                use_frag_energies=True, desired_occs=desired_occs
+            )
+            print(f"exact energy: {exact_energy}")
+            print(f"before opt: {gfro.get_expectation_value()}")
+            gfro.optimize_fragments(
+                optimization_type=OptType.CONVEX, desired_occs=desired_occs
+            )
+            gfro_optimized_energy = gfro.get_expectation_value(
+                use_frag_energies=True, desired_occs=desired_occs
+            )
+            print(f"after opt: {gfro.get_expectation_value()}")
+            # print(
+            #     f"LR: {lr_unoptimized_energy} -> {lr_optimized_energy}, diff: {lr_optimized_energy - lr_unoptimized_energy}"
+            # )
+            print(
+                f"GFRO: {gfro_unoptimized_energy} -> {gfro_optimized_energy}, diff: {gfro_optimized_energy - gfro_unoptimized_energy}"
+            )
+            return (
+                exact_energy,
+                # lr_unoptimized_energy,
+                # lr_optimized_energy,
+                gfro_unoptimized_energy,
+                gfro_optimized_energy,
+            )
 
     def test_lb_opt(self):
         m_config = h4_settings
@@ -366,37 +366,44 @@ class F3ConvexTest(unittest.TestCase):
             m_config.date,
         )
         no_partitioning = []
-        gfro = []
-        lr = []
-        for bond_length in m_config.xpoints:
+        gfro_unoptimized = []
+        gfro_optimized = []
+        # lr = []
+        points = m_config.xpoints
+        for bond_length in points:
             print(f"Partitioning: {bond_length} A")
             (
                 exact_energy,
-                lr_unoptimized_energy,
-                lr_optimized_energy,
+                # lr_unoptimized_energy,
+                # lr_optimized_energy,
                 gfro_unoptimized_energy,
                 gfro_optimized_energy,
             ) = self.test_optimize_fragments(bond_length=bond_length, m_config=m_config)
             no_partitioning.append(exact_energy)
-            gfro.append(gfro_optimized_energy - gfro_unoptimized_energy)
-            lr.append(lr_optimized_energy - lr_unoptimized_energy)
+            gfro_unoptimized.append(gfro_unoptimized_energy)
+            gfro_optimized.append(gfro_optimized_energy)
         plot_energies(
-            xpoints=m_config.xpoints,
-            points=[gfro, lr],
-            title=f"{m_config.mol_name} Differences After Optimization",
+            xpoints=points,
+            points=[
+                no_partitioning,
+                gfro_unoptimized,
+                gfro_optimized,
+            ],
+            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization",
             labels=[
-                RefLBPlotNames.GFRO_N_S,
-                RefLBPlotNames.LR_N_S,
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.GFRO,
+                RefLBPlotNames.F3_GFRO,
             ],
             dir=child_dir,
         )
-        e_diffs = {
+        energies = {
             RefLBPlotNames.NO_PARTITIONING.value: no_partitioning,
-            RefLBPlotNames.GFRO_N_S.value: gfro,
-            RefLBPlotNames.LR_N_S.value: lr,
+            RefLBPlotNames.GFRO.value: gfro_unoptimized,
+            RefLBPlotNames.F3_GFRO.value: gfro_optimized,
         }
 
-        energies_json = json.dumps(e_diffs)
+        energies_json = json.dumps(energies)
         with open(
             os.path.join(child_dir, f"{h2_settings.mol_name}.json"),
             "w",

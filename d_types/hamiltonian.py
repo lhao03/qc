@@ -16,14 +16,14 @@ from openfermion import (
     expectation,
 )
 
-from d_types.config_types import MConfig, Subspace, PartitionStrategy
+from d_types.config_types import MConfig, PartitionStrategy
 from d_types.cvx_exp import make_fluid_variables
 from d_types.fragment_types import GFROFragment, OneBodyFragment, FermionicFragment
 from min_part.f3_opers import obt2fluid
 
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
-from min_part.operators import subspace_projection_operator
+from min_part.operators import subspace_restriction
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
 
@@ -54,7 +54,7 @@ class FragmentedHamiltonian:
     two_body: List[FermionicFragment] | np.ndarray
     partitioned: bool
     fluid: bool
-    subspace: Subspace
+    restrictor: Optional[partial] = None
     number_operator: any = None
     s2_operator: any = None
     sz_operator: any = None
@@ -77,7 +77,6 @@ class FragmentedHamiltonian:
             constant_eq = self.constant == other.constant
             partitioned_eq = self.partitioned == other.partitioned
             fluid_eq = self.fluid == other.fluid
-            subspace_eq = self.subspace == other.subspace
             return (
                 config_eq
                 and constant_eq
@@ -85,7 +84,6 @@ class FragmentedHamiltonian:
                 and tb_eq
                 and partitioned_eq
                 and fluid_eq
-                and subspace_eq
             )
         else:
             return False
@@ -119,7 +117,7 @@ class FragmentedHamiltonian:
     def _add_up_orb_occs(self, frag: FermionicFragment):
         occs, energies = frag.get_expectation_value(
             num_spin_orbs=self.m_config.num_spin_orbs,
-            expected_e=self.subspace.expected_e,
+            expected_e=self.m_config.gs_elecs,
         )
         subspace_energy = filter(
             lambda occ_ener: zero_s_z(occ_ener[0]),
@@ -132,8 +130,8 @@ class FragmentedHamiltonian:
             np.linalg.eigh(qubit_operator_sparse(jordan_wigner(fo)).toarray())
             if complete
             else np.linalg.eigh(
-                subspace_projection_operator(
-                    fo, self.m_config.num_spin_orbs, self.subspace.expected_e
+                subspace_restriction(
+                    fo, self.m_config.num_spin_orbs, self.m_config.gs_elecs
                 ).toarray()
             )
         )
@@ -168,25 +166,22 @@ class FragmentedHamiltonian:
             s2 = expectation(operator=self.s2_operator, state=vec)
             sz = expectation(operator=self.sz_operator, state=vec)
             if (
-                (num_elecs == self.subspace.expected_e)
-                and (np.isclose(self.subspace.expected_s2, s2))
-                and (np.isclose(self.subspace.expected_sz, sz))
+                (num_elecs == self.m_config.gs_elecs)
+                and (np.isclose(self.m_config.s2, s2))
+                and (np.isclose(self.m_config.sz, sz))
             ):
                 energies.append(eigs[i])
         return min(energies)
 
     def _diagonalize_operator_with_ss_proj(self, fo: FermionOperator):
-        eigenvalues, eigenvectors = np.linalg.eigh(
-            self.subspace.projector(fo).toarray()
-        )
+        eigenvalues, eigenvectors = np.linalg.eigh(self.restrictor(fo).toarray())
         return min(eigenvalues, default=0)
 
     def _filter_frag_energy(
         self, frag: FermionicFragment, desired_occs: Optional[Tuple] = None
     ):
         occs, energies = frag.get_expectation_value(
-            num_spin_orbs=self.m_config.num_spin_orbs,
-            expected_e=self.subspace.expected_e,
+            num_spin_orbs=self.m_config.num_spin_orbs, expected_e=self.m_config.gs_elecs
         )
         if desired_occs is not None:
             desired_energies = []
@@ -215,7 +210,11 @@ class FragmentedHamiltonian:
         return self.constant + ob_op + tb_op
 
     def partition(
-        self, strategy: PartitionStrategy, bond_length: float, load_prev: bool = True
+        self,
+        strategy: PartitionStrategy,
+        bond_length: float,
+        load_prev: bool = True,
+        save: bool = True,
     ):
         frag_path = os.path.join(
             self.m_config.frag_folder,
@@ -227,10 +226,11 @@ class FragmentedHamiltonian:
         else:
             match strategy:
                 case PartitionStrategy.GFRO:
-                    self.two_body = gfro_decomp(self.two_body, debug=True)
+                    self.two_body = gfro_decomp(self.two_body, debug=False)
                 case PartitionStrategy.LR:
                     self.two_body = lr_decomp(self.two_body)
-            save_frags(self.two_body, file_name=frag_path)
+            if save:
+                save_frags(self.two_body, file_name=frag_path)
         self.partitioned = True
         self.one_body = obt2fluid(self.one_body)
         return self.two_body
@@ -241,11 +241,11 @@ class FragmentedHamiltonian:
         diag_complete_space: bool = False,
         desired_occs: Optional = None,
     ):
-        if not self.subspace.projector:
-            self.subspace.projector = partial(
-                subspace_projection_operator,
+        if not self.restrictor:
+            self.restrictor = partial(
+                subspace_restriction,
                 n_spin_orbs=self.m_config.num_spin_orbs,
-                num_elecs=self.subspace.expected_e,
+                num_elecs=self.m_config.gs_elecs,
                 ci_projection=self.ci_projection,
             )
         if self.partitioned or self.fluid:

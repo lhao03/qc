@@ -13,6 +13,7 @@ from d_types.config_types import (
     Nums,
     ContractPattern,
 )
+from d_types.unitary_type import Unitary
 
 from min_part.julia_ops import jl_print
 from min_part.operators import (
@@ -280,7 +281,7 @@ class GFROFragment(FermionicFragment):
 @dataclass(kw_only=True)
 class LRFragment(FermionicFragment):
     coeffs: Nums
-    diag_thetas: Nums
+    unitary: Unitary
     outer_coeff: float
 
     def __eq__(self, other):
@@ -288,7 +289,7 @@ class LRFragment(FermionicFragment):
             return (
                 np.allclose(self.coeffs, other.coeffs)
                 and np.allclose(self.thetas, other.thetas)
-                and np.allclose(self.diag_thetas, other.diag_thetas)
+                and self.unitary == other.unitary
                 and self.outer_coeff == other.outer_coeff
                 and self.operators == other.operators
                 and self.fluid_parts == other.fluid_parts

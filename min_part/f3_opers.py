@@ -1,3 +1,4 @@
+import warnings
 from copy import copy
 from functools import reduce
 from itertools import groupby
@@ -19,19 +20,20 @@ from d_types.fragment_types import (
 from d_types.config_types import ContractPattern
 from min_part.julia_ops import (
     solve_quad,
-    jl_make_u_im,
-    jl_make_u,
-    jl_extract_thetas,
 )
 from min_part.tensor import (
     obt2op,
-    make_unitary,
     extract_lambdas,
-    make_unitary_im,
     make_lambda_matrix,
     make_fr_tensor_from_u,
 )
-
+from d_types.unitary_type import (
+    make_unitary,
+    make_unitary_im,
+    jl_extract_thetas,
+    jl_make_u_im,
+    jl_make_u,
+)
 
 f = np.vectorize(lambda x: x if abs(x) > (np.finfo(float).eps ** 0.5) else 0.0)
 
@@ -274,8 +276,10 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             fluid_lambdas=[],
             operators=obt2op(obt),
         )
-    except RuntimeError as e:
-        print(e)
+    except RuntimeError:
+        warnings.warn(
+            "Tried to decompose unitary when preparing one body matrix for fluid, didn't work so storing entire unitary."
+        )
         if swapped:
             U[:, [0, 1]] = U[:, [1, 0]]
             prev_0 = V[0]

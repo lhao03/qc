@@ -5,9 +5,10 @@ from opt_einsum import contract
 
 from d_types.fragment_types import LRFragment, Nums
 from min_part.f3_opers import lambdas_from_fluid_parts
-from min_part.julia_ops import lr_decomp_params, jl_extract_thetas
+from min_part.julia_ops import lr_decomp_params
 from min_part.operators import generate_occupied_spin_orb_permutations
-from min_part.tensor import tbt2op, make_unitary_im, make_lambda_matrix
+from min_part.tensor import tbt2op, make_lambda_matrix
+from d_types.unitary_type import make_unitary_im, Unitary
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -66,14 +67,14 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
                 prev_1 = coeffs[1]
                 coeffs[0] = prev_1
                 coeffs[1] = prev_0
-            thetas, diags_thetas = jl_extract_thetas(u)
+            unitary = Unitary.deconstruct_unitary(u)
             lr_frag_details.append(
                 LRFragment(
                     outer_coeff=outer_coeff,
                     coeffs=coeffs,
                     operators=operators,
-                    thetas=thetas,
-                    diag_thetas=diags_thetas,
+                    thetas=None,
+                    unitary=unitary,
                 )
             )
     return lr_frag_details

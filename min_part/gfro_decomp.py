@@ -8,7 +8,8 @@ from scipy.optimize import OptimizeResult, minimize
 
 from d_types.fragment_types import GFROFragment
 from min_part.operators import generate_occupied_spin_orb_permutations
-from min_part.tensor import tbt2op, make_unitary, make_lambda_matrix
+from min_part.tensor import tbt2op, make_lambda_matrix
+from d_types.unitary_type import make_unitary
 
 
 def frob_norm(tensor) -> float:

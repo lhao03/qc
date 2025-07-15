@@ -291,7 +291,7 @@ def make_tensors_h2(bond_length):
 def get_tensors(
     m_config: MConfig, bond_length: float
 ) -> Tuple[float, np.ndarray, np.ndarray]:
-    mol = m_config.mol_of_interest(bond_length)
+    mol = m_config.mol_coords(bond_length)
     H, num_elecs = obtain_OF_hamiltonian(mol)
     n_qubits = count_qubits(H)
     return get_chem_tensors(H=H, N=n_qubits)

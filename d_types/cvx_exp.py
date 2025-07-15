@@ -63,7 +63,7 @@ def fluid_ob_op(fluid_tensors, self):
 
 
 def summed_fragment_energies(frag_energies, new_obt, self):
-    return cp.lambda_sum_smallest(new_obt, self.subspace.expected_e) + cp.sum(
+    return cp.lambda_sum_smallest(new_obt, self.m_config.gs_elecs) + cp.sum(
         [cp.min(energy) for energy in frag_energies]
     )
 

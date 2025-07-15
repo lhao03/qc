@@ -20,7 +20,7 @@ def extract_eigenvalue(operator, w, panic: bool = True):
     return julia_ops.extract_eigen(operator, w, panic)
 
 
-def subspace_projection_operator(
+def subspace_restriction(
     fo: FermionOperator,
     n_spin_orbs: int,
     num_elecs: int,

@@ -9,20 +9,22 @@ from opt_einsum import contract
 from d_types.fragment_types import LRFragment, GFROFragment
 from min_part.gfro_decomp import make_fr_tensor
 from min_part.julia_ops import (
-    jl_extract_thetas,
-    jl_make_u_im,
-    jl_make_x_im,
-    jl_make_x,
-    jl_make_u,
     jl_compare_matrices,
 )
 from min_part.lr_decomp import get_lr_fragment_tensor
 from min_part.tensor import (
-    extract_thetas,
-    make_unitary_im,
+    tbt2op,
+)
+from d_types.helper_types import (
     make_x_matrix,
     make_unitary,
-    tbt2op,
+    extract_thetas,
+    make_unitary_im,
+    jl_extract_thetas,
+    jl_make_x_im,
+    jl_make_x,
+    jl_make_u_im,
+    jl_make_u,
 )
 from tests.utils.sim_molecules import H_2_LR, H_2_GFRO
 from tests.utils.sim_tensor import (

@@ -24,7 +24,7 @@ from min_part.operators import (
     extract_eigenvalue,
     make_total_spin_operator,
     collapse_to_number_operator,
-    subspace_projection_operator,
+    subspace_restriction,
 )
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_chem_tensors
@@ -191,19 +191,19 @@ class OperatorTest(unittest.TestCase):
 
     # === Projection Operator ===
     def test_projection_operator(self):
-        ss_H_0 = subspace_projection_operator(
+        ss_H_0 = subspace_restriction(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=0
         )
-        ss_H_1 = subspace_projection_operator(
+        ss_H_1 = subspace_restriction(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=1
         )
-        ss_H_2 = subspace_projection_operator(
+        ss_H_2 = subspace_restriction(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=2
         )
-        ss_H_3 = subspace_projection_operator(
+        ss_H_3 = subspace_restriction(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=3
         )
-        ss_H_4 = subspace_projection_operator(
+        ss_H_4 = subspace_restriction(
             self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=4
         )
         for i in range(len(self.eigenvalues)):
@@ -220,13 +220,13 @@ class OperatorTest(unittest.TestCase):
         # == exact for h2
         for i in range(self.n_qubits + 1):
             print("exact for h2")
-            ss = subspace_projection_operator(
+            ss = subspace_restriction(
                 self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=i
             )
             vals, vecs = np.linalg.eigh(ss.toarray())
             print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
             print("cisd for h2")
-            ss = subspace_projection_operator(
+            ss = subspace_restriction(
                 self.H_ele, n_spin_orbs=self.n_qubits, num_elecs=i, ci_projection=2
             )
             vals, vecs = np.linalg.eigh(ss.toarray())
@@ -241,7 +241,7 @@ class OperatorTest(unittest.TestCase):
         print(f"ground state of n2: {gs_n2}")
         for i in range(self.n2_qubits + 1):
             print("exact for n2")
-            ss = subspace_projection_operator(
+            ss = subspace_restriction(
                 self.H_N2_ele,
                 n_spin_orbs=self.n2_qubits,
                 num_elecs=i,
@@ -249,7 +249,7 @@ class OperatorTest(unittest.TestCase):
             vals, vecs = np.linalg.eigh(ss.toarray())
             print(f"energies for {i} elecs, sz=0, s2=0: {vals}")
             print("cisd for n2")
-            ss = subspace_projection_operator(
+            ss = subspace_restriction(
                 self.H_N2_ele, n_spin_orbs=self.n2_qubits, num_elecs=i, ci_projection=2
             )
             vals, vecs = np.linalg.eigh(ss.toarray())
