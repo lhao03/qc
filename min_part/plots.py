@@ -38,8 +38,12 @@ class FluidPlotNames(Enum):
 
 
 class RefLBPlotNames(Enum):
+    DIFF = "Difference"
     GFRO = "GFRO"
     F3_GFRO = "Fluid GFRO"
+
+    LR = "LR"
+    F3_LR = "Fluid LR"
     NO_PARTITIONING = "Exact"
 
     LR_N = "LR F(M, 2)"

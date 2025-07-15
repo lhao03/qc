@@ -31,6 +31,11 @@ def partition_frags(bond_length=0.8, m_config=h4_settings):
     print(f"per iter time: {end_p - start_p}")
 
 
+@ray.remote
+def get_num(i):
+    return i
+
+
 class ParaTest(unittest.TestCase):
     def test_ipypara(self, bond_lengths: list):
         n = 4
@@ -45,5 +50,6 @@ class ParaTest(unittest.TestCase):
         num_cpus = 8
         ray.init(num_cpus=num_cpus)
         m_config = h4_settings
-        futures = [partition_frags.remote(b) for b in m_config.xpoints]
+        futures = [get_num.remote(b) for b in m_config.xpoints]
         res = ray.get(futures)
+        print(res)
