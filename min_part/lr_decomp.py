@@ -8,7 +8,7 @@ from min_part.f3_opers import lambdas_from_fluid_parts
 from min_part.julia_ops import lr_decomp_params
 from min_part.operators import generate_occupied_spin_orb_permutations
 from min_part.tensor import tbt2op, make_lambda_matrix
-from d_types.unitary_type import make_unitary_im, Unitary
+from d_types.unitary_type import Unitary, WholeUnitary
 
 
 def make_supermatrix(tbt: np.ndarray) -> np.ndarray:
@@ -61,20 +61,12 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
         if operators.induced_norm(2) > 1e-6:
             outer_coeff, coeffs = lr_frag[0]
             u = lr_frag[1]
-            if np.isclose(np.linalg.det(u), -1):
-                u[:, [0, 1]] = u[:, [1, 0]]
-                prev_0 = coeffs[0]
-                prev_1 = coeffs[1]
-                coeffs[0] = prev_1
-                coeffs[1] = prev_0
-            unitary = Unitary.deconstruct_unitary(u)
             lr_frag_details.append(
                 LRFragment(
                     outer_coeff=outer_coeff,
                     coeffs=coeffs,
                     operators=operators,
-                    thetas=None,
-                    unitary=unitary,
+                    unitary=WholeUnitary(mat=u, dim=u.shape[0]),
                 )
             )
     return lr_frag_details
@@ -84,23 +76,20 @@ def get_lr_fragment_tensor(lr_details: LRFragment):
     return get_lr_fragment_tensor_from_parts(
         outer_coeff=lr_details.outer_coeff,
         coeffs=lr_details.coeffs,
-        thetas=lr_details.thetas,
-        diags_thetas=lr_details.diag_thetas,
+        unitary=lr_details.unitary,
     )
 
 
 def get_lr_fragment_tensor_from_parts(
-    outer_coeff: float, coeffs: Nums, thetas: Nums, diags_thetas: Nums
+    outer_coeff: float, coeffs: Nums, unitary: Unitary
 ):
     coeffs = np.array(coeffs)
-    u = make_unitary_im(thetas=thetas, diags=diags_thetas, n=diags_thetas.size)
+    u = unitary.make_unitary_matrix()
     return contract("ij,pi,qi,rj,sj->pqrs", outer_coeff * coeffs @ coeffs.T, u, u, u, u)
 
 
-def get_lr_fragment_tensor_from_lambda(
-    lambdas: Nums, thetas: Nums, diags_thetas: Nums, n: int
-):
-    u = make_unitary_im(thetas=thetas, diags=diags_thetas, n=diags_thetas.size)
+def get_lr_fragment_tensor_from_lambda(lambdas: Nums, unitary: Unitary, n: int):
+    u = unitary.make_unitary_matrix()
     return contract("ij,pi,qi,rj,sj->pqrs", make_lambda_matrix(lambdas, n), u, u, u, u)
 
 

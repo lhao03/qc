@@ -13,13 +13,14 @@ from openfermion import (
     sz_operator,
 )
 
+from d_types.unitary_type import make_x_matrix, make_unitary
 from min_part.gfro_decomp import (
     gfro_cost,
     frob_norm,
     gfro_decomp,
-    gfro_fragment_occ,
     make_fr_tensor,
 )
+from d_types.fragment_types import gfro_fragment_occ
 from min_part.operators import (
     generate_occupied_spin_orb_permutations,
     get_particle_number,
@@ -27,7 +28,7 @@ from min_part.operators import (
     get_projected_spin,
 )
 from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.molecules import mol_h2
+from min_part.molecules import mol_h4, mol_h2
 from min_part.tensor import (
     get_no_from_tensor,
     obt2op,
@@ -35,7 +36,6 @@ from min_part.tensor import (
     make_lambda_matrix,
     make_fr_tensor_from_u,
 )
-from d_types.helper_types import make_x_matrix, make_unitary, extract_thetas
 from tests.utils.sim_molecules import specific_lr_decomp
 from tests.utils.sim_tensor import get_chem_tensors
 
@@ -153,12 +153,12 @@ class DecompTest(unittest.TestCase):
         Each U at each step chosen are unitary
 
         """
-        gfro_frags = gfro_decomp(tbt=self.H_tbt)
-        n = self.H_tbt.shape[0]
+        gfro_frags = gfro_decomp(tbt=self.H_tbt, debug=True)
         for frag in gfro_frags:
-            u = make_unitary(frag.thetas, n)
-            thetas, diags = extract_thetas(u)
-            np.testing.assert_array_almost_equal(u, make_unitary(thetas, 4))
+            u = frag.unitary.make_unitary_matrix()
+            np.testing.assert_array_almost_equal(
+                u, make_unitary(frag.unitary.thetas, frag.unitary.dim)
+            )
             self.assertAlmostEqual(np.linalg.det(u), 1, places=7)
 
         self.assertEqual(

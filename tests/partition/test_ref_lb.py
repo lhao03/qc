@@ -18,7 +18,6 @@ from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.lr_decomp import lr_decomp
 from min_part.molecules import h2_settings
 from min_part.tensor import obt2op, tbt2op
-from d_types.helper_types import make_unitary
 from min_part.utils import (
     diag_partitioned_fragments,
     save_frags,

@@ -1,4 +1,3 @@
-import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -43,8 +42,7 @@ class Unitary:
                     thetas=thetas_filtered, diag_thetas=diags_filtered, dim=dim
                 )
         except Exception:
-            warnings.warn("Failed to deconstruct unitary, storing it entirely.")
-            return WholeUnitary(mat=u, dim=dim)
+            raise UserWarning("Failed to deconstruct unitary, storing it entirely.")
 
 
 @dataclass

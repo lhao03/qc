@@ -6,7 +6,6 @@ import numpy as np
 import scipy as sp
 import torch
 from hypothesis import given, settings
-from numpy import isclose
 from openfermion import (
     count_qubits,
     jordan_wigner,
@@ -17,14 +16,10 @@ from openfermion import (
 
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.julia_ops import (
-    rowwise_reshape,
-    vecs2mat_reshape,
-    reshape_eigs,
-    eigen_jl,
     check_lr_decomp,
 )
+from min_part.molecules import mol_h4
 
-from min_part.molecules import mol_h2
 from min_part.operators import (
     get_projected_spin,
     get_total_spin,
@@ -37,7 +32,6 @@ from min_part.tensor import (
     make_fr_tensor_from_u,
     make_lambda_matrix,
 )
-from d_types.helper_types import make_x_matrix, extract_thetas, make_unitary_im
 
 from min_part.utils import do_lr_fo
 from tests.utils.sim_tensor import (
@@ -54,7 +48,7 @@ settings.load_profile("fast")
 class DecompTest(unittest.TestCase):
     def setUp(self):
         bond_length = 0.75
-        self.mol = mol_h2(bond_length)
+        self.mol = mol_h4(bond_length)
         self.H, num_elecs = obtain_OF_hamiltonian(self.mol)
         self.n_qubits = count_qubits(self.H)
         self.H_const, self.H_obt, self.H_tbt = get_chem_tensors(
@@ -63,77 +57,6 @@ class DecompTest(unittest.TestCase):
         self.H_ob_op = obt2op(self.H_obt)
         self.H_tb_op = tbt2op(self.H_tbt)
         self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
-
-    # === Low Rank Helpers ===
-    def test_4_to_2_indices(self):
-        pq, rs = four_tensor_to_two_tensor_indices(0, 0, 1, 4, n=5)
-        self.assertEqual(pq, 0)
-        self.assertEqual(rs, 9)
-
-    def test_supermatrix_2(self):
-        test_matrix = np.array(
-            [
-                [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
-                [[[9, 10], [11, 12]], [[13, 14], [15, 16]]],
-            ]
-        )
-        supermatrix = make_supermatrix(test_matrix)
-        self.assertEqual(test_matrix[0][0][1][1], supermatrix[0][3])
-
-    def test_supermatrix_4(self):
-        n = 13
-        test_matrix = np.random.rand(n, n, n, n)
-        supermatrix = make_supermatrix(test_matrix)
-        jl_supermatrix = rowwise_reshape(test_matrix, n * n)
-        for i in range(n):
-            for j in range(n):
-                for k in range(n):
-                    for l in range(n):
-                        pq, rs = four_tensor_to_two_tensor_indices(i, j, k, l, n)
-                        self.assertEqual(test_matrix[i, j, k, l], supermatrix[pq][rs])
-                        self.assertEqual(
-                            test_matrix[i, j, k, l], jl_supermatrix[pq][rs]
-                        )
-
-    def test_eign(self):
-        n = 4
-        jl_flat = rowwise_reshape(self.H_tbt, n * n)
-        sup_mat = self.H_tbt.reshape((n * n, n * n))
-        np.testing.assert_equal(jl_flat, sup_mat)
-        vals, vecs = eigen_jl(jl_flat)
-        cur_Ds, cur_Ls = np.linalg.eig(sup_mat)
-        idx = vals.argsort()[::-1]
-        vals = vals[idx]
-        sorted_vecs = vecs[:, idx]
-        idx = cur_Ds.argsort()[::-1]
-        cur_Ds = cur_Ds[idx]
-        sort_cur_Ls = cur_Ls[:, idx]
-        np.testing.assert_array_almost_equal(cur_Ds, vals)
-        np.testing.assert_array_almost_equal(
-            sort_cur_Ls @ np.diagflat(cur_Ds) @ np.linalg.inv(sort_cur_Ls),
-            sorted_vecs @ np.diagflat(vals) @ np.linalg.inv(sorted_vecs),
-        )
-
-    def test_inner_and_eig_reshape(self):
-        n = 4
-        sup_mat = self.H_tbt.reshape((n**2, n**2))
-        cur_Ds, cur_Ls = np.linalg.eig(sup_mat)
-        jl_D, jl_L = eigen_jl(sup_mat)
-        Ls = [jl_L[:, i].reshape((n, n)) for i in range(len(jl_L))]
-        Ls_jl = vecs2mat_reshape(jl_L, n)
-        for i in range(n * n):
-            py_l, jl_l = Ls[i], Ls_jl[i]
-            np.testing.assert_equal(
-                py_l,
-                jl_l,
-            )
-            d_jl, U_jl = eigen_jl(jl_l)
-            d_py, U_py = eigen_jl(py_l)
-            py_d, jl_d = d_py.reshape((len(d_py), 1)), reshape_eigs(d_jl)
-            np.testing.assert_array_almost_equal(
-                py_d,
-                jl_d,
-            )
 
     @given(
         artifical_h2_tbt().filter(lambda m: not np.allclose(m, np.zeros((4, 4, 4, 4))))
@@ -230,27 +153,14 @@ class DecompTest(unittest.TestCase):
         np.testing.assert_array_almost_equal(jl_ten, sym_ten)
 
     def test_lr_tensor_formation(self):
-        lr_fo, lr_params = do_lr_fo(self.H_tbt)
         lr_frags_details_jl = lr_decomp(self.H_tbt)
-        for fo, params in zip(lr_fo, lr_params):
-            print("==")
-            c, u, tensor = params
-            thetas, diags = extract_thetas(u)
-            x = make_x_matrix(thetas, 4)
-            for i, d in enumerate(diags):
-                if not isclose(d, 0):
-                    x[i, i] = d
-            u_exp = sp.linalg.logm(u)
-            np.testing.assert_array_almost_equal(x, u_exp)
-            made_u = make_unitary_im(thetas=thetas, diags=diags, n=4)
-            np.testing.assert_array_almost_equal(made_u, u)
-            np.testing.assert_array_almost_equal(
-                get_lr_fragment_tensor_from_parts(c[0], c[1], thetas, diags), tensor
-            )
         for l in lr_frags_details_jl:
+            lr_tensor = get_lr_fragment_tensor(l)
+            lr_op = tbt2op(lr_tensor)
+            self.assertEqual(lr_op, l.operators)
             np.testing.assert_array_almost_equal(
-                get_lr_fragment_tensor(l),
-                get_n_body_tensor_chemist_ordering(l.operators, 2, 4),
+                lr_tensor,
+                get_n_body_tensor_chemist_ordering(l.operators, 2, 8),
             )
 
     def test_lr_h2_occs(self):
@@ -322,10 +232,7 @@ class DecompTest(unittest.TestCase):
 
 
 from min_part.lr_decomp import (  # noqa: E402
-    make_supermatrix,
-    four_tensor_to_two_tensor_indices,
     lr_decomp,
-    get_lr_fragment_tensor_from_parts,
     get_lr_fragment_tensor,
     lr_fragment_occ,
     get_expectation_vals_lr_frags,

@@ -20,7 +20,7 @@ from d_types.fragment_types import (
     GFROFragment,
 )
 from d_types.hamiltonian import FragmentedHamiltonian
-from min_part.f3_opers import move_ob_to_ob, make_unitary_jl
+from min_part.f3_opers import move_ob_to_ob
 from d_types.unitary_type import jl_make_u
 from min_part.operators import (
     get_particle_number,
@@ -178,7 +178,7 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
         c <= num_coeffs[i] if (num_coeffs[i] > 0) else c <= 0
         for i, c in enumerate(fluid_variables)
     ]
-    unitaries = [make_unitary_jl(n, f) for f in self.two_body]
+    unitaries = [f.unitary.make_unitary_matrix() for f in self.two_body]
     tb_frag_energies = tb_energy_expressions(
         desired_occs, fluid_variables, n, num_coeffs, self
     )
@@ -207,50 +207,6 @@ def convex_optimization(self: FragmentedHamiltonian, desired_occs: List[Tuple]):
 
 
 # == Simple Test Cases ==
-def greedy_E_optimize(
-    ob: OneBodyFragment,
-    frags: List[OneBodyFragment],
-    iters: int,
-    min_eig: Callable,
-):
-    print(
-        f"""starting eigenvalue sum: {
-            min_eig(ob.to_tensor())
-            + min_eig(frags[0].to_tensor())
-            + min_eig(frags[1].to_tensor())
-        }"""
-    )
-
-    n = frags[0].lambdas.shape[0]
-    starting_E = (
-        min_eig(ob.to_tensor())
-        + min_eig(frags[0].to_tensor())
-        + min_eig(frags[1].to_tensor())
-    )
-    x0 = np.random.random(n * len(frags))
-
-    def cost(x0_0):
-        obf_copy = deepcopy(ob)
-        frags_copy = deepcopy(frags)
-        for i, f in enumerate(frags_copy):
-            for j in range(n):
-                move_ob_to_ob(from_ob=f, to_ob=obf_copy, coeff=x0_0[(i * n) + j], orb=j)
-        new_o_E = min_eig(obf_copy.to_tensor())
-        new_f_E = sum([min_eig(f.to_tensor()) for f in frags_copy])
-        new_E = new_o_E + new_f_E
-        return starting_E - new_E
-
-    coeffs = minimize(
-        cost,
-        x0=x0,
-        method="L-BFGS-B",
-        options={"maxiter": iters, "disp": False},
-    )
-
-    for i, f in enumerate(frags):
-        for c in range(n):
-            ind = (i * n) + c
-            move_ob_to_ob(from_ob=f, to_ob=ob, coeff=coeffs.x[ind], orb=c)
 
 
 def simple_convex_opt(

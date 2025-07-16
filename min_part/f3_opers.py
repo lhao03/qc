@@ -26,13 +26,15 @@ from min_part.tensor import (
     extract_lambdas,
     make_lambda_matrix,
     make_fr_tensor_from_u,
+    get_n_body_tensor_chemist_ordering,
 )
 from d_types.unitary_type import (
     make_unitary,
-    make_unitary_im,
-    jl_extract_thetas,
     jl_make_u_im,
     jl_make_u,
+    ReaDeconUnitary,
+    Unitary,
+    WholeUnitary,
 )
 
 f = np.vectorize(lambda x: x if abs(x) > (np.finfo(float).eps ** 0.5) else 0.0)
@@ -79,18 +81,20 @@ def static_2tensor(self: GFROFragment) -> np.ndarray:
             "Call `to_fluid` method to partition into fluid and static parts!"
         )
     n = solve_quad(1, 1, -2 * self.fluid_parts.static_lambdas.size)
-    unitary = make_unitary(self.thetas, n)
+    unitary = self.unitary.make_unitary_matrix()
     return make_fr_tensor_from_u(self.fluid_parts.static_lambdas, unitary, n=n)
 
 
 def fluid_gfro_2tensor(self: GFROFragment) -> np.ndarray:
-    obt = fluid_2tensor(self.fluid_parts.fluid_lambdas, self.thetas)
-    return obt + static_2tensor(self)
+    if isinstance(self.unitary, ReaDeconUnitary):
+        obt = fluid_2tensor(self.fluid_parts.fluid_lambdas, self.unitary.thetas)
+        return obt + static_2tensor(self)
+    else:
+        raise UserWarning("Expected a unitary that can be made from real thetas")
 
 
 def gfro2fluid(self: GFROFragment, performant: bool = False) -> GFROFragment:
     self.lambdas.setflags(write=False)
-    self.thetas.setflags(write=False)
     fluid_frags = self.get_ob_lambdas()
     static_frags = self.remove_obp()
     static_frags = f(static_frags)
@@ -125,8 +129,7 @@ def move_onebody_coeff(
             orb,
             FluidCoeff(
                 coeff=coeff,
-                thetas=self.thetas,
-                diag_thetas=self.diag_thetas if isinstance(self, LRFragment) else None,
+                unitary=self.unitary,
                 contract_pattern=ContractPattern.GFRO
                 if isinstance(self, GFROFragment)
                 else ContractPattern.LR,
@@ -184,7 +187,7 @@ def fluid_lr_2tensor(self: LRFragment) -> np.ndarray:
     diags = np.array(self.fluid_parts.fluid_lambdas)
     n = diags.size
     l_mat = np.diagflat(diags)
-    unitary = make_unitary_im(self.thetas, self.diag_thetas, n)
+    unitary = self.unitary.make_unitary_matrix()
     constract_pattern = "lm,pl,ql,rm,sm->pqrs"  # TODO: check??
     tbt_obp = contract(constract_pattern, l_mat, unitary, unitary, unitary, unitary)
     static_l_mat = make_lambda_matrix(self.fluid_parts.static_lambdas, n)
@@ -193,9 +196,12 @@ def fluid_lr_2tensor(self: LRFragment) -> np.ndarray:
 
 
 def lr2fluid(self: LRFragment, performant: bool = False) -> LRFragment:
+    tensor_to_check = (
+        None
+        if performant
+        else get_n_body_tensor_chemist_ordering(self.operators, n=2, m=8)
+    )
     self.coeffs.setflags(write=False)
-    self.thetas.setflags(write=False)
-    self.diag_thetas.setflags(write=False)
     n = self.coeffs.size
     c = np.reshape(self.coeffs, (n, 1))
     c_matrix = self.outer_coeff * c @ c.T
@@ -210,7 +216,7 @@ def lr2fluid(self: LRFragment, performant: bool = False) -> LRFragment:
     self.fluid_parts.static_lambdas.setflags(write=False)
     assert self.fluid_parts.fluid_lambdas.size == n
     if not performant:
-        assert self.operators == self.to_op()
+        np.testing.assert_array_almost_equal(tensor_to_check, self.to_tensor())
     return self
 
 
@@ -238,8 +244,7 @@ def move_ob_to_ob(
             FluidCoeff(
                 coeff=coeff,
                 contract_pattern=ContractPattern.LR,
-                thetas=from_ob.thetas,
-                diag_thetas=from_ob.diag_thetas,
+                unitary=from_ob.unitary,
             ),
         )
     )
@@ -268,17 +273,18 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             V[0] = prev_1
             V[1] = prev_0
             swapped = True
-        thetas, diags = jl_extract_thetas(U)
+        unitary = Unitary.deconstruct_unitary(U)
+        made_u = unitary.make_unitary_matrix()
+        np.testing.assert_array_almost_equal(made_u, U)
         return OneBodyFragment(
-            thetas=thetas,
-            diag_thetas=None if np.allclose(diags, np.zeros((obt.shape[0]))) else diags,
+            unitary=unitary,
             lambdas=V,
             fluid_lambdas=[],
             operators=obt2op(obt),
         )
-    except RuntimeError:
+    except Exception as e:
         warnings.warn(
-            "Tried to decompose unitary when preparing one body matrix for fluid, didn't work so storing entire unitary."
+            f"Tried to decompose unitary when preparing one body matrix for fluid, didn't work so storing entire unitary.: {e}"
         )
         if swapped:
             U[:, [0, 1]] = U[:, [1, 0]]
@@ -287,13 +293,16 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             V[0] = prev_1
             V[1] = prev_0
         return OneBodyFragment(
-            unitary=U, lambdas=V, fluid_lambdas=[], operators=obt2op(obt), thetas=None
+            unitary=WholeUnitary(mat=U, dim=obt.shape[0]),
+            lambdas=V,
+            fluid_lambdas=[],
+            operators=obt2op(obt),
         )
 
 
 def fluid_ob2ten(self: OneBodyFragment) -> np.ndarray:
     n = self.lambdas.size
-    unitary = make_unitary_py(n, self)
+    unitary = self.unitary.make_unitary_matrix()
     h_pq = contract(
         "r,pr,qr->pq",
         self.lambdas,
@@ -328,11 +337,7 @@ def make_unitary_jl(n, self):
 def make_obp_tensor(fluid_part: FluidCoeff, n: int, orb: int):
     fluid_l = np.zeros((n,), dtype=np.float64)
     fluid_l[orb] = fluid_part.coeff
-    unitary = (
-        make_unitary_im(fluid_part.thetas, fluid_part.diag_thetas, n)
-        if isinstance(fluid_part.diag_thetas, np.ndarray)
-        else make_unitary(fluid_part.thetas, n)
-    )
+    unitary = fluid_part.unitary.make_unitary_matrix()
     fluid_h = contract(
         fluid_part.contract_pattern.value,
         fluid_l,

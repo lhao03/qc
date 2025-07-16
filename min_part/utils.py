@@ -2,7 +2,6 @@ import json
 import os
 import pickle
 import warnings
-from functools import reduce
 
 import scipy as sp
 from math import isclose
@@ -15,9 +14,8 @@ from openfermion import (
     qubit_operator_sparse,
 )
 
-from d_types.fragment_types import GFROFragment
+from d_types.fragment_types import GFROFragment, gfro_fragment_occ
 from min_part.ffrag_utils import LR_frags_generator
-from min_part.gfro_decomp import gfro_fragment_occ
 from min_part.operators import get_particle_number, get_total_spin, get_projected_spin
 from min_part.plots import RefLBPlotNames
 
@@ -97,21 +95,6 @@ def do_lr_fo(
         if frag.induced_norm(2) > 1e-6:
             LR_fragments.append(frag)
             LR_params.append(lowrank_params[i])
-    # all_frag_ops = [const * FermionOperator.identity(), obt_op]
-    # all_frag_ops += LR_fragments
-
-    # if project:
-    #     return (
-    #         projector_func(const * FermionOperator.identity(), excitation_level=None),
-    #         projector_func(obt_op, excitation_level=None),
-    #         [projector_func(lr_f, excitation_level=None) for lr_f in LR_fragments],
-    #     )
-    np.testing.assert_allclose(
-        tbt,
-        reduce(lambda a, b: a + b, [l[2] for l in lowrank_params]),
-        atol=1e-5,
-        rtol=1e-6,
-    )
     return LR_fragments, LR_params
 
 

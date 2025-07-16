@@ -23,7 +23,10 @@ from min_part.f3_opers import obt2fluid
 
 from min_part.gfro_decomp import gfro_decomp
 from min_part.lr_decomp import lr_decomp
-from min_part.operators import subspace_restriction
+from min_part.operators import (
+    subspace_restriction,
+    generate_occupied_spin_orb_permutations,
+)
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
 
@@ -94,23 +97,16 @@ class FragmentedHamiltonian:
             if f == frag:
                 return self.fluid_variables[i * n, (i * n) + n]
 
-    def optimize_fragments(
-        self,
-        optimization_type: OptType,
-        desired_occs: Optional = None,
-        iters: int = 1000,
-        debug: bool = False,
-    ):
+    def optimize_fragments(self, optimization_type: OptType, restrict_sz: bool = False):
         self.fluid_variables = make_fluid_variables(
             n=self.one_body.lambdas.shape[0], self=self
         )
+        desired_occs = generate_occupied_spin_orb_permutations(
+            total_spin_orbs=self.m_config.num_spin_orbs, occ=self.m_config.gs_elecs
+        )
+        if restrict_sz:
+            desired_occs = list(filter(zero_s_z, desired_occs))
         match optimization_type:
-            case OptType.OFAT:
-                return ofat_fluid_optimize(self, iters=iters, debug=debug)
-            case OptType.OFAO:
-                return afao_fluid_optimize(self, iters=iters)
-            case OptType.GREEDY:
-                return greedy_coeff_optimize(self, iters=10000, threshold=1e-9)
             case OptType.CONVEX:
                 return convex_optimization(self, desired_occs)
 
@@ -327,8 +323,5 @@ class FragmentedHamiltonian:
 
 
 from min_part.f3_optimis import (  # noqa: E402
-    ofat_fluid_optimize,
-    afao_fluid_optimize,
-    greedy_coeff_optimize,
     convex_optimization,
 )

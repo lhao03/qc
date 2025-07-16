@@ -1,0 +1,4 @@
+# file: /Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/min_part/utils.py
+# hypothesis_version: 6.135.7
+
+[1e-06, 1e-05, 10.0, 'gfro', 'lr', 'r', 'rb', 'w', 'wb']

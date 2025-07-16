@@ -4,7 +4,6 @@ import unittest
 import warnings
 
 import numpy as np
-import ray
 from openfermion import (
     random_hermitian_matrix,
     eigenspectrum,
@@ -23,17 +22,16 @@ from d_types.cvx_exp import (
 )
 
 from d_types.config_types import PartitionStrategy, ContractPattern
-from d_types.hamiltonian import FragmentedHamiltonian, OptType, zero_s_z
+from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings, h4_settings
-from min_part.operators import generate_occupied_spin_orb_permutations
 from min_part.plots import plot_energies, RefLBPlotNames
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_tensors
 
 
-def debugprint(p: str, debug: bool = False):
+def debugprint(p: str, debug: bool = True):
     if debug:
         print(p)
 
@@ -304,15 +302,17 @@ class F3ConvexTest(unittest.TestCase):
         )
 
 
-@ray.remote
-def test_optimize_fragments_gfro(bond_length, m_config):
+def test_optimize_fragments(
+    bond_length,
+    m_config,
+    filter_spin: bool = True,
+    partition_strat: PartitionStrategy = PartitionStrategy.GFRO,
+):
     with warnings.catch_warnings(action="ignore"):
         debugprint(f"Partitioning: {bond_length} A", debug=True)
-        desired_occs = generate_occupied_spin_orb_permutations(total_spin_orbs=8, occ=4)
-        desired_occs = list(filter(zero_s_z, desired_occs))
         const, obt, tbt = get_tensors(m_config, bond_length)
 
-        gfro = FragmentedHamiltonian(
+        ham = FragmentedHamiltonian(
             m_config=m_config,
             constant=const,
             one_body=obt,
@@ -320,26 +320,22 @@ def test_optimize_fragments_gfro(bond_length, m_config):
             partitioned=False,
             fluid=False,
         )
-        total_op = obt2op(obt) + tbt2op(tbt) + gfro.constant
+        total_op = obt2op(obt) + tbt2op(tbt) + ham.constant
         exact_energy = min(eigenspectrum(total_op))
-        gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=bond_length)
-        gfro_unoptimized_energy = gfro.get_expectation_value(
-            use_frag_energies=True, desired_occs=desired_occs
-        )
+        ham.partition(strategy=partition_strat, bond_length=bond_length, load_prev=True)
+        gfro_unoptimized_energy = ham.get_expectation_value(use_frag_energies=True)
         debugprint(f"exact energy: {exact_energy}")
-        debugprint(f"before opt: {gfro.get_expectation_value()}")
-        gfro.optimize_fragments(
-            optimization_type=OptType.CONVEX, desired_occs=desired_occs
+        debugprint(f"before opt: {ham.get_expectation_value()}")
+        ham.optimize_fragments(
+            optimization_type=OptType.CONVEX, restrict_sz=filter_spin
         )
-        gfro_optimized_energy = gfro.get_expectation_value(
-            use_frag_energies=True, desired_occs=desired_occs
-        )
-        debugprint(f"after opt: {gfro.get_expectation_value()}")
+        gfro_optimized_energy = ham.get_expectation_value(use_frag_energies=True)
+        debugprint(f"after opt: {ham.get_expectation_value()}")
         debugprint(
             ""
-            f"GFRO: {gfro_unoptimized_energy} -> {gfro_optimized_energy}, diff: {gfro_optimized_energy - gfro_unoptimized_energy}"
+            f"Results: {gfro_unoptimized_energy} -> {gfro_optimized_energy}, diff: {gfro_optimized_energy - gfro_unoptimized_energy}"
         )
-        gfro.save(id=str(bond_length))
+        ham.save(id=str(bond_length))
         return (
             bond_length,
             exact_energy,
@@ -361,21 +357,20 @@ class ParaOptTest(unittest.TestCase):
         optimized = []
         difference = []
         points = m_config.xpoints
-        num_cpus = 7
-        ray.init(num_cpus=num_cpus)
-        m_config = h4_settings
-        futures = [
-            test_optimize_fragments_gfro.remote(b, m_config) for b in m_config.xpoints
-        ]
-        res = ray.get(futures)
-        for i, energies in enumerate(res):
+        for bond_length in points:
             (
                 bond_length,
                 exact_energy,
                 unoptimized_energy,
                 optimized_energy,
-            ) = energies
-            self.assertEqual(points[i], bond_length)
+            ) = test_optimize_fragments(
+                bond_length=bond_length,
+                m_config=m_config,
+                filter_spin=False,
+                partition_strat=PartitionStrategy.GFRO
+                if frag_type == "gfro"
+                else PartitionStrategy.LR,
+            )
             no_partitioning.append(exact_energy)
             unoptimized.append(unoptimized_energy)
             optimized.append(optimized_energy)
@@ -423,32 +418,7 @@ class ParaOptTest(unittest.TestCase):
         )
         energies_json = json.dumps(energies)
         with open(
-            os.path.join(child_dir, f"{h2_settings.mol_name}.json"),
+            os.path.join(child_dir, f"{m_config.mol_name}.json"),
             "w",
         ) as f:
             f.write(energies_json)
-
-    def test(self):
-        points = h4_settings.xpoints
-        f = 0
-        for p in points:
-            with warnings.catch_warnings(action="ignore"):
-                debugprint(f"Partitioning: {p} A", debug=True)
-                desired_occs = generate_occupied_spin_orb_permutations(
-                    total_spin_orbs=8, occ=4
-                )
-                desired_occs = list(filter(zero_s_z, desired_occs))
-                const, obt, tbt = get_tensors(h4_settings, p)
-
-                gfro = FragmentedHamiltonian(
-                    m_config=h4_settings,
-                    constant=const,
-                    one_body=obt,
-                    two_body=tbt,
-                    partitioned=False,
-                    fluid=False,
-                )
-                gfro.partition(strategy=PartitionStrategy.GFRO, bond_length=p)
-                f += len(gfro.two_body)
-                print(f"for {p}, we have {len(gfro.two_body)} frags")
-        print(f / len(points))
