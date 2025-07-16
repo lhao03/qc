@@ -46,32 +46,23 @@ class RefLBPlotNames(Enum):
     F3_LR = "Fluid LR"
     NO_PARTITIONING = "Exact"
 
-    LR_N = "LR F(M, 2)"
-    GFRO_N = "GFRO F(M, 2)"
-
-    LR_N_S = "LR"
-    GFRO_N_S = "GFRO"
-
-    LR_F_SPACE = "LR: All Fock Space"
-    GFRO_F_SPACE = "GFRO: All Fock Space"
-
     @classmethod
     def get_color(cls, label):
         match label:
             case RefLBPlotNames.NO_PARTITIONING:
                 return ColorBlindFriendly.BLUE
-            case RefLBPlotNames.LR_N:
+            case RefLBPlotNames.GFRO:
                 return ColorBlindFriendly.ORANGE
-            case RefLBPlotNames.GFRO_N:
+            case RefLBPlotNames.F3_GFRO:
                 return ColorBlindFriendly.PINK
-            case RefLBPlotNames.LR_N_S:
+            case RefLBPlotNames.LR:
                 return ColorBlindFriendly.BROWN
-            case RefLBPlotNames.GFRO_N_S:
+            case RefLBPlotNames.F3_LR:
                 return ColorBlindFriendly.PURPLE
-            case RefLBPlotNames.LR_F_SPACE:
+            case RefLBPlotNames.DIFF:
                 return ColorBlindFriendly.RED
-            case RefLBPlotNames.GFRO_F_SPACE:
-                return ColorBlindFriendly.YELLOW
+            # case RefLBPlotNames.GFRO_F_SPACE:
+            #     return ColorBlindFriendly.YELLOW
 
 
 class ColorBlindFriendly:

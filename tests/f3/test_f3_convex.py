@@ -345,8 +345,7 @@ def test_optimize_fragments(
 
 
 class ParaOptTest(unittest.TestCase):
-    def test_lb_opt(self):
-        frag_type = "gfro"
+    def test_lb_opt(self, frag_type="lr"):
         m_config = h4_settings
         child_dir = os.path.join(
             f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}",
@@ -422,3 +421,78 @@ class ParaOptTest(unittest.TestCase):
             "w",
         ) as f:
             f.write(energies_json)
+        return (
+            no_partitioning,
+            unoptimized,
+            optimized,
+        )
+
+    def test_opt_all(self):
+        m_config = h4_settings
+        child_dir = os.path.join(
+            f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}",
+            m_config.date,
+        )
+        exact, gfro, fluid_gfro = self.test_lb_opt(frag_type="gfro")
+        _, lr, fluid_lr = self.test_lb_opt(frag_type="lr")
+        plot_energies(
+            xpoints=m_config.xpoints,
+            points=[exact, fluid_gfro, fluid_lr, gfro, lr],
+            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization",
+            labels=[
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.F3_GFRO,
+                RefLBPlotNames.F3_LR,
+                RefLBPlotNames.GFRO,
+                RefLBPlotNames.LR,
+            ],
+            dir=child_dir,
+        )
+
+    def test_plot(self):
+        m_config = h4_settings
+        child_dir = os.path.join(
+            f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}/plots",
+            m_config.date,
+        )
+        # Open and read the JSON file
+        exact, fluid_gfro, fluid_lr, gfro, lr = [], [], [], [], []
+        with open(
+            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h4 linear/07-15-210431/H4 Linear.json",
+            "r",
+        ) as file:
+            data = json.load(file)
+            exact = data[RefLBPlotNames.NO_PARTITIONING.value]
+            fluid_gfro = data[RefLBPlotNames.F3_GFRO.value]
+            gfro = data[RefLBPlotNames.GFRO.value]
+
+        with open(
+            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h4 linear/07-15-213153/H4 Linear.json",
+            "r",
+        ) as file:
+            data = json.load(file)
+            fluid_lr = data[RefLBPlotNames.F3_LR.value]
+            lr = data[RefLBPlotNames.LR.value]
+
+        plot_energies(
+            xpoints=m_config.xpoints,
+            points=[exact, fluid_lr, lr],
+            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization, LR",
+            labels=[
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.F3_LR,
+                RefLBPlotNames.LR,
+            ],
+            dir=child_dir,
+        )
+        plot_energies(
+            xpoints=m_config.xpoints,
+            points=[exact, fluid_gfro, gfro],
+            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization, GFRO",
+            labels=[
+                RefLBPlotNames.NO_PARTITIONING,
+                RefLBPlotNames.F3_GFRO,
+                RefLBPlotNames.GFRO,
+            ],
+            dir=child_dir,
+        )
