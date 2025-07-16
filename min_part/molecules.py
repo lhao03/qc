@@ -1,7 +1,7 @@
-import os.path
 import time
 
 import numpy as np
+from math import radians, cos, sin
 
 from d_types.config_types import MConfig
 
@@ -32,16 +32,21 @@ def mol_h2(i):
     return [["H", [0, 0, 0]], ["H", [0, 0, i]]]
 
 
-def h2o(i):
-    raise NotImplementedError
+thetaH2O = radians(107.6 / 2)
+xH2O = sin(thetaH2O)
+yH2O = cos(thetaH2O)
+
+
+def mol_h2o(i):
+    return [
+        ["O", [0, 0, 0]],
+        ["H", [i * -xH2O, i * yH2O, 0]],
+        ["H", [i * xH2O, i * yH2O, 0]],
+    ]
 
 
 def mol_lih(i):
     return [["Li", [0, 0, 0]], ["H", [0, 0, i]]]
-
-
-f3_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.f3"
-frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags"
 
 
 def make_points(start, stop, do_rounding: bool = True):
@@ -62,8 +67,17 @@ lih_settings = MConfig(
     mol_name="LiH",
     mol_coords=mol_lih,
     stable_bond_length=0.8,
-    f3_folder=f3_folder,
-    frag_folder=os.path.join(frag_folder, "lih"),
+)
+
+h2o_settings = MConfig(
+    xpoints=make_points(0.2, 3),
+    num_spin_orbs=4 + 2 + 2 + 6,
+    gs_elecs=2 + 8,
+    s2=0,
+    sz=0,
+    mol_name="H2O",
+    mol_coords=mol_h2o,
+    stable_bond_length=0.95,
 )
 
 h2_settings = MConfig(
@@ -75,8 +89,6 @@ h2_settings = MConfig(
     mol_name="H2",
     mol_coords=mol_h2,
     stable_bond_length=0.8,
-    f3_folder=f3_folder,
-    frag_folder=os.path.join(frag_folder, "h2"),
 )
 
 
@@ -86,12 +98,10 @@ h4_settings = MConfig(
     gs_elecs=4,
     s2=0,
     sz=0,
-    mol_name="H4 Linear",
+    mol_name="H4",
     mol_coords=mol_h4,
     stable_bond_length=0.8,
     date=time.strftime("%m-%d-%H%M%S"),
-    f3_folder=f3_folder,
-    frag_folder=os.path.join(frag_folder, "h4"),
 )
 
 h4_sq_settings = MConfig(
@@ -104,6 +114,4 @@ h4_sq_settings = MConfig(
     mol_coords=mol_hh_hh,
     stable_bond_length=0.8,
     date=time.strftime("%m-%d-%H%M%S"),
-    f3_folder=f3_folder,
-    frag_folder=os.path.join(frag_folder, "h4_sq"),
 )

@@ -26,7 +26,7 @@ from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
 from min_part.molecules import h2_settings, h4_settings
-from min_part.plots import plot_energies, RefLBPlotNames
+from min_part.plots import RefLBPlotNames
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_tensors
 
@@ -326,9 +326,7 @@ def test_optimize_fragments(
         gfro_unoptimized_energy = ham.get_expectation_value(use_frag_energies=True)
         debugprint(f"exact energy: {exact_energy}")
         debugprint(f"before opt: {ham.get_expectation_value()}")
-        ham.optimize_fragments(
-            optimization_type=OptType.CONVEX, restrict_sz=filter_spin
-        )
+        ham.optimize_fragments(optimization_type=OptType.CONVEX, filter_sz=filter_spin)
         gfro_optimized_energy = ham.get_expectation_value(use_frag_energies=True)
         debugprint(f"after opt: {ham.get_expectation_value()}")
         debugprint(
@@ -374,14 +372,14 @@ class ParaOptTest(unittest.TestCase):
             unoptimized.append(unoptimized_energy)
             optimized.append(optimized_energy)
             difference.append(optimized_energy - unoptimized_energy)
-        plot_energies(
-            xpoints=points,
-            points=[
+        FragmentedHamiltonian.plot_curves(
+            m_config,
+            title="Lower Bounds after F3 Optimization",
+            energies=[
                 no_partitioning,
                 unoptimized,
                 optimized,
             ],
-            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization",
             labels=[
                 RefLBPlotNames.NO_PARTITIONING,
                 RefLBPlotNames.GFRO,
@@ -393,14 +391,12 @@ class ParaOptTest(unittest.TestCase):
                 RefLBPlotNames.LR,
                 RefLBPlotNames.F3_LR,
             ],
-            dir=child_dir,
         )
-        plot_energies(
-            xpoints=points,
-            points=[difference],
-            title=f"{m_config.mol_name} Energy Differences after F3 Optimization",
+        FragmentedHamiltonian.plot_curves(
+            m_config,
+            title="Energy Differences after F3 Optimization",
+            energies=[difference],
             labels=[RefLBPlotNames.DIFF],
-            dir=child_dir,
         )
         energies = (
             {
@@ -429,16 +425,11 @@ class ParaOptTest(unittest.TestCase):
 
     def test_opt_all(self):
         m_config = h4_settings
-        child_dir = os.path.join(
-            f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}",
-            m_config.date,
-        )
         exact, gfro, fluid_gfro = self.test_lb_opt(frag_type="gfro")
         _, lr, fluid_lr = self.test_lb_opt(frag_type="lr")
-        plot_energies(
-            xpoints=m_config.xpoints,
-            points=[exact, fluid_gfro, fluid_lr, gfro, lr],
-            title=f"{m_config.mol_name} All Lower Bounds after F3 Optimization",
+        FragmentedHamiltonian.plot_curves(
+            m_config,
+            title="All Lower Bounds after F3 Optimization",
             labels=[
                 RefLBPlotNames.NO_PARTITIONING,
                 RefLBPlotNames.F3_GFRO,
@@ -446,53 +437,10 @@ class ParaOptTest(unittest.TestCase):
                 RefLBPlotNames.GFRO,
                 RefLBPlotNames.LR,
             ],
-            dir=child_dir,
+            energies=[exact, fluid_gfro, fluid_lr, gfro, lr],
         )
 
-    def test_plot(self):
-        m_config = h4_settings
-        child_dir = os.path.join(
-            f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}/plots",
-            m_config.date,
-        )
-        # Open and read the JSON file
-        exact, fluid_gfro, fluid_lr, gfro, lr = [], [], [], [], []
-        with open(
-            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h4 linear/07-15-210431/H4 Linear.json",
-            "r",
-        ) as file:
-            data = json.load(file)
-            exact = data[RefLBPlotNames.NO_PARTITIONING.value]
-            fluid_gfro = data[RefLBPlotNames.F3_GFRO.value]
-            gfro = data[RefLBPlotNames.GFRO.value]
-
-        with open(
-            "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/h4 linear/07-15-213153/H4 Linear.json",
-            "r",
-        ) as file:
-            data = json.load(file)
-            fluid_lr = data[RefLBPlotNames.F3_LR.value]
-            lr = data[RefLBPlotNames.LR.value]
-
-        plot_energies(
-            xpoints=m_config.xpoints,
-            points=[exact, fluid_lr, lr],
-            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization, LR",
-            labels=[
-                RefLBPlotNames.NO_PARTITIONING,
-                RefLBPlotNames.F3_LR,
-                RefLBPlotNames.LR,
-            ],
-            dir=child_dir,
-        )
-        plot_energies(
-            xpoints=m_config.xpoints,
-            points=[exact, fluid_gfro, gfro],
-            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization, GFRO",
-            labels=[
-                RefLBPlotNames.NO_PARTITIONING,
-                RefLBPlotNames.F3_GFRO,
-                RefLBPlotNames.GFRO,
-            ],
-            dir=child_dir,
+    def test_gfro_kinks(self):
+        FragmentedHamiltonian.generate_curves(
+            h4_settings, exact=True, fragment=True, sep_one_two=True
         )

@@ -27,8 +27,10 @@ from min_part.operators import (
     subspace_restriction,
     generate_occupied_spin_orb_permutations,
 )
+from min_part.plots import RefLBPlotNames, plot_energies
 from min_part.tensor import obt2op, tbt2op
 from min_part.utils import open_frags, save_frags
+from tests.utils.sim_tensor import get_tensors
 
 
 class OptType(Enum):
@@ -97,14 +99,14 @@ class FragmentedHamiltonian:
             if f == frag:
                 return self.fluid_variables[i * n, (i * n) + n]
 
-    def optimize_fragments(self, optimization_type: OptType, restrict_sz: bool = False):
+    def optimize_fragments(self, optimization_type: OptType, filter_sz: bool = False):
         self.fluid_variables = make_fluid_variables(
             n=self.one_body.lambdas.shape[0], self=self
         )
         desired_occs = generate_occupied_spin_orb_permutations(
             total_spin_orbs=self.m_config.num_spin_orbs, occ=self.m_config.gs_elecs
         )
-        if restrict_sz:
+        if filter_sz:
             desired_occs = list(filter(zero_s_z, desired_occs))
         match optimization_type:
             case OptType.CONVEX:
@@ -174,7 +176,7 @@ class FragmentedHamiltonian:
         return min(eigenvalues, default=0)
 
     def _filter_frag_energy(
-        self, frag: FermionicFragment, desired_occs: Optional[Tuple] = None
+        self, frag: FermionicFragment, desired_occs: List[Tuple] = None
     ):
         occs, energies = frag.get_expectation_value(
             num_spin_orbs=self.m_config.num_spin_orbs, expected_e=self.m_config.gs_elecs
@@ -186,11 +188,7 @@ class FragmentedHamiltonian:
                     desired_energies.append(energy)
             return min(desired_energies)
         else:
-            subspace_energy = filter(
-                lambda occ_ener: zero_s_z(occ_ener[0]),
-                zip(occs, energies),
-            )
-            return min([o_e[1] for o_e in subspace_energy], default=0)
+            return min(energies, default=0)
 
     def get_operators(self):
         ob_op = (
@@ -222,7 +220,7 @@ class FragmentedHamiltonian:
         else:
             match strategy:
                 case PartitionStrategy.GFRO:
-                    self.two_body = gfro_decomp(self.two_body, debug=False)
+                    self.two_body = gfro_decomp(self.two_body, debug=True)
                 case PartitionStrategy.LR:
                     self.two_body = lr_decomp(self.two_body)
             if save:
@@ -232,10 +230,7 @@ class FragmentedHamiltonian:
         return self.two_body
 
     def get_expectation_value(
-        self,
-        use_frag_energies: bool = False,
-        diag_complete_space: bool = False,
-        desired_occs: Optional = None,
+        self, use_frag_energies: bool = False, filter_sz: bool = True
     ):
         if not self.restrictor:
             self.restrictor = partial(
@@ -251,9 +246,13 @@ class FragmentedHamiltonian:
             tbt_e = 0
             for frag in self.two_body:
                 if use_frag_energies:
+                    desired_occs = generate_occupied_spin_orb_permutations(
+                        total_spin_orbs=self.m_config.num_spin_orbs,
+                        occ=self.m_config.gs_elecs,
+                    )
+                    if filter_sz:
+                        desired_occs = list(filter(zero_s_z, desired_occs))
                     tbt_e += self._filter_frag_energy(frag, desired_occs=desired_occs)
-                elif diag_complete_space:
-                    tbt_e += self._diagonalize_operator_manual_ss(frag.to_op())
                 else:
                     tbt_e += self._diagonalize_operator_with_ss_proj(frag.to_op())
             return const_obt + tbt_e
@@ -320,6 +319,83 @@ class FragmentedHamiltonian:
             raise UserWarning(
                 "Expected filename to contain 'fluid', 'gfro', 'lr', or 'unpartitioned'"
             )
+
+    @classmethod
+    def generate_curves(
+        cls,
+        m_config: MConfig,
+        use_frag_energies: bool = True,
+        filter_sz: bool = True,
+        partition_strat: PartitionStrategy = PartitionStrategy.GFRO,
+        exact: bool = True,
+        sep_one_two: bool = True,
+        fragment: bool = False,
+        f3_opt: bool = False,
+    ):
+        energies = []
+        labels = []
+        exact_e = []
+        sep_e = []
+        frag_e = []
+        f3_e = []
+        for b in m_config.xpoints:
+            const, obt, tbt = get_tensors(m_config, b)
+            temp_ham = FragmentedHamiltonian(
+                m_config=m_config,
+                constant=const,
+                one_body=obt,
+                two_body=tbt,
+                partitioned=False,
+                fluid=False,
+            )
+            if exact:
+                exact_e.append(
+                    temp_ham.get_expectation_value(
+                        use_frag_energies=use_frag_energies, filter_sz=filter_sz
+                    )
+                )
+                energies.append(exact_e)
+                labels.append(RefLBPlotNames.NO_PARTITIONING)
+            if sep_one_two:
+                sep_e.append(
+                    temp_ham._diagonalize_operator_with_ss_proj(
+                        temp_ham.constant + obt2op(temp_ham.one_body)
+                    )
+                    + temp_ham._diagonalize_operator_with_ss_proj(
+                        tbt2op(temp_ham.two_body)
+                    )
+                )
+            if fragment:
+                temp_ham.partition(strategy=partition_strat, bond_length=b)
+                energies.append(frag_e)
+                labels.append(
+                    RefLBPlotNames.GFRO
+                    if partition_strat is PartitionStrategy.GFRO
+                    else RefLBPlotNames.LR
+                )
+            if f3_opt:
+                temp_ham.optimize_fragments(
+                    optimization_type=OptType.CONVEX, filter_sz=filter_sz
+                )
+                energies.append(f3_e)
+                labels.append(
+                    RefLBPlotNames.F3_GFRO
+                    if partition_strat is PartitionStrategy.GFRO
+                    else RefLBPlotNames.F3_LR
+                )
+        return energies, labels
+
+    @classmethod
+    def plot_curves(
+        cls, m_config: MConfig, title: str, energies: List[List[float]], labels: List
+    ):
+        plot_energies(
+            xpoints=m_config.xpoints,
+            points=energies,
+            title=f"{m_config.mol_name} {title}",
+            labels=labels,
+            dir=m_config.results_folder,
+        )
 
 
 from min_part.f3_optimis import (  # noqa: E402
