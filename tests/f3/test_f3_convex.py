@@ -365,7 +365,7 @@ class ParaOptTest(unittest.TestCase):
             ) = test_optimize_fragments(
                 bond_length=bond_length,
                 m_config=m_config,
-                filter_spin=False,
+                filter_spin=True,
                 partition_strat=PartitionStrategy.GFRO
                 if frag_type == "gfro"
                 else PartitionStrategy.LR,
