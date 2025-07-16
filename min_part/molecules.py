@@ -68,7 +68,7 @@ lih_settings = MConfig(
 
 h2_settings = MConfig(
     xpoints=make_points(0.2, 3),
-    num_spin_orbs=4,  # H2 is 4  # H4 is 4(1s) = 8
+    num_spin_orbs=4,
     gs_elecs=2,
     s2=0,
     sz=0,
@@ -82,7 +82,7 @@ h2_settings = MConfig(
 
 h4_settings = MConfig(
     xpoints=make_points(0.2, 3),
-    num_spin_orbs=8,  # H2 is 4  # H4 is 4(1s) = 8
+    num_spin_orbs=8,
     gs_elecs=4,
     s2=0,
     sz=0,
@@ -96,7 +96,7 @@ h4_settings = MConfig(
 
 h4_sq_settings = MConfig(
     xpoints=make_points(0.2, 3),
-    num_spin_orbs=8,  # H2 is 4  # H4 is 4(1s) = 8
+    num_spin_orbs=8,
     gs_elecs=4,
     s2=0,
     sz=0,

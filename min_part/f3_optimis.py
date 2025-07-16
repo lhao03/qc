@@ -1,12 +1,12 @@
 from copy import deepcopy
-from functools import partial, reduce
+from functools import reduce
 from typing import List, Callable, Tuple
 
 import numpy as np
 from scipy.optimize import minimize, OptimizeResult
 import cvxpy as cp
 
-from d_types.config_types import MConfig, ContractPattern
+from d_types.config_types import ContractPattern
 from d_types.cvx_exp import (
     make_fluid_variables,
     make_ob_matrices,
@@ -22,18 +22,6 @@ from d_types.fragment_types import (
 from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.f3_opers import move_ob_to_ob
 from d_types.unitary_type import jl_make_u
-from min_part.operators import (
-    get_particle_number,
-    get_projected_spin,
-    get_total_spin,
-)
-
-
-def subspace_operators(m_config: MConfig):
-    number_operator = partial(get_particle_number, e=m_config.num_spin_orbs)
-    sz = partial(get_projected_spin, p=m_config.num_spin_orbs // 2)
-    s2 = partial(get_total_spin, p=m_config.num_spin_orbs // 2)
-    return number_operator, sz, s2
 
 
 def get_bounds(frags: List[FermionicFragment]):

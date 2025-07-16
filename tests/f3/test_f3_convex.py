@@ -438,7 +438,7 @@ class ParaOptTest(unittest.TestCase):
         plot_energies(
             xpoints=m_config.xpoints,
             points=[exact, fluid_gfro, fluid_lr, gfro, lr],
-            title=f"{m_config.mol_name} Lower Bounds after F3 Optimization",
+            title=f"{m_config.mol_name} All Lower Bounds after F3 Optimization",
             labels=[
                 RefLBPlotNames.NO_PARTITIONING,
                 RefLBPlotNames.F3_GFRO,
