@@ -1,6 +1,7 @@
 import functools
 import itertools
 import operator
+import os
 from typing import Tuple
 
 import numpy as np
@@ -9,7 +10,7 @@ from fontTools.misc.py23 import isclose
 from hypothesis import strategies as st
 from openfermion import count_qubits
 
-from d_types.config_types import MConfig
+from d_types.config_types import MConfig, tensor_folder
 from min_part.ham_utils import obtain_OF_hamiltonian
 
 
@@ -289,12 +290,22 @@ def make_tensors_h2(bond_length):
 
 
 def get_tensors(
-    m_config: MConfig, bond_length: float
+    m_config: MConfig, bond_length: float, load: bool = False
 ) -> Tuple[float, np.ndarray, np.ndarray]:
     mol = m_config.mol_coords(bond_length)
-    H, num_elecs = obtain_OF_hamiltonian(mol)
-    n_qubits = count_qubits(H)
-    return get_chem_tensors(H=H, N=n_qubits)
+    tensor_path = os.path.join(tensor_folder, m_config.mol_name.lower())
+    tensor_file = f"{str(bond_length)}.npz"
+    if os.path.exists(os.path.join(tensor_path, tensor_file)) and load:
+        with open(os.path.join(tensor_path, tensor_file), "rb") as file:
+            npzfile = np.load(file)
+            return npzfile["arr_0"], npzfile["arr_1"], npzfile["arr_2"]
+    else:
+        H, num_elecs = obtain_OF_hamiltonian(mol)
+        n_qubits = count_qubits(H)
+        const, obt, tbt = get_chem_tensors(H=H, N=n_qubits)
+        if load:
+            np.savez(os.path.join(tensor_path, tensor_file), const, obt, tbt)
+        return const, obt, tbt
 
 
 from min_part.molecules import mol_h2  # noqa: E402

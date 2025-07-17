@@ -210,11 +210,11 @@ class FragmentedHamiltonian:
         load_prev: bool = True,
         save: bool = True,
     ):
-        frag_path = os.path.join(
-            self.m_config.frag_folder,
-            ("gfro" if strategy is PartitionStrategy.GFRO else "lr"),
-            str(bond_length),
+        frag_path = self.m_config.get_unique_frag_folder(
+            frag_type="gfro" if strategy is PartitionStrategy.GFRO else "lr",
+            bond_length=str(bond_length),
         )
+
         if load_prev and os.path.exists(f"{frag_path}.pkl"):
             self.two_body = open_frags(frag_path)
         else:

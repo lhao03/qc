@@ -11,6 +11,7 @@ Nums = List[int] | List[float] | np.ndarray
 
 f3_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.f3"
 frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags"
+tensor_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.tensors"
 results_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data"
 
 
@@ -29,17 +30,16 @@ class MConfig:
     frag_folder: str = frag_folder
     results_folder: str = results_folder
 
-    def get_unique_folder(self, folder: str):
-        return os.path.join(folder, self.mol_name, self.date)
-
     def get_unique_report_folder(self):
-        return self.get_unique_folder(self.results_folder)
+        return os.path.join(self.results_folder, self.mol_name.lower(), self.date)
 
     def get_unique_f3_folder(self):
-        return self.get_unique_folder(self.f3_folder)
+        return os.path.join(self.frag_folder, self.mol_name.lower())
 
-    def get_unique_frag_folder(self):
-        return self.get_unique_folder(self.frag_folder)
+    def get_unique_frag_folder(self, frag_type: str, bond_length: str):
+        return os.path.join(
+            self.frag_folder, self.mol_name.lower(), frag_type, bond_length
+        )
 
 
 class PartitionStrategy(Enum):

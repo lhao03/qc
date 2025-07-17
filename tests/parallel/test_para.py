@@ -1,6 +1,7 @@
 import time
 import unittest
 
+import numpy as np
 
 from d_types.config_types import PartitionStrategy
 from d_types.hamiltonian import FragmentedHamiltonian
@@ -55,3 +56,34 @@ class ParaTest(unittest.TestCase):
         )
         end_p = time.time()
         print(f"finished partitioning: {bond_length} in {end_p - start_p}")
+
+    def test_water_lr(self, bond_length):
+        start_p = time.time()
+        m_config = h2o_settings
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        ham = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+        )
+        print(f"exact: {ham.get_expectation_value()}")
+        ham.partition(strategy=PartitionStrategy.LR, bond_length=bond_length, save=True)
+        end_p = time.time()
+        print(f"finished partitioning: {bond_length} in {end_p - start_p}")
+
+    def test_all_water_lr(self):
+        for b in h2o_settings.xpoints:
+            print(f"now do: {b} A")
+            self.test_water_lr(b)
+
+    def test_tensor(self):
+        m_config = h2o_settings
+        for b in m_config.xpoints:
+            const, obt, tbt = get_tensors(m_config, b, load=True)
+            new_c, new_o, new_t = get_tensors(m_config, b, load=False)
+            np.testing.assert_array_equal(obt, new_o)
+            np.testing.assert_array_equal(tbt, new_t)
+            self.assertEqual(const, new_c)
