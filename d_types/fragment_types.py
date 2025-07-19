@@ -56,7 +56,7 @@ class FluidParts:
 class OneBodyFragment:
     fluid_lambdas: List[Tuple[int, FluidCoeff]]
     lambdas: Nums
-    operators: FermionOperator
+    operators: Optional[FermionOperator]
     unitary: Unitary
 
     def __eq__(self, other):
@@ -281,9 +281,10 @@ class GFROFragment(FermionicFragment):
         Returns:
              `FermionOperator` containing "one" (the one body part from the two body fragment) and two body parts
         """
-        if self.fluid_parts is None:
-            return self.operators
-        self.operators = tbt2op(fluid_gfro_2tensor(self))
+        if self.operators is None:
+            self.operators = tbt2op(self.to_tensor())
+        if self.fluid_parts:
+            self.operators = tbt2op(fluid_gfro_2tensor(self))
         return self.operators
 
     def move2frag(self, to: OneBodyFragment, coeff: float, orb: int, mutate: bool):

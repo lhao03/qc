@@ -260,6 +260,7 @@ class FragmentedHamiltonian:
     def partition(
         self,
         strategy: PartitionStrategy,
+        basis: Basis,
         bond_length: float,
         load_prev: bool = True,
         save: bool = True,
@@ -274,13 +275,13 @@ class FragmentedHamiltonian:
         else:
             match strategy:
                 case PartitionStrategy.GFRO:
-                    self.two_body = gfro_decomp(self.two_body, debug=True)
+                    self.two_body = gfro_decomp(self.two_body, debug=True, basis=basis)
                 case PartitionStrategy.LR:
                     self.two_body = lr_decomp(self.two_body)
             if save:
                 save_frags(self.two_body, file_name=frag_path)
         self.partitioned = True
-        self.one_body = obt2fluid(self.one_body)
+        self.one_body = obt2fluid(self.one_body, basis)
         return self.two_body
 
     def get_expectation_value(

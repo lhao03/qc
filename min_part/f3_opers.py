@@ -17,7 +17,7 @@ from d_types.fragment_types import (
     FluidParts,
     OneBodyFragment,
 )
-from d_types.config_types import ContractPattern
+from d_types.config_types import ContractPattern, Basis
 from min_part.julia_ops import (
     solve_quad,
 )
@@ -250,7 +250,7 @@ def move_ob_to_ob(
     )
 
 
-def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
+def obt2fluid(obt: np.ndarray, basis: Basis) -> OneBodyFragment:
     """
     Converts a one-body tensor to a `OneBodyFragment` type via diagonalization of the tensor.
     Args:
@@ -273,7 +273,7 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             V[0] = prev_1
             V[1] = prev_0
             swapped = True
-        unitary = Unitary.deconstruct_unitary(U)
+        unitary = Unitary.deconstruct_unitary(U, basis=basis)
         made_u = unitary.make_unitary_matrix()
         np.testing.assert_array_almost_equal(made_u, U)
         return OneBodyFragment(
@@ -293,10 +293,10 @@ def obt2fluid(obt: np.ndarray) -> OneBodyFragment:
             V[0] = prev_1
             V[1] = prev_0
         return OneBodyFragment(
-            unitary=WholeUnitary(mat=U, dim=obt.shape[0]),
+            unitary=WholeUnitary(mat=U, dim=obt.shape[0], basis=basis),
             lambdas=V,
             fluid_lambdas=[],
-            operators=obt2op(obt),
+            operators=obt2op(obt) if basis == Basis.SPIN else None,
         )
 
 

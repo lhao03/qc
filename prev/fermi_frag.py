@@ -229,13 +229,12 @@ def Do_GFRO(
     # shrink_frag, CISD,
     tol=1e-6,
     # save=True,
-    spacial=False,
+    spacial=True,
     # projector_func=None
 ):
     const, obt, tbt = get_chem_tensors(H_FO)
     obt_op = obt2op(obt)
 
-    print("starting gfro")
     gfro_fragments, gfro_params = gfro_frags_generator(
         tbt, ret_params=True, tol=tol, spacial=spacial
     )

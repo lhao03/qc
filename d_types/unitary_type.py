@@ -14,7 +14,7 @@ from julia import MolHamLinAlg
 
 
 def check_complexity_and_zero(m):
-    tol = 1e-8
+    tol = 1e-14
     try:
         m.setflags(write=1)
         m.real.setflags(write=1)

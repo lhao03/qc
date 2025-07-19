@@ -14,11 +14,13 @@ from openfermion import (
     sz_operator,
 )
 
+from d_types.config_types import PartitionStrategy, Basis
+from d_types.hamiltonian import FragmentedHamiltonian
 from min_part.ham_utils import obtain_OF_hamiltonian
 from min_part.julia_ops import (
     check_lr_decomp,
 )
-from min_part.molecules import mol_h4
+from min_part.molecules import mol_h4, h4_settings
 
 from min_part.operators import (
     get_projected_spin,
@@ -38,6 +40,7 @@ from tests.utils.sim_tensor import (
     get_chem_tensors,
     symmetricND,
     artifical_h2_tbt,
+    get_tensors,
 )
 
 torch.set_default_tensor_type(torch.DoubleTensor)
@@ -57,6 +60,24 @@ class DecompTest(unittest.TestCase):
         self.H_ob_op = obt2op(self.H_obt)
         self.H_tb_op = tbt2op(self.H_tbt)
         self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
+
+    def test_lr(self):
+        const, obt, h4_tbt = get_tensors(h4_settings, h4_settings.stable_bond_length)
+        ham = FragmentedHamiltonian(
+            constant=const,
+            one_body=obt,
+            two_body=h4_tbt,
+            m_config=h4_settings,
+            partitioned=False,
+            fluid=False,
+        )
+        ham.partition(
+            strategy=PartitionStrategy.LR,
+            bond_length=h4_settings.stable_bond_length,
+            basis=Basis.SPIN,
+        )
+        sum_spin_h4 = sum([f.operators for f in ham.two_body])
+        self.assertEqual(tbt2op(h4_tbt), sum_spin_h4)
 
     @given(
         artifical_h2_tbt().filter(lambda m: not np.allclose(m, np.zeros((4, 4, 4, 4))))

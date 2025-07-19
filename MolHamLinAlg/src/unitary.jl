@@ -15,7 +15,7 @@ function extract_thetas(U)
         U = Hermitian(U)
     end
     X = log(U)
-    (isapprox(X, transpose(X)) || isantisymm(X)) || error("X is not symmetric or skew-symmetric, can't extract thetas: $(repr("text/plain", X))")
+    isapprox(X, transpose(X)) || isantisymm(X) || error("X is not symmetric or skew-symmetric, can't extract thetas: $(repr("text/plain", X))")
     n = size(U)[1]
     m = Integer(((n * (n + 1)) / 2) - n)
     thetas = Complex.(zeros(m))

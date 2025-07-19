@@ -1,3 +1,4 @@
+import time
 import warnings
 from typing import List, Optional
 
@@ -91,6 +92,7 @@ def gfro_decomp(
     iter = 0
     n = tbt.shape[0]
 
+    start = time.time() if debug else None
     while frob_norm(g_tensor) >= threshold and iter <= max_iter:
         factor = 10 / frob_norm(g_tensor)
         x_dim = n * (n + 1) // 2
@@ -141,6 +143,9 @@ def gfro_decomp(
         if debug:
             print(f"Current norm: {frob_norm(g_tensor)}")
 
+    if debug:
+        end = time.time()
+        print(f"GFRO Decomp took: {end - start}")
     return list(
         filter(lambda f: len(f.operators.terms) > 0 if f.operators else True, frags)
     )

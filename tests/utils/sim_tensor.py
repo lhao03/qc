@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from fontTools.misc.py23 import isclose
 from hypothesis import strategies as st
-from openfermion import count_qubits
+from openfermion import count_qubits, FermionOperator
 
 from d_types.config_types import MConfig, tensor_folder
 from min_part.ham_utils import obtain_OF_hamiltonian
@@ -306,6 +306,13 @@ def get_tensors(
         if load:
             np.savez(os.path.join(tensor_path, tensor_file), const, obt, tbt)
         return const, obt, tbt
+
+
+def operator_eq(a: FermionOperator, b: FermionOperator, dec=6):
+    diff = a - b
+    below_dec = list(filter(lambda c: c >= 1 * 10 ** (-dec), diff.terms.values()))
+    if len(below_dec) != 0:
+        raise AssertionError(f"Difference is larger than: 1e-{dec}: {diff}")
 
 
 from min_part.molecules import mol_h2  # noqa: E402

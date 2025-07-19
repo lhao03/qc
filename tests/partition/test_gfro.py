@@ -32,7 +32,7 @@ from min_part.tensor import (
     make_fr_tensor_from_u,
     spin2spac,
 )
-from tests.utils.sim_tensor import get_tensors
+from tests.utils.sim_tensor import get_tensors, operator_eq
 
 
 class GFROTest(unittest.TestCase):
@@ -216,7 +216,7 @@ class GFROTest(unittest.TestCase):
         )
         self.assertEqual(spac_frag, spac_frag.spac2spin().spin2spac())
 
-    def test_spac2spin_h2(self):
+    def test_spac2spin_h2_onefrag(self):
         frags = gfro_decomp(get_tensors(h2_settings, 0.8)[2], basis=Basis.SPIN)
         og_spin_frag = frags[0]
         spat_tbt = spin2spac(og_spin_frag.to_tensor())
@@ -226,15 +226,42 @@ class GFROTest(unittest.TestCase):
             tbt2op(og_spin_frag.to_tensor()), tbt2op(spin_frag.to_tensor())
         )
 
-    def test_spac2spin_many(self):
+    def test_spac2spin_h2(self):
         _, _, h2_tbt = get_tensors(h2_settings, h2_settings.stable_bond_length)
-        spac_h2_tbt = spin2spac(h2_tbt)
-        spac_h2_frags = gfro_decomp(spac_h2_tbt, debug=True, basis=Basis.SPATIAL)
+        og_spin_h2_frags = gfro_decomp(h2_tbt, debug=True, basis=Basis.SPIN)
+        spac_h2_frags = gfro_decomp(spin2spac(h2_tbt), debug=True, basis=Basis.SPATIAL)
         spin_h2_frags = [f.spac2spin() for f in spac_h2_frags]
-        sum_h2_op = sum([tbt2op(f.to_tensor()) for f in spin_h2_frags])
-        self.assertEqual(tbt2op(h2_tbt), sum_h2_op)
-        _, _, h4_tbt = get_tensors(h4_settings, h4_settings.stable_bond_length)
-        _, _, h2o_tbt = get_tensors(h2o_settings, h2o_settings.stable_bond_length)
+        sum_spac_h2 = sum([f.to_tensor() for f in spin_h2_frags])
+        sum_spin_h2 = sum([f.to_tensor() for f in og_spin_h2_frags])
+        np.testing.assert_array_almost_equal(sum_spin_h2, sum_spac_h2)
+        self.assertEqual(tbt2op(sum_spac_h2), tbt2op(sum_spin_h2))
+
+    def test_spac2spin_h4(self):
+        const, obt, h4_tbt = get_tensors(h4_settings, h4_settings.stable_bond_length)
+        # spin
+        ham = FragmentedHamiltonian(
+            constant=const,
+            one_body=obt,
+            two_body=h4_tbt,
+            m_config=h4_settings,
+            partitioned=False,
+            fluid=False,
+        )
+        ham.partition(
+            strategy=PartitionStrategy.GFRO,
+            bond_length=h4_settings.stable_bond_length,
+            basis=Basis.SPIN,
+        )
+        sum_spin_h4 = sum([f.to_tensor() for f in ham.two_body])
+        np.testing.assert_array_almost_equal(h4_tbt, sum_spin_h4)
+        operator_eq(dec=6, a=tbt2op(h4_tbt), b=tbt2op(sum_spin_h4))
+        # spac
+        spac_h4_frags = gfro_decomp(spin2spac(h4_tbt), debug=True, basis=Basis.SPATIAL)
+        spin_h4_frags = [f.spac2spin() for f in spac_h4_frags]
+        sum_spac_h4 = sum([f.to_tensor() for f in spin_h4_frags])
+        np.testing.assert_array_almost_equal(h4_tbt, sum_spac_h4)
+        operator_eq(dec=6, a=tbt2op(h4_tbt), b=tbt2op(sum_spac_h4))
+        operator_eq(dec=6, a=tbt2op(sum_spac_h4), b=tbt2op(sum_spin_h4))
 
     def test_multi_partition_gfro(self):
         from min_part.remote import partition_frags

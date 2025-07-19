@@ -3,6 +3,7 @@ from typing import Any, Optional, Tuple
 import numpy as np
 from opt_einsum import contract
 
+from d_types.config_types import Basis
 from d_types.fragment_types import LRFragment, Nums
 from min_part.f3_opers import lambdas_from_fluid_parts
 from min_part.julia_ops import lr_decomp_params
@@ -66,7 +67,8 @@ def lr_decomp(tbt: np.ndarray) -> list[LRFragment]:
                     outer_coeff=outer_coeff,
                     coeffs=coeffs,
                     operators=operators,
-                    unitary=WholeUnitary(mat=u, dim=u.shape[0]),
+                    unitary=WholeUnitary(mat=u, dim=u.shape[0], basis=Basis.SPIN),
+                    basis=Basis.SPIN,
                 )
             )
     return lr_frag_details
