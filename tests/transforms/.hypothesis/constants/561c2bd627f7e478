@@ -1,0 +1,4 @@
+# file: /Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/min_part/ham_utils.py
+# hypothesis_version: 6.135.7
+
+[1e-05, 1.737236, 104.5, 107, 'Be', 'H', 'LA', 'Li', 'N', 'O', 'SA', 'beh2', 'h2', 'h2o', 'h3', 'h4', 'h4_chain', 'h6_chain', 'lih', 'n2', 'nh3', 'sto3g']

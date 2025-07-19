@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_process_net_command.py
+# hypothesis_version: 6.135.7
+
+[0.5, '*', '-', '.', '1', ';', '@_@NEW_LINE_CHAR@_@', '@_@TAB_CHAR@_@', 'EVALUATE', 'EVALUATE_UNBUFFERED', 'GET_COMPLETIONS', 'ID', 'LINE', 'NONE', 'None', 'REPLACE:', 'STDERR', 'STDOUT', 'True', 'UNIX', 'WINDOWS', '__frame__:', 'add_line_breakpoint', 'django', 'jupyter-line', 'pydev_do_not_trace', 'python', 'python-line', 'r', 'true', 'unexpected command ', 'utf-8', '|', '||']

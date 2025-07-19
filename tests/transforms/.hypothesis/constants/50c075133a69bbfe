@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_frame_type_handler.py
+# hypothesis_version: 6.135.7
+
+[' isRetVal="True"', ' isSpecialVal="True"', '@', '__', '___', '__exception__', '_dummy_ipython_val', '_dummy_ret_val', '_dummy_special_var', 'added_var', 'classobj', 'function', 'module', 'type', 'typing']

@@ -90,6 +90,7 @@ def spin2spac(tensor):
     Returns:
         ndarray: corresponding one or two body tensor in spacial orbital basis
     """
+    # TODO: check spin symmetries
     return tensor[np.ix_(*[range(0, i, 2) for i in tensor.shape])]
 
 

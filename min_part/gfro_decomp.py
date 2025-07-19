@@ -5,6 +5,7 @@ import numpy as np
 from opt_einsum import contract
 from scipy.optimize import OptimizeResult, minimize
 
+from d_types.config_types import Basis
 from d_types.fragment_types import GFROFragment
 from min_part.tensor import tbt2op, make_lambda_matrix
 from d_types.unitary_type import make_unitary, ReaDeconUnitary
@@ -56,6 +57,7 @@ def gfro_decomp(
     tbt: np.ndarray,
     threshold=1e-6,
     max_iter: int = 10000,
+    basis: Basis = Basis.SPIN,
     only_proceed_if_success: bool = False,
     debug: bool = False,
     previous_lambdas: Optional[List[np.ndarray]] = None,
@@ -129,8 +131,9 @@ def gfro_decomp(
         frags.append(
             GFROFragment(
                 lambdas=lambdas_sol,
-                unitary=ReaDeconUnitary(thetas=thetas_sol, dim=n),
-                operators=tbt2op(fr_frag_tensor),
+                unitary=ReaDeconUnitary(thetas=thetas_sol, dim=n, basis=basis),
+                operators=tbt2op(fr_frag_tensor) if basis is Basis.SPIN else None,
+                basis=basis,
             )
         )
         g_tensor -= fr_frag_tensor
@@ -138,7 +141,9 @@ def gfro_decomp(
         if debug:
             print(f"Current norm: {frob_norm(g_tensor)}")
 
-    return list(filter(lambda f: len(f.operators.terms) > 0, frags))
+    return list(
+        filter(lambda f: len(f.operators.terms) > 0 if f.operators else True, frags)
+    )
 
 
 def retry_until_success(

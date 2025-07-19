@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/extensions/types/pydevd_plugins_django_form_str.py
+# hypothesis_version: 6.135.7
+
+['%s: %r', 'Form', 'django.forms', 'java']

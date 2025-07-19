@@ -13,7 +13,7 @@ from min_part.ffrag_utils import (
     sdgfro_frags_generator,
 )
 from min_part.tensor import spac2spin, obt2tbt, obt2op, tbt2op
-from tests.utils import get_chem_tensors
+from tests.utils.sim_tensor import get_chem_tensors
 from . import config
 import pickle
 import numpy as np
@@ -231,12 +231,11 @@ def Do_GFRO(
     # save=True,
     spacial=False,
     # projector_func=None
-    seed=0,
 ):
-    np.random.seed(seed)
     const, obt, tbt = get_chem_tensors(H_FO)
     obt_op = obt2op(obt)
 
+    print("starting gfro")
     gfro_fragments, gfro_params = gfro_frags_generator(
         tbt, ret_params=True, tol=tol, spacial=spacial
     )

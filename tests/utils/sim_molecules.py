@@ -11,10 +11,10 @@ from min_part.utils import save_frags, open_frags
 from tests.utils.sim_tensor import make_tensors_h2, get_tensors
 
 
-def specific_gfro_decomp(bond_length, tol=1e-6):
+def specific_gfro_decomp_h2(bond_length, tol=1e-6):
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
     frag_folder = (
-        "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/gfro"
+        "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/h2/gfro"
     )
     frag_path = os.path.join(frag_folder, str(bond_length))
     if os.path.exists(f"{frag_path}.pkl"):
@@ -28,7 +28,9 @@ def specific_gfro_decomp(bond_length, tol=1e-6):
 
 def specific_lr_decomp(bond_length):
     H_const, H_obt, H_tbt = make_tensors_h2(bond_length)
-    frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/lr"
+    frag_folder = (
+        "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags/h2/lr"
+    )
     frag_path = os.path.join(frag_folder, str(bond_length))
     if os.path.exists(f"{frag_path}.pkl"):
         lr_frags = open_frags(frag_path)

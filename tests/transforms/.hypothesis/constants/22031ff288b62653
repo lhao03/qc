@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_xml.py
+# hypothesis_version: 6.135.7
+
+[' />\n', ' isContainer="True"', ' shape="%s"', ' value="%s"', '"', '%s', '&', '&amp;', '&gt;', '&lt;', '&quot;', '/>_= ', '<', '<var name="%s" ', '>', 'PyJavaInstance', 'Unable to get Type', '__len__', '__module__', 'java', 'qualifier="%s"', 'shape', 'sort', 'typeRendererId="%s"', 'unicode', 'utf-8']

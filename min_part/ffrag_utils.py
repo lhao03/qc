@@ -6,7 +6,6 @@ from openfermion import jordan_wigner, normal_ordered
 from opt_einsum import contract
 from scipy.optimize import minimize
 
-from .julia_ops import jl_print, eigen_jl
 from .tensor import spac2spin, obt2tbt, tbt2op
 
 
@@ -141,13 +140,16 @@ def gfro_frags_generator(
     N = Htbt.shape[0]
 
     if spacial:
+        print("spacial")
         Htbt = Htbt[np.ix_(*[range(0, i, 2) for i in Htbt.shape])]
         N = Htbt.shape[0]
+        print(f"dims: {N}")
 
     current_norm = np.sum(np.abs(Htbt * Htbt))
     fragments = []
     params = []
 
+    print("starting")
     for k in range(numtag):
         # end decomposition if remaining norm is less than 1e-6
         if current_norm < tol:

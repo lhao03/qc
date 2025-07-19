@@ -1,57 +1,41 @@
 import random
+import time
 import unittest
 from functools import reduce
 
 import numpy as np
+import ray
 import scipy as sp
 from openfermion import (
-    count_qubits,
     jordan_wigner,
     qubit_operator_sparse,
-    number_operator,
-    s_squared_operator,
-    sz_operator,
 )
 
-from d_types.unitary_type import make_x_matrix, make_unitary
+from d_types.config_types import PartitionStrategy, Basis
+from d_types.hamiltonian import FragmentedHamiltonian
+from d_types.unitary_type import make_x_matrix, make_unitary, Unitary
 from min_part.gfro_decomp import (
     gfro_cost,
     frob_norm,
     gfro_decomp,
     make_fr_tensor,
 )
-from d_types.fragment_types import gfro_fragment_occ
+from d_types.fragment_types import gfro_fragment_occ, GFROFragment
+from min_part.molecules import h2_settings, h2o_settings, h4_settings
 from min_part.operators import (
     generate_occupied_spin_orb_permutations,
-    get_particle_number,
-    get_total_spin,
-    get_projected_spin,
 )
-from min_part.ham_utils import obtain_OF_hamiltonian
-from min_part.molecules import mol_h4, mol_h2
 from min_part.tensor import (
     get_no_from_tensor,
-    obt2op,
     tbt2op,
     make_lambda_matrix,
     make_fr_tensor_from_u,
+    spin2spac,
 )
-from tests.utils.sim_molecules import specific_lr_decomp
-from tests.utils.sim_tensor import get_chem_tensors
+from tests.utils.sim_tensor import get_tensors
 
 
-class DecompTest(unittest.TestCase):
-    def setUp(self):
-        bond_length = 0.8
-        self.mol = mol_h2(bond_length)
-        H, num_elecs = obtain_OF_hamiltonian(self.mol)
-        self.n_qubits = count_qubits(H)
-        self.H_const, self.H_obt, self.H_tbt = get_chem_tensors(H=H, N=self.n_qubits)
-        self.H_ob_op = obt2op(self.H_obt)
-        self.H_tb_op = tbt2op(self.H_tbt)
-        self.H_ele = self.H_const + self.H_ob_op + self.H_tb_op
-
-    # === Greedy Full Rank Helpers ===
+class GFROTest(unittest.TestCase):
     def test_frob_norm(self):
         n = 5
         m = (n * (n + 1)) // 2
@@ -116,9 +100,7 @@ class DecompTest(unittest.TestCase):
         u = make_unitary(thetas, n)
         tensor_from_lambdas_thetas = make_fr_tensor(lambdas=lambdas, thetas=thetas, n=n)
         tensor_from_lambdas_u = make_fr_tensor_from_u(lambdas=lambdas, u=u, n=n)
-        self.assertTrue(
-            np.array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u)
-        )
+        np.testing.assert_array_equal(tensor_from_lambdas_thetas, tensor_from_lambdas_u)
 
     def test_get_no_from_tensor(self):
         n = 4
@@ -145,15 +127,8 @@ class DecompTest(unittest.TestCase):
             self.assertEqual(coeff, full_lm[l][m])
 
     def test_grfo_h2(self):
-        """This test checks for the correct GFRO partitioning of H2.
-
-        Some constraints to be checked are:
-
-        The sum of the GFRO fragments == the sum of the unpartitioned fragments
-        Each U at each step chosen are unitary
-
-        """
-        gfro_frags = gfro_decomp(tbt=self.H_tbt, debug=True)
+        const, obt, tbt = get_tensors(h2_settings, 0.8)
+        gfro_frags = gfro_decomp(tbt=tbt, debug=True)
         for frag in gfro_frags:
             u = frag.unitary.make_unitary_matrix()
             np.testing.assert_array_almost_equal(
@@ -163,7 +138,7 @@ class DecompTest(unittest.TestCase):
 
         self.assertEqual(
             reduce(lambda op1, op2: op1 + op2, [f.operators for f in gfro_frags]),
-            self.H_tb_op,
+            tbt2op(tbt),
         )
 
     def test_grfo_artificial(self):
@@ -183,12 +158,11 @@ class DecompTest(unittest.TestCase):
         gfro_frags = gfro_decomp(fake_hamiltonian)
         self.assertTrue(len(gfro_frags) == 1)
         self.assertEqual(gfro_frags[0].operators, tbt2op(fake_hamiltonian))
-        self.assertTrue(
-            np.allclose(
-                sorted(gfro_frags[0].lambdas), fake_lambdas, rtol=1e-05, atol=1e-08
-            )
+        np.testing.assert_array_almost_equal(
+            sorted(gfro_frags[0].lambdas), fake_lambdas
         )
-        fr_u = make_unitary(thetas=gfro_frags[0].thetas, n=n)
+
+        fr_u = gfro_frags[0].unitary.make_unitary_matrix()
         rows_checked = 0
         for row in fake_u:
             for i, gen_row in enumerate(fr_u):
@@ -229,33 +203,66 @@ class DecompTest(unittest.TestCase):
             occupations, eigenvalues = gfro_fragment_occ(
                 fragment=frag_details, num_spin_orbs=n, occ=None
             )
-            self.assertTrue(
-                np.allclose(np.sort(diag_eigenvalues), np.sort(eigenvalues))
+            np.testing.assert_array_almost_equal(
+                np.sort(diag_eigenvalues), np.sort(eigenvalues)
             )
             self.assertEqual(fake_hamiltonian_operator, frag_details.operators)
 
-    def test_grfo_h2_occs(self):
-        from openfermion import qubit_operator_sparse, jordan_wigner
+    def test_spac2spin_simple(self):
+        spac_frag = GFROFragment(
+            basis=Basis.SPATIAL,
+            unitary=Unitary.deconstruct_unitary(np.identity(2), basis=Basis.SPATIAL),
+            lambdas=np.random.rand(3),
+        )
+        self.assertEqual(spac_frag, spac_frag.spac2spin().spin2spac())
 
-        H_obt, H_tbt, frags, bl = specific_lr_decomp(0.8)
-        n = self.H_tbt.shape[0]
-        for frag_details in frags:
-            print("frag")
-            diag_eigenvalues, diag_eigenvectors = sp.linalg.eigh(
-                qubit_operator_sparse(jordan_wigner(frag_details.operators)).toarray()
-            )
+    def test_spac2spin_h2(self):
+        frags = gfro_decomp(get_tensors(h2_settings, 0.8)[2], basis=Basis.SPIN)
+        og_spin_frag = frags[0]
+        spat_tbt = spin2spac(og_spin_frag.to_tensor())
+        spatial_frag = gfro_decomp(spat_tbt, basis=Basis.SPATIAL)[0]
+        spin_frag = spatial_frag.spac2spin()
+        self.assertEqual(
+            tbt2op(og_spin_frag.to_tensor()), tbt2op(spin_frag.to_tensor())
+        )
 
-            n_op = qubit_operator_sparse(jordan_wigner(number_operator(4))).toarray()
-            s2 = qubit_operator_sparse(jordan_wigner(s_squared_operator(2))).toarray()
-            sz = qubit_operator_sparse(jordan_wigner(sz_operator(2))).toarray()
-            for i in range(16):
-                vec = diag_eigenvectors[:, i]
-                if np.allclose(n_op @ vec, 2 * vec):
-                    print(diag_eigenvalues[i])
-                    print(np.allclose(s2 @ vec, 0 * vec))
-                    print(np.allclose(sz @ vec, 0 * vec))
-                    print(
-                        get_particle_number(diag_eigenvectors[:, i], 4),
-                        get_total_spin(diag_eigenvectors[:, i], 2),
-                        get_projected_spin(diag_eigenvectors[:, i], 2),
-                    )
+    def test_spac2spin_many(self):
+        _, _, h2_tbt = get_tensors(h2_settings, h2_settings.stable_bond_length)
+        spac_h2_tbt = spin2spac(h2_tbt)
+        spac_h2_frags = gfro_decomp(spac_h2_tbt, debug=True, basis=Basis.SPATIAL)
+        spin_h2_frags = [f.spac2spin() for f in spac_h2_frags]
+        sum_h2_op = sum([tbt2op(f.to_tensor()) for f in spin_h2_frags])
+        self.assertEqual(tbt2op(h2_tbt), sum_h2_op)
+        _, _, h4_tbt = get_tensors(h4_settings, h4_settings.stable_bond_length)
+        _, _, h2o_tbt = get_tensors(h2o_settings, h2o_settings.stable_bond_length)
+
+    def test_multi_partition_gfro(self):
+        from min_part.remote import partition_frags
+
+        num_cpus = 4
+        ray.init(num_cpus=num_cpus)
+        m_config = h2o_settings
+        futures = [
+            partition_frags.remote(b, m_config, PartitionStrategy.GFRO)
+            for b in m_config.xpoints
+        ]
+        res = ray.get(futures)
+
+    def test_water(self):
+        start_p = time.time()
+        m_config = h2o_settings
+        bond_length = h2o_settings.stable_bond_length
+        const, obt, tbt = get_tensors(m_config, bond_length)
+        ham = FragmentedHamiltonian(
+            m_config=m_config,
+            constant=const,
+            one_body=obt,
+            two_body=tbt,
+            partitioned=False,
+            fluid=False,
+        )
+        ham.partition(
+            strategy=PartitionStrategy.GFRO, bond_length=bond_length, save=True
+        )
+        end_p = time.time()
+        print(f"finished partitioning: {bond_length} in {end_p - start_p}")

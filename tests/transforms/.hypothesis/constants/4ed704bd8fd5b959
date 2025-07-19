@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/extensions/types/pydevd_plugin_numpy_types.py
+# hypothesis_version: 6.135.7
+
+[1024, '%0', ',', '[', '[0:%s] ', '__internals__', '__len__', 'array', 'biufc', 'd', 'dtype', 'java', 'max', 'min', 'ndarray', 'not a numeric object', 'numpy', 'shape', 'size']

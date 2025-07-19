@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_repr_utils.py
+# hypothesis_version: 6.135.7
+
+[256, 1000, 10000, '%s', '%s %s', '%s%s%s', '%s: %s', "'{x}'", ')]}', ',', ', ', '...', 'DataFrame', 'GeoDataFrame', 'GeoSeries', 'Series', '[%s]', '__class__', '__repr__', 'ndarray', 'numpy.', '{%s}', '{...}', '{}']

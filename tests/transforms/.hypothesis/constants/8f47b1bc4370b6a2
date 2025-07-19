@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_breakpoints.py
+# hypothesis_version: 6.135.7
+
+['.', '@HIT@', 'BaseException', 'Exception', 'NONE', 'additional_info', 'python-%s', 'utf-8']

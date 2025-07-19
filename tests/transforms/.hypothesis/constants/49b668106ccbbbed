@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydev_bundle/pydev_code_executor.py
+# hypothesis_version: 6.135.7
+
+['.', '<input>', '\\', '__builtins__', 'debugger', 'exec', 'help', 'input', 'interrupt_main', 'is_complete', 'matplotlib', 'matplotlib.pyplot', 'none', 'nt', 'posix', 'pydoc', 'pylab']

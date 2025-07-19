@@ -13,6 +13,7 @@ from openfermion import (
 from d_types.config_types import (
     Nums,
     ContractPattern,
+    Basis,
 )
 from d_types.unitary_type import Unitary
 
@@ -25,6 +26,8 @@ from min_part.tensor import (
     tbt2op,
     get_n_body_tensor_chemist_ordering,
     make_lambda_matrix,
+    extract_lambdas,
+    make_fr_tensor_from_u,
 )
 
 
@@ -73,6 +76,12 @@ class OneBodyFragment:
                 and u_eq
             )
 
+    def spin2spac(self):
+        raise NotImplementedError
+
+    def spac2spin(self):
+        raise NotImplementedError
+
     def to_op(self):
         ob_op = fluid_ob2op(self)
         if is_hermitian(ob_op):
@@ -106,8 +115,17 @@ class OneBodyFragment:
 @dataclass(kw_only=True)
 class FermionicFragment:
     unitary: Unitary
-    operators: FermionOperator
+    basis: Basis
+    operators: Optional[FermionOperator] = None
     fluid_parts: Optional[FluidParts] = None
+
+    @abstractmethod
+    def spin2spac(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def spac2spin(self):
+        raise NotImplementedError
 
     @abstractmethod
     def get_ob_lambdas(self):
@@ -141,16 +159,6 @@ class FermionicFragment:
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
         raise NotImplementedError
 
-    @abstractmethod
-    def get_expectation_value_cvxpy(
-        self,
-        num_spin_orbs: int,
-        expected_e: int,
-        ham,
-        desired_occs,
-    ):
-        raise NotImplementedError
-
 
 @dataclass(kw_only=True)
 class GFROFragment(FermionicFragment):
@@ -167,24 +175,59 @@ class GFROFragment(FermionicFragment):
         else:
             return False
 
-    def get_expectation_value_cvxpy(
-        self,
-        num_spin_orbs: int,
-        expected_e: int,
-        ham,
-        desired_occs,
-    ):
-        n = ham.one_body.shape[0]
-        num_coeffs = [self.lambdas[get_diag_idx(i, n)] for i in range(n)]
-        energy_expressions = get_energy_expressions(
-            i=0,
-            n=n,
-            num_coeffs=num_coeffs,
-            f=ham.two_body[0],
-            fluid_variables=ham._return_proper_fluid_vars(self),
-            desired_occs=desired_occs,
-        )
-        return [exp.value for exp in energy_expressions]
+    def spac2spin(self):
+        if self.basis == Basis.SPATIAL:
+            num_spatial = self.unitary.dim
+            spatial_l_m = make_lambda_matrix(self.lambdas, num_spatial)
+            spin_lambdas = np.zeros((num_spatial * 2, num_spatial * 2))
+            for i in range(1, num_spatial + 1):
+                for j in range(1, num_spatial + 1):
+                    i2 = 2 * i
+                    j2 = 2 * j
+                    i2min1 = i2 - 1
+                    j2min1 = j2 - 1
+                    tilde_l_ij = spatial_l_m[i - 1, j - 1]
+                    spin_lambdas[i2 - 1, j2 - 1] = tilde_l_ij
+                    spin_lambdas[i2min1 - 1, j2 - 1] = tilde_l_ij
+                    spin_lambdas[i2 - 1, j2min1 - 1] = tilde_l_ij
+                    spin_lambdas[i2min1 - 1, j2min1 - 1] = tilde_l_ij
+            self.lambdas = extract_lambdas(spin_lambdas, num_spatial * 2)
+            self.unitary = self.unitary.spac2spin()
+            self.basis = Basis.SPIN
+            self.operators = self.to_op()
+        return self
+
+    def spin2spac(self):
+        warnings.warn("Will fail if symmetries aren't seen.")
+        if self.basis == Basis.SPIN:
+            num_spin = self.unitary.dim
+            spin_lm = make_lambda_matrix(self.lambdas, num_spin)
+            num_spat = num_spin // 2
+            spat_lambdas = np.zeros((num_spat, num_spat))
+            for i in range(1, num_spat + 1):
+                for j in range(1, num_spat + 1):
+                    i2 = 2 * i
+                    j2 = 2 * j
+                    i2min1 = i2 - 1
+                    j2min1 = j2 - 1
+                    l_1 = spin_lm[i2 - 1, j2 - 1]
+                    l_2 = spin_lm[i2min1 - 1, j2 - 1]
+                    l_3 = spin_lm[i2 - 1, j2min1 - 1]
+                    l_4 = spin_lm[i2min1 - 1, j2min1 - 1]
+                    if np.isclose(l_1, l_2) and np.isclose(l_3, l_4):
+                        spat_lambdas[i - 1, j - 1] = l_1
+                    else:
+                        raise UserWarning(
+                            f"Expected symmetries, didn't see, got: {l_1},"
+                            f" {l_2}, "
+                            f"{l_3},"
+                            f" {l_4}"
+                        )
+            self.unitary = self.unitary.spin2spac()
+            self.lambdas = extract_lambdas(spat_lambdas, num_spat)
+            self.basis = Basis.SPATIAL
+            self.operators = None
+        return self
 
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
         if self.fluid_parts is None:
@@ -223,6 +266,10 @@ class GFROFragment(FermionicFragment):
         return gfro2fluid(self, performant=performant)
 
     def to_tensor(self):
+        if not self.fluid_parts:
+            return make_fr_tensor_from_u(
+                self.lambdas, self.unitary.make_unitary_matrix(), self.unitary.dim
+            )
         return fluid_gfro_2tensor(self)
 
     def to_op(self):
@@ -312,6 +359,12 @@ class LRFragment(FermionicFragment):
         else:
             return False
 
+    def spac2spin(self):
+        raise NotImplementedError
+
+    def spin2spac(self):
+        raise NotImplementedError
+
     def get_expectation_value(self, num_spin_orbs: int, expected_e: int):
         return get_expectation_vals_lr_frags(self, num_spin_orbs, expected_e)
 
@@ -368,11 +421,6 @@ from min_part.f3_opers import (  # noqa: E402
     fluid_lr_2tensor,
     remove_obp_lr,
     lambdas_from_fluid_parts,
-    get_diag_idx,
 )
 
 from min_part.lr_decomp import get_expectation_vals_lr_frags  # noqa: E402
-
-from d_types.cvx_exp import (  # noqa: E402
-    get_energy_expressions,
-)

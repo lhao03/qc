@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_console_integration.py
+# hypothesis_version: 6.135.7
+
+['@LINE@', 'IPYTHONENABLE', 'PYTEST_RUN_CONFIG', 'True', 'exec', 'exitfunc', 'interpreter']

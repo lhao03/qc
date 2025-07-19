@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydev_bundle/pydev_monkey_qt.py
+# hypothesis_version: 6.135.7
+
+['.', 'PYDEVD_PYQT_MODE', 'PyQt4', 'SignalInstance', 'True', 'auto', 'pyqt4', 'pyqt5', 'pyqt6', 'pyside', 'pyside2', 'pyside6']

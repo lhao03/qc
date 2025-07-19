@@ -25,7 +25,7 @@ from d_types.config_types import PartitionStrategy, ContractPattern
 from d_types.hamiltonian import FragmentedHamiltonian, OptType
 from min_part.f3_opers import obt2fluid, make_unitary_jl
 from min_part.f3_optimis import simple_convex_opt
-from min_part.molecules import h2_settings, h4_settings
+from min_part.molecules import h2_settings, h4_settings, h2o_settings
 from min_part.plots import RefLBPlotNames
 from min_part.tensor import obt2op, tbt2op
 from tests.utils.sim_tensor import get_tensors
@@ -306,6 +306,7 @@ def test_optimize_fragments(
     bond_length,
     m_config,
     filter_spin: bool = True,
+    sd: bool = False,
     partition_strat: PartitionStrategy = PartitionStrategy.GFRO,
 ):
     with warnings.catch_warnings(action="ignore"):
@@ -320,13 +321,16 @@ def test_optimize_fragments(
             partitioned=False,
             fluid=False,
         )
-        total_op = obt2op(obt) + tbt2op(tbt) + ham.constant
-        exact_energy = min(eigenspectrum(total_op))
+        exact_energy = ham.get_expectation_value()
         ham.partition(strategy=partition_strat, bond_length=bond_length, load_prev=True)
-        gfro_unoptimized_energy = ham.get_expectation_value(use_frag_energies=True)
+        gfro_unoptimized_energy = ham.get_expectation_value(
+            use_frag_energies=True
+        )  # compute all energies concurrently
         debugprint(f"exact energy: {exact_energy}")
         debugprint(f"before opt: {ham.get_expectation_value()}")
-        ham.optimize_fragments(optimization_type=OptType.CONVEX, filter_sz=filter_spin)
+        ham.optimize_fragments(
+            optimization_type=OptType.CONVEX, filter_sz=filter_spin, sd=sd
+        )
         gfro_optimized_energy = ham.get_expectation_value(use_frag_energies=True)
         debugprint(f"after opt: {ham.get_expectation_value()}")
         debugprint(
@@ -344,7 +348,7 @@ def test_optimize_fragments(
 
 class ParaOptTest(unittest.TestCase):
     def test_lb_opt(self, frag_type="lr"):
-        m_config = h4_settings
+        m_config = h2o_settings
         child_dir = os.path.join(
             f"/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/data/{m_config.mol_name.lower()}",
             m_config.date,
@@ -440,7 +444,9 @@ class ParaOptTest(unittest.TestCase):
             energies=[exact, fluid_gfro, fluid_lr, gfro, lr],
         )
 
-    def test_gfro_kinks(self):
-        FragmentedHamiltonian.generate_curves(
-            h4_settings, exact=True, fragment=True, sep_one_two=True
+    def test_opt_one(self):
+        test_optimize_fragments(
+            bond_length=h2o_settings.stable_bond_length,
+            m_config=h2o_settings,
+            partition_strat=PartitionStrategy.LR,
         )

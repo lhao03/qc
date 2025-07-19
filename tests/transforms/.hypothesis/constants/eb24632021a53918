@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydev_ipython/matplotlibtools.py
+# hypothesis_version: 6.135.7
+
+['.', 'CocoaAgg', 'GTK', 'GTKAgg', 'GTKCairo', 'MacOSX', 'Qt4Agg', 'Qt5Agg', 'Qt6Agg', 'QtAgg', 'TkAgg', 'WX', 'WXAgg', 'backend', 'called', 'gtk', 'interactive', 'matplotlib', 'matplotlib.pyplot', 'none', 'osx', 'pylab', 'qt', 'qt4', 'qt5', 'qt6', 'rcParams', 'switch_backend', 'tk', 'wx']

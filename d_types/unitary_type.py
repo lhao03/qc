@@ -113,9 +113,9 @@ def spac2spin_mat(self: Unitary):
     mat = self.make_unitary_matrix()
     for i in range(1, num_spatial + 1):
         for j in range(1, num_spatial + 1):
-            spin_unitary[(2 * i) - 1, (2 * j) - 1] = spin_unitary[
-                (2 * i - 1) - 1, (2 * j - 1) - 1
-            ] = mat[i - 1, j - 1]
+            tilde_u_ij = mat[i - 1, j - 1]
+            spin_unitary[(2 * i) - 1, (2 * j) - 1] = tilde_u_ij
+            spin_unitary[(2 * i - 1) - 1, (2 * j - 1) - 1] = tilde_u_ij
     return spin_unitary
 
 

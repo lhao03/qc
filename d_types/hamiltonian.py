@@ -16,7 +16,7 @@ from openfermion import (
     expectation,
 )
 
-from d_types.config_types import MConfig, PartitionStrategy
+from d_types.config_types import MConfig, PartitionStrategy, Basis
 from d_types.cvx_exp import make_fluid_variables
 from d_types.fragment_types import GFROFragment, OneBodyFragment, FermionicFragment
 from min_part.f3_opers import obt2fluid
@@ -28,7 +28,7 @@ from min_part.operators import (
     generate_occupied_spin_orb_permutations,
 )
 from min_part.plots import RefLBPlotNames, plot_energies
-from min_part.tensor import obt2op, tbt2op
+from min_part.tensor import obt2op, tbt2op, spin2spac, spac2spin
 from min_part.utils import open_frags, save_frags
 from tests.utils.sim_tensor import get_tensors
 
@@ -51,6 +51,21 @@ def zero_s_z(t: Tuple[int]):
     return even == odd
 
 
+def only_sd(t: Tuple[int], n):
+    """
+    Checks only 1 or 2 electrons are excited, expects either n-1 or n-2 electrons to occupy the first n-1 or n-2 spin orbitals.
+    Args:
+        t:
+        n:
+
+    Returns:
+
+    """
+    single_e = set(range(n - 1))
+    double_e = set(range(n - 2))
+    return single_e.issubset(t) or double_e.issubset(t)
+
+
 @dataclass
 class FragmentedHamiltonian:
     m_config: MConfig
@@ -59,6 +74,7 @@ class FragmentedHamiltonian:
     two_body: List[FermionicFragment] | np.ndarray
     partitioned: bool
     fluid: bool
+    basis: Basis = Basis.SPIN
     restrictor: Optional[partial] = None
     number_operator: any = None
     s2_operator: any = None
@@ -93,19 +109,57 @@ class FragmentedHamiltonian:
         else:
             return False
 
+    def spin2spac(self):
+        """
+        Converts one and two body to spatial, if not already
+        Returns:
+
+        """
+        if self.basis != Basis.SPATIAL and not self.fluid:
+            if self.partitioned:
+                for f in self.two_body:
+                    f.spin2spac()
+                self.one_body.spin2spac()
+            else:
+                self.one_body = spin2spac(self.one_body)
+                self.two_body = spin2spac(self.two_body)
+            self.basis = Basis.SPATIAL
+
+    def spac2spin(self):
+        """
+        Converts one and two body to spin, if not already
+        Returns:
+
+        """
+        if self.basis != Basis.SPIN and not self.fluid:
+            if self.partitioned:
+                for f in self.two_body:
+                    f.spac2spin()
+                self.one_body.spac2spin()
+            else:
+                self.one_body = spac2spin(self.one_body)
+                self.two_body = spac2spin(self.two_body)
+            self.basis = Basis.SPIN
+
     def _return_proper_fluid_vars(self, frag):
         n = self.m_config.num_spin_orbs
         for i, f in enumerate(self.two_body):
             if f == frag:
                 return self.fluid_variables[i * n, (i * n) + n]
 
-    def optimize_fragments(self, optimization_type: OptType, filter_sz: bool = False):
+    def optimize_fragments(
+        self, optimization_type: OptType, filter_sz: bool = False, sd: bool = False
+    ):
         self.fluid_variables = make_fluid_variables(
             n=self.one_body.lambdas.shape[0], self=self
         )
         desired_occs = generate_occupied_spin_orb_permutations(
             total_spin_orbs=self.m_config.num_spin_orbs, occ=self.m_config.gs_elecs
         )
+        if sd:
+            desired_occs = list(
+                filter(lambda occ: only_sd(occ, self.m_config.gs_elecs), desired_occs)
+            )
         if filter_sz:
             desired_occs = list(filter(zero_s_z, desired_occs))
         match optimization_type:

@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydev_bundle/pydev_is_thread_alive.py
+# hypothesis_version: 6.135.7
+
+['_Thread__stopped', '_is_stopped', 'isAlive', 'is_alive']

@@ -9,6 +9,11 @@ import numpy as np
 Nums = List[int] | List[float] | np.ndarray
 
 
+class Basis(Enum):
+    SPIN = "spin"
+    SPATIAL = "spatial"
+
+
 f3_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.f3"
 frag_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.frags"
 tensor_folder = "/Users/lucyhao/Obsidian 10.41.25/GradSchool/Code/qc/tests/.tensors"
@@ -31,15 +36,24 @@ class MConfig:
     results_folder: str = results_folder
 
     def get_unique_report_folder(self):
-        return os.path.join(self.results_folder, self.mol_name.lower(), self.date)
+        folder = os.path.join(self.results_folder, self.mol_name.lower(), self.date)
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        return folder
 
     def get_unique_f3_folder(self):
-        return os.path.join(self.frag_folder, self.mol_name.lower())
+        folder = os.path.join(self.frag_folder, self.mol_name.lower(), self.date)
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        return folder
 
     def get_unique_frag_folder(self, frag_type: str, bond_length: str):
-        return os.path.join(
+        folder = os.path.join(
             self.frag_folder, self.mol_name.lower(), frag_type, bond_length
         )
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        return folder
 
 
 class PartitionStrategy(Enum):

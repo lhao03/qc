@@ -1,0 +1,4 @@
+# file: /Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/_pydevd_bundle/pydevd_vars.py
+# hypothesis_version: 6.135.7
+
+[100, '  -  ', '%', '%s', '%s\n', '%s=%s', '*', '.', '.5f', '/', '0', '</headerdata>\n', '<custom_operation>', '<row index="%s"/>\n', '<string>', '<xml>%s</xml>', '@LINE@', '@_@TAB_CHAR@_@', 'BY_ID', 'DataFrame', 'Dataset', 'EXECFILE', 'EXPRESSION', 'EagerTensor', 'GLOBAL', 'GeoDataFrame', 'GeoSeries', 'Globals', 'O', 'ResourceVariable', 'Series', 'SparseTensor', 'Tensor', '[', '[0:%s, 0:%s]', '[0:%s]', '[0]', ']', '_%s%s', '__', '__file__', '__name__', 'axes', 'd', 'dumping frames\n', 'eval', 'f', 'i', 'inf', 'nan', 'ndarray', 's', 'u']
