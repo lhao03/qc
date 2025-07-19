@@ -29,14 +29,14 @@ def check_complexity_and_zero(m):
 @dataclass(kw_only=True)
 class Unitary:
     dim: int
-    basis: Basis = Basis.SPIN
+    basis: Basis
 
     @abstractmethod
     def make_unitary_matrix(self):
         raise NotImplementedError
 
     @classmethod
-    def deconstruct_unitary(cls, u: np.ndarray):
+    def deconstruct_unitary(cls, u: np.ndarray, basis: Basis):
         dim = u.shape[0]
         try:
             if u.dtype == int:
@@ -45,10 +45,13 @@ class Unitary:
             thetas_filtered = check_complexity_and_zero(thetas)
             diags_filtered = check_complexity_and_zero(diags_thetas)
             if np.all(diags_filtered == 0):
-                return ReaDeconUnitary(thetas=thetas_filtered, dim=dim)
+                return ReaDeconUnitary(thetas=thetas_filtered, dim=dim, basis=basis)
             else:
                 return ComDeconUnitary(
-                    thetas=thetas_filtered, diag_thetas=diags_filtered, dim=dim
+                    thetas=thetas_filtered,
+                    diag_thetas=diags_filtered,
+                    dim=dim,
+                    basis=basis,
                 )
         except Exception as e:
             raise UserWarning(
@@ -58,17 +61,15 @@ class Unitary:
     def spac2spin(self):
         if self.basis == Basis.SPATIAL:
             self.__dict__.update(
-                Unitary.deconstruct_unitary(spac2spin_mat(self)).__dict__
+                Unitary.deconstruct_unitary(spac2spin_mat(self), Basis.SPIN).__dict__
             )
-            self.basis = Basis.SPIN
         return self
 
     def spin2spac(self):
         if self.basis == Basis.SPIN:
             self.__dict__.update(
-                Unitary.deconstruct_unitary(spin2spac_mat(self)).__dict__
+                Unitary.deconstruct_unitary(spin2spac_mat(self), Basis.SPATIAL).__dict__
             )
-            self.basis = Basis.SPATIAL
         return self
 
 
@@ -110,12 +111,11 @@ def spac2spin_mat(self: Unitary):
     num_spatial = self.dim
     spin_unitary = np.zeros((num_spatial * 2, num_spatial * 2))
     mat = self.make_unitary_matrix()
-    for i in range(num_spatial):
-        for j in range(num_spatial):
-            spin_unitary[2 * i, 2 * j] = mat[i, j]
-            spin_unitary[2 * i - 1, 2 * j - 1] = mat[i, j]
-    self.dim = 2 * num_spatial
-    self.basis = Basis.SPATIAL
+    for i in range(1, num_spatial + 1):
+        for j in range(1, num_spatial + 1):
+            spin_unitary[(2 * i) - 1, (2 * j) - 1] = spin_unitary[
+                (2 * i - 1) - 1, (2 * j - 1) - 1
+            ] = mat[i - 1, j - 1]
     return spin_unitary
 
 
@@ -123,16 +123,15 @@ def spin2spac_mat(self: Unitary):
     num_spat = self.dim // 2
     spac_unitary = np.zeros((num_spat, num_spat))
     mat = self.make_unitary_matrix()
-    for i in range(num_spat):
-        for j in range(num_spat):
-            spin_u = mat[2 * i, 2 * j]
-            spin_uu = mat[2 * i - 1, 2 * j - 1]
+    for i in range(1, num_spat + 1):
+        for j in range(1, num_spat + 1):
+            spin_u = mat[(2 * i) - 1, (2 * j) - 1]
+            spin_uu = mat[(2 * i - 1) - 1, (2 * j - 1) - 1]
             if np.isclose(spin_u, spin_uu):
-                spac_unitary[i, j] = spin_u
+                spac_unitary[i - 1, j - 1] = spin_u
             else:
                 raise UserWarning(
-                    f"Expected u[2i, 2j] = u[2i-1, 2j-1], but got {spin_uu}"
-                    and {spin_u}
+                    f"Expected u[2i, 2j] = u[2i-1, 2j-1], but got {spin_uu} and {spin_u}"
                 )
     return spac_unitary
 

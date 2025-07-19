@@ -5,6 +5,7 @@ import scipy as sp
 from hypothesis import given, example, settings
 from opt_einsum import contract
 
+from d_types.config_types import Basis
 from d_types.unitary_type import (
     extract_thetas,
     make_unitary_im,
@@ -86,8 +87,8 @@ class UnitaryTest(unittest.TestCase):
     @settings(max_examples=3)
     def test_spin2spac(self, u_symm):
         _, u, _ = u_symm
-        spin_u = Unitary.deconstruct_unitary(u)
-        spac_u = Unitary.deconstruct_unitary(u).spin2spac()
+        spin_u = Unitary.deconstruct_unitary(u, basis=Basis.SPIN)
+        spac_u = Unitary.deconstruct_unitary(u, basis=Basis.SPIN).spin2spac()
         np.testing.assert_array_equal(
             spin_u.make_unitary_matrix(), spac_u.spac2spin().make_unitary_matrix()
         )
